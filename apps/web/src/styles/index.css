@@ -1,0 +1,255 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Montra design tokens
+ * ────────────────────
+ * Components reference only these semantic names (bg-surface, text-muted,
+ * border-line, fill-chart-1 …) so both themes stay in lockstep.
+ *
+ * Colour roles
+ *   accent      teal — primary actions, active navigation, focus
+ *   positive    money in, favourable change
+ *   negative    money out where it matters, unfavourable change (restrained)
+ *   chart-1     lavender — the analytical voice of the product (charts, insights)
+ *   chart-track muted slate-blue capsules that sit behind chart-1
+ *
+ * Dark is the signature theme; light mirrors every role.
+ */
+:root {
+  --canvas: #f4f6f7;
+  --sidebar: #eef2f3;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --sunken: #f1f4f5;
+  --hover: #eef2f4;
+  --line: #e1e7ea;
+  --line-soft: #ecf0f2;
+  --line-strong: #cdd6db;
+  --grid: #e8edf0;
+  --selected: #ffffff;
+  --selected-line: #d3dbe0;
+
+  --ink: #0c1a1f;
+  --ink-2: #3a4952;
+  --muted: #64737d;
+  --faint: #98a4ac;
+
+  --accent: #0e9f8e;
+  --accent-hover: #0c8f80;
+  --accent-ink: #ffffff;
+  --accent-soft: #e0f3f0;
+  --accent-line: #a9ded6;
+
+  --positive: #0a8676;
+  --positive-soft: #e3f4f1;
+  --negative: #cc4b50;
+  --negative-soft: #fbeaea;
+  --warning: #b07418;
+  --warning-soft: #fbf1e1;
+
+  --chart-1: #7b5cf0;
+  --chart-1-soft: #ece7fd;
+  --chart-track: #e5e9f2;
+  --chart-2: #9eabc4;
+  --chart-3: #3fb8c0;
+  --chart-4: #12a08c;
+  --chart-5: #4a4fc8;
+  --chart-6: #8a97a8;
+
+  --overlay: rgb(12 26 31 / 0.32);
+  --shadow-pop: 0 18px 40px -16px rgb(12 26 31 / 0.22), 0 2px 6px -2px rgb(12 26 31 / 0.08);
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #071216;
+  --sidebar: #061014;
+  --surface: #0b181d;
+  --raised: #0f1e24;
+  --sunken: #08141a;
+  --hover: #112229;
+  --line: #13252c;
+  --line-soft: #10212a;
+  --line-strong: #1e353e;
+  --grid: #15262e;
+  --selected: #1b2a3e;
+  --selected-line: #2a3b55;
+
+  --ink: #f2f5f7;
+  --ink-2: #b6bfca;
+  --muted: #8593a0;
+  --faint: #56656f;
+
+  --accent: #20c2af;
+  --accent-hover: #3dd1bf;
+  --accent-ink: #03201b;
+  --accent-soft: #0a2c28;
+  --accent-line: #1b5a52;
+
+  --positive: #5dd4bb;
+  --positive-soft: #0c2b28;
+  --negative: #ee7b7b;
+  --negative-soft: #2d171b;
+  --warning: #f0b45b;
+  --warning-soft: #2c2213;
+
+  --chart-1: #9575fa;
+  --chart-1-soft: #201c3d;
+  --chart-track: #1f3044;
+  --chart-2: #435a80;
+  --chart-3: #7cd6dc;
+  --chart-4: #2aa592;
+  --chart-5: #4c4fc4;
+  --chart-6: #5d6f86;
+
+  --overlay: rgb(2 8 10 / 0.6);
+  --shadow-pop: 0 20px 48px -16px rgb(0 0 0 / 0.7), 0 2px 8px -2px rgb(0 0 0 / 0.4);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-sidebar: var(--sidebar);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
+  --color-hover: var(--hover);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
+  --color-grid: var(--grid);
+  --color-selected: var(--selected);
+  --color-selected-line: var(--selected-line);
+
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-negative: var(--negative);
+  --color-negative-soft: var(--negative-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-1-soft: var(--chart-1-soft);
+  --color-chart-track: var(--chart-track);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+
+  --color-overlay: var(--overlay);
+  --shadow-pop: var(--shadow-pop);
+
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
+
+  --radius-control: 10px;
+  --radius-panel: 14px;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-[14px] leading-6 text-ink;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+
+  ::selection {
+    @apply bg-accent-soft text-ink;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+
+  /* Quiet scrollbars that match the surface they sit on */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Uppercase micro-label used above page titles and in table headers */
+@utility eyebrow {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+@utility rounded-control {
+  border-radius: var(--radius-control);
+}
+
+@utility rounded-panel {
+  border-radius: var(--radius-panel);
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

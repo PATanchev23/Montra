@@ -1,0 +1,30 @@
+// Montra data model.
+//
+// Goal 1 introduces only the tenant root (Business). Every financial record
+// added in later goals — accounts, transactions, budgets, suppliers — hangs
+// off a Business and is always queried scoped by businessId.
+//
+// Conventions:
+//   - ids are cuids
+//   - money is stored as integer cents (Int), never floats
+//   - calendar dates use @db.Date; instants use timestamptz
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Business {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  currency  String   @default("EUR") @db.Char(3)
+  timezone  String   @default("Europe/Sofia")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
