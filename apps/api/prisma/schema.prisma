@@ -1,13 +1,15 @@
 // Montra data model.
 //
-// Goal 1 introduces only the tenant root (Business). Every financial record
-// added in later goals — accounts, transactions, budgets, suppliers — hangs
-// off a Business and is always queried scoped by businessId.
+// Business is the tenant root. Every financial record added later hangs off a
+// Business and is always queried scoped by businessId. Users reach a business
+// only through a Membership, which is the single source of truth for access.
 //
 // Conventions:
 //   - ids are cuids
 //   - money is stored as integer cents (Int), never floats
 //   - calendar dates use @db.Date; instants use timestamptz
+//   - invariants Prisma cannot express (CHECK constraints) live in the
+//     migration SQL and are listed in comments next to the field
 
 generator client {
   provider     = "prisma-client"
@@ -19,12 +21,111 @@ datasource db {
   provider = "postgresql"
 }
 
+// ── Identity ─────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  /// Stored trimmed and lower-cased (CHECK constraint), so uniqueness is case-insensitive.
+  email        String   @unique
+  name         String
+  /// argon2id hash. Never selected into API responses.
+  passwordHash String
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  memberships Membership[]
+  sessions    Session[]
+  onboarding  OnboardingProgress?
+}
+
+/// One signed-in device. The refresh token itself lives only in an httpOnly
+/// cookie; the database keeps its SHA-256 hash so a leak cannot be replayed.
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  userAgent String?
+  expiresAt DateTime  @db.Timestamptz(3)
+  /// Set on logout and on rotation; a revoked token presented again signals theft.
+  revokedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── Tenancy ──────────────────────────────────────────────────────────────
+
+enum MembershipRole {
+  /// Full access to the business, including changes.
+  OWNER
+  /// Read-only access (e.g. the competition judges' demo account).
+  VIEWER
+}
+
 model Business {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  name      String
-  currency  String   @default("EUR") @db.Char(3)
-  timezone  String   @default("Europe/Sofia")
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  id                       String   @id @default(cuid())
+  slug                     String   @unique
+  name                     String
+  currency                 String   @default("EUR") @db.Char(3)
+  timezone                 String   @default("Europe/Sofia")
+  /// Free-form business type collected during onboarding, e.g. "Consumer electronics".
+  industry                 String?
+  /// Month the financial year starts, 1–12 (CHECK constraint).
+  fiscalYearStartMonth     Int      @default(1)
+  /// Optional safety buffer for cash-flow warnings, in cents (CHECK >= 0).
+  lowBalanceThresholdCents Int?
+  createdAt                DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime @updatedAt @db.Timestamptz(3)
+
+  memberships Membership[]
+  onboarding  OnboardingProgress?
+}
+
+/// Grants a user access to a business. Every business-scoped API request is
+/// authorised by looking up (userId, businessId) here.
+model Membership {
+  userId     String
+  businessId String
+  role       MembershipRole @default(OWNER)
+  createdAt  DateTime       @default(now()) @db.Timestamptz(3)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@id([userId, businessId])
+  @@index([businessId])
+}
+
+// ── Onboarding ───────────────────────────────────────────────────────────
+
+enum OnboardingStep {
+  BUSINESS_DETAILS
+  FINANCIAL_PREFERENCES
+  REVIEW
+}
+
+/// A user's resumable journey from a fresh account to their first business.
+///
+/// - No row: the user has not started onboarding.
+/// - completedAt null: in progress — resume at currentStep with the saved draft.
+/// - completedAt set: finished; businessId points at the business it created
+///   (CHECK constraint). Deleting that business removes this row, so the user
+///   starts onboarding afresh.
+///
+/// Users who join an existing business (e.g. the VIEWER demo account) need no
+/// onboarding: having a membership is enough.
+model OnboardingProgress {
+  userId      String         @id
+  currentStep OnboardingStep @default(BUSINESS_DETAILS)
+  /// Partial answers, validated by the API's Zod schema on every save.
+  draft       Json           @default("{}")
+  completedAt DateTime?      @db.Timestamptz(3)
+  businessId  String?        @unique
+  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime       @updatedAt @db.Timestamptz(3)
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }

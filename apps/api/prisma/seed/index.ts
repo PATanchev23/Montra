@@ -1,34 +1,34 @@
-// Seeds deterministic TechStore demo data. Safe to run repeatedly: every
-// record is upserted by a stable natural key.
+// Seeds deterministic TechStore demo data. Safe to run repeatedly.
 //
-// Goal 1 seeds only the business itself; transactions, suppliers and budgets
-// are generated here in later goals.
-import { createDb } from '../../src/db';
+// Demo account credentials come only from the environment (see
+// apps/api/.env.example). Accounts that are not configured are skipped.
 import { loadEnv } from '../../src/config/env';
-
-const TECHSTORE = {
-  slug: 'techstore',
-  name: 'TechStore',
-  currency: 'EUR',
-  timezone: 'Europe/Sofia',
-} as const;
+import { createDb } from '../../src/db';
+import { loadSeedConfig } from './config';
+import { seedDatabase } from './techstore';
 
 async function main() {
   const env = loadEnv();
+  const config = loadSeedConfig();
   const db = createDb(env.DATABASE_URL);
   try {
-    const business = await db.business.upsert({
-      where: { slug: TECHSTORE.slug },
-      update: { name: TECHSTORE.name, currency: TECHSTORE.currency, timezone: TECHSTORE.timezone },
-      create: TECHSTORE,
-    });
-    console.log(`Seeded business "${business.name}" (${business.id})`);
+    const summary = await seedDatabase(db, config);
+    console.log(`Seeded business "TechStore" (${summary.businessId})`);
+    for (const account of summary.accounts) {
+      console.log(
+        `  ${account.role.padEnd(6)} ${account.email}${account.passwordChanged ? ' (password set)' : ''}`,
+      );
+    }
+    if (!config.owner)
+      console.log('  OWNER demo account skipped: DEMO_OWNER_EMAIL/PASSWORD not set');
+    if (!config.viewer)
+      console.log('  VIEWER demo account skipped: DEMO_VIEWER_EMAIL/PASSWORD not set');
   } finally {
     await db.$disconnect();
   }
 }
 
 main().catch((error: unknown) => {
-  console.error(error);
+  console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });

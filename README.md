@@ -33,12 +33,25 @@ npm install                          # also generates the Prisma client
 # create the databases (adjust credentials to your install)
 psql -U postgres -c "CREATE DATABASE montra;" -c "CREATE DATABASE montra_test;"
 
-cp apps/api/.env.example apps/api/.env
+cp apps/api/.env.example apps/api/.env  # then set the DEMO_* accounts (see below)
 npm run db:migrate                   # apply migrations
-npm run db:seed                      # load TechStore demo data
+npm run db:seed                      # TechStore business + configured demo accounts
 
 npm run dev                          # API on :4000, web on :5173
 ```
+
+### Demo accounts
+
+The seed creates two TechStore accounts for the competition judges, but only when their
+credentials are set in `apps/api/.env`. Nothing is hard-coded or committed.
+
+| Variables                                                       | Role                                            |
+| --------------------------------------------------------------- | ----------------------------------------------- |
+| `DEMO_OWNER_EMAIL`, `DEMO_OWNER_PASSWORD`, `DEMO_OWNER_NAME`    | OWNER: full access, onboarding already complete |
+| `DEMO_VIEWER_EMAIL`, `DEMO_VIEWER_PASSWORD`, `DEMO_VIEWER_NAME` | VIEWER: read-only access to TechStore           |
+
+Passwords must be 10–128 characters. Re-running the seed is safe: it updates names and roles and
+re-hashes a password only when its configured value changes.
 
 Open http://localhost:5173/status to see the web app, API, and database talking to each other.
 The interactive API reference is at http://localhost:5173/api/docs.
