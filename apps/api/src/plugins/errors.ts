@@ -3,6 +3,7 @@ import type { FastifyError } from 'fastify';
 import fp from 'fastify-plugin';
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 import { STATUS_CODES } from 'node:http';
+import { AppError } from '../lib/app-error';
 
 /** Turns an HTTP status into a stable, machine-readable code, e.g. 404 → NOT_FOUND. */
 function codeForStatus(status: number): string {
@@ -29,6 +30,13 @@ export const errorsPlugin = fp(
           },
         };
         return reply.status(400).send(body);
+      }
+
+      if (error instanceof AppError) {
+        const body: ApiErrorBody = {
+          error: { code: error.code, message: error.message, requestId: request.id },
+        };
+        return reply.status(error.statusCode).headers(error.headers).send(body);
       }
 
       const status = error.statusCode && error.statusCode >= 400 ? error.statusCode : 500;

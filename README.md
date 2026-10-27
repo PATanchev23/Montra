@@ -53,6 +53,21 @@ credentials are set in `apps/api/.env`. Nothing is hard-coded or committed.
 Passwords must be 10–128 characters. Re-running the seed is safe: it updates names and roles and
 re-hashes a password only when its configured value changes.
 
+### Authentication
+
+The API issues a 15-minute access token (sent as `Authorization: Bearer …`) and a 30-day refresh
+token in an HttpOnly, SameSite=Strict cookie scoped to `/api/v1/auth`. Refresh tokens rotate on
+every use and are stored only as SHA-256 hashes; replaying a rotated token revokes all of that
+user's sessions. Registration creates the account and its onboarding; the business is created
+when onboarding completes.
+
+| Variable                                        | Default    | Notes                                                  |
+| ----------------------------------------------- | ---------- | ------------------------------------------------------ |
+| `JWT_SECRET`                                    | random     | **Required in production**: 32+ random characters      |
+| `ACCESS_TOKEN_TTL_MINUTES`                      | `15`       | 1–60                                                   |
+| `REFRESH_TOKEN_TTL_DAYS`                        | `30`       | 1–365                                                  |
+| `AUTH_RATE_LIMIT_MAX`, `REFRESH_RATE_LIMIT_MAX` | `10`, `30` | Requests per IP per minute (register + login, refresh) |
+
 Open http://localhost:5173/status to see the web app, API, and database talking to each other.
 The interactive API reference is at http://localhost:5173/api/docs.
 

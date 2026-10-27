@@ -55,6 +55,20 @@ export const loginRequestSchema = z.object({
 });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
+/**
+ * `error.code` values the auth endpoints add to the standard error envelope.
+ * INVALID_ACCESS_TOKEN means "refresh and retry"; INVALID_REFRESH_TOKEN means
+ * "sign in again".
+ */
+export const AUTH_ERROR_CODES = {
+  /** Wrong email or password; deliberately does not say which. */
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  EMAIL_TAKEN: 'EMAIL_TAKEN',
+  INVALID_ACCESS_TOKEN: 'INVALID_ACCESS_TOKEN',
+  INVALID_REFRESH_TOKEN: 'INVALID_REFRESH_TOKEN',
+} as const;
+export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
+
 /** The signed-in user. Never includes the password hash. */
 export const authUserSchema = z.object({
   id: z.string(),
