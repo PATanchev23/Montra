@@ -17,11 +17,12 @@ export class ApiError extends Error {
   }
 }
 
-interface RequestOptions<S extends z.ZodType> {
+export interface RequestOptions<S extends z.ZodType> {
   schema: S;
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;
   signal?: AbortSignal;
+  headers?: Record<string, string>;
 }
 
 /**
@@ -31,7 +32,7 @@ interface RequestOptions<S extends z.ZodType> {
  */
 export async function apiRequest<S extends z.ZodType>(
   path: string,
-  { schema, method = 'GET', body, signal }: RequestOptions<S>,
+  { schema, method = 'GET', body, signal, headers }: RequestOptions<S>,
 ): Promise<z.output<S>> {
   let response: Response;
   try {
@@ -42,6 +43,7 @@ export async function apiRequest<S extends z.ZodType>(
       headers: {
         Accept: 'application/json',
         ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        ...headers,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });

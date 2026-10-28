@@ -6,6 +6,8 @@ import { ErrorState } from '../../components/ui/States';
 import type { PeriodUnit } from '../../demo/types';
 import { greeting } from '../../lib/format';
 import { useUiStore } from '../../stores/ui';
+import { firstName } from '../auth/access';
+import { useSignedInUser } from '../auth/currentUser';
 import { CashFlowOverview } from './CashFlowOverview';
 import {
   ExpenseBreakdownPanel,
@@ -29,12 +31,13 @@ export function DashboardPage() {
   const period = useUiStore((s) => s.period);
   const setPeriodUnit = useUiStore((s) => s.setPeriodUnit);
   const { data, isError, refetch } = useDashboard(period);
+  const { user } = useSignedInUser();
 
   return (
     <div className="flex flex-col gap-7">
       <PageHeader
         eyebrow="Dashboard"
-        title={`${greeting()}, ${business.owner.name}`}
+        title={`${greeting()}, ${firstName(user.name)}`}
         description={
           <>
             Here’s how {business.name} performed{' '}

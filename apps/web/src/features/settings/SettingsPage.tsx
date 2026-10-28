@@ -13,6 +13,7 @@ import { StatusDot } from '../../components/ui/StatusDot';
 import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
 import { useUiStore, type NotificationPrefs, type ThemePreference } from '../../stores/ui';
+import { useSignedInUser } from '../auth/currentUser';
 import { deriveStatus } from '../status/deriveStatus';
 
 const sections = [
@@ -105,6 +106,8 @@ export function SettingsPage() {
   const setNotification = useUiStore((s) => s.setNotification);
   const health = useHealth();
   const status = deriveStatus(health.data, health.error);
+  const { user, memberships } = useSignedInUser();
+  const membership = memberships[0];
 
   useEffect(() => {
     if (location.hash)
@@ -145,23 +148,27 @@ export function SettingsPage() {
             id="profile"
             title="Profile"
             description="How you appear across Montra."
-            footer={<PendingFooter note="Editing your profile arrives with sign-in." />}
+            footer={<PendingFooter note="Editing your profile arrives in a later release." />}
           >
             <div className="flex items-center gap-4">
               <span className="flex size-14 items-center justify-center rounded-full border border-line-strong bg-raised text-[20px] font-medium text-ink-2">
-                {business.owner.name[0]}
+                {user.name[0]}
               </span>
               <div>
-                <p className="font-medium text-ink">{business.owner.name}</p>
-                <p className="text-[13px] text-muted">Owner · {business.name}</p>
+                <p className="font-medium text-ink">{user.name}</p>
+                {membership && (
+                  <p className="text-[13px] text-muted">
+                    {membership.role === 'OWNER' ? 'Owner' : 'Viewer'} · {membership.business.name}
+                  </p>
+                )}
               </div>
             </div>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <Field label="Full name" htmlFor="name">
-                <Input id="name" defaultValue={business.owner.name} />
+                <Input id="name" defaultValue={user.name} />
               </Field>
               <Field label="Email" htmlFor="email">
-                <Input id="email" type="email" defaultValue={business.owner.email} />
+                <Input id="email" type="email" defaultValue={user.email} />
               </Field>
             </div>
           </Section>

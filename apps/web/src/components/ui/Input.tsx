@@ -1,9 +1,10 @@
 import { Search, X } from 'lucide-react';
 import { forwardRef, type InputHTMLAttributes, type ReactNode } from 'react';
 import { cn } from '../../lib/cn';
+import { fieldErrorId, fieldHintId } from './fieldIds';
 
 const fieldClass =
-  'h-9 w-full min-w-0 rounded-control border border-line bg-raised px-3 text-[13px] text-ink transition-colors placeholder:text-faint hover:border-line-strong focus:border-accent-line focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-accent/40 disabled:cursor-not-allowed disabled:opacity-55';
+  'h-9 w-full min-w-0 rounded-control border border-line bg-raised px-3 text-[13px] text-ink transition-colors placeholder:text-faint hover:border-line-strong focus:border-accent-line focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-accent/40 disabled:cursor-not-allowed disabled:opacity-55 aria-invalid:border-negative aria-invalid:focus-visible:outline-negative/40';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
@@ -52,11 +53,14 @@ export const SearchField = forwardRef<
 export function Field({
   label,
   hint,
+  error,
   children,
   htmlFor,
 }: {
   label: string;
   hint?: ReactNode;
+  /** Replaces the hint while set. */
+  error?: string;
   children: ReactNode;
   htmlFor: string;
 }) {
@@ -66,7 +70,17 @@ export function Field({
         {label}
       </label>
       {children}
-      {hint && <p className="text-[12px] text-faint">{hint}</p>}
+      {error ? (
+        <p id={fieldErrorId(htmlFor)} className="text-[12px] text-negative">
+          {error}
+        </p>
+      ) : (
+        hint && (
+          <p id={fieldHintId(htmlFor)} className="text-[12px] text-faint">
+            {hint}
+          </p>
+        )
+      )}
     </div>
   );
 }

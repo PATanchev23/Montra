@@ -2,6 +2,7 @@ import {
   Activity,
   Check,
   ChevronRight,
+  LogOut,
   Monitor,
   Moon,
   PanelLeftClose,
@@ -11,8 +12,9 @@ import {
   Sun,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import type { MembershipRole } from '@montra/shared';
 import { NavLink, useNavigate } from 'react-router';
-import { business } from '../api/finance';
+import { useLogout } from '../api/auth';
 import { Logo } from '../components/Logo';
 import { IconButton } from '../components/ui/IconButton';
 import {
@@ -24,6 +26,7 @@ import {
   MenuTrigger,
 } from '../components/ui/Menu';
 import { Tooltip } from '../components/ui/Tooltip';
+import { useSignedInUser } from '../features/auth/currentUser';
 import { cn } from '../lib/cn';
 import { useUiStore, type ThemePreference } from '../stores/ui';
 import { primaryNav, secondaryNav, type NavItem } from './navigation';
@@ -87,11 +90,14 @@ const themes: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
   { value: 'system', label: 'System', icon: Monitor },
 ];
 
+const roleLabels: Record<MembershipRole, string> = { OWNER: 'Owner', VIEWER: 'Viewer' };
+
 function AccountMenu({ collapsed }: { collapsed: boolean }) {
   const navigate = useNavigate();
   const theme = useUiStore((s) => s.theme);
   const setTheme = useUiStore((s) => s.setTheme);
-  const { owner } = business;
+  const { user } = useSignedInUser();
+  const logout = useLogout();
 
   return (
     <Menu>
@@ -103,12 +109,12 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
         aria-label="Account and appearance"
       >
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-line-strong bg-raised text-[14px] font-medium text-ink-2">
-          {owner.name[0]}
+          {user.name[0]}
         </span>
         {!collapsed && (
           <span className="min-w-0 flex-1 leading-tight">
-            <span className="block truncate text-[13px] font-medium text-ink">{owner.name}</span>
-            <span className="block truncate text-[12px] text-muted">{owner.email}</span>
+            <span className="block truncate text-[13px] font-medium text-ink">{user.name}</span>
+            <span className="block truncate text-[12px] text-muted">{user.email}</span>
           </span>
         )}
         {!collapsed && <Settings className="size-4 shrink-0 text-muted" strokeWidth={1.75} />}
@@ -131,6 +137,11 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
           <Activity />
           System status
         </MenuItem>
+        <MenuSeparator />
+        <MenuItem disabled={logout.isPending} onSelect={() => logout.mutate()}>
+          <LogOut />
+          Sign out
+        </MenuItem>
       </MenuContent>
     </Menu>
   );
@@ -147,6 +158,8 @@ export function Sidebar({
   onNavigate?: () => void;
   className?: string;
 }) {
+  const [membership] = useSignedInUser().memberships;
+
   return (
     <div className={cn('flex h-full flex-col px-4 pt-6 pb-4', collapsed && 'px-3', className)}>
       <div
@@ -179,7 +192,7 @@ export function Sidebar({
       </div>
 
       <div className="mt-auto flex flex-col gap-3 pt-6">
-        {!collapsed && (
+        {!collapsed && membership && (
           <NavLink
             to="/settings#business"
             onClick={onNavigate}
@@ -190,9 +203,11 @@ export function Sidebar({
             </span>
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate text-[13px] font-medium text-ink">
-                {business.name}
+                {membership.business.name}
               </span>
-              <span className="block truncate text-[12px] text-muted">{business.kind}</span>
+              <span className="block truncate text-[12px] text-muted">
+                {roleLabels[membership.role]} · {membership.business.currency}
+              </span>
             </span>
             <ChevronRight
               className="size-4 text-muted transition-transform group-hover:translate-x-0.5"
