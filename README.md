@@ -68,6 +68,22 @@ when onboarding completes.
 | `REFRESH_TOKEN_TTL_DAYS`                        | `30`       | 1–365                                                  |
 | `AUTH_RATE_LIMIT_MAX`, `REFRESH_RATE_LIMIT_MAX` | `10`, `30` | Requests per IP per minute (register + login, refresh) |
 
+### Onboarding
+
+A new account has no business yet. The signed-in user sets one up through `/api/v1/onboarding`:
+
+| Endpoint                      | What it does                                                              |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| `GET /onboarding`             | Current step, status and saved draft, to resume where the user left off   |
+| `PUT /onboarding`             | Saves the current step and replaces the draft (partial, but validated)    |
+| `POST /onboarding/complete`   | Creates the business and the user's OWNER membership from the saved draft |
+| `GET /businesses/:businessId` | A business the caller belongs to, with their role (404 for anyone else)   |
+
+Completion runs in one transaction and succeeds once per user: repeated or concurrent submissions
+get `409 ONBOARDING_ALREADY_COMPLETED`, and an incomplete draft gets `422 ONBOARDING_INCOMPLETE`
+with the missing fields. Access to the app comes from memberships, so VIEWER accounts (such as the
+judges' demo account) never need to onboard.
+
 Open http://localhost:5173/status to see the web app, API, and database talking to each other.
 The interactive API reference is at http://localhost:5173/api/docs.
 

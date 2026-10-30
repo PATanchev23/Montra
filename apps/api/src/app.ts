@@ -17,7 +17,9 @@ import { randomUUID } from 'node:crypto';
 import type { Env } from './config/env';
 import { AppError } from './lib/app-error';
 import { authRoutes } from './modules/auth/routes';
+import { businessRoutes } from './modules/businesses/routes';
 import { healthRoutes } from './modules/health/routes';
+import { onboardingRoutes } from './modules/onboarding/routes';
 import { authPlugin } from './plugins/auth';
 import { errorsPlugin } from './plugins/errors';
 import { prismaPlugin } from './plugins/prisma';
@@ -112,6 +114,8 @@ export async function buildApp(env: Env) {
 
   await app.register(healthRoutes, { prefix: API_PREFIX, version: VERSION });
   await app.register(authRoutes, { prefix: `${API_PREFIX}/auth`, env });
+  await app.register(onboardingRoutes, { prefix: `${API_PREFIX}/onboarding` });
+  await app.register(businessRoutes, { prefix: `${API_PREFIX}/businesses` });
 
   return app;
 }

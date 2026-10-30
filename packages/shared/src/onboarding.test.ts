@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  businessResponseSchema,
   canonicalTimeZone,
   currencySchema,
   membershipSummarySchema,
@@ -53,6 +54,39 @@ describe('business fields', () => {
     };
     expect(membershipSummarySchema.parse(membership)).toEqual(membership);
     expect(membershipSummarySchema.safeParse({ ...membership, role: 'owner' }).success).toBe(false);
+  });
+});
+
+describe('businessResponseSchema', () => {
+  const response = {
+    role: 'OWNER',
+    business: {
+      id: 'biz_1',
+      slug: 'techstore',
+      name: 'TechStore',
+      currency: 'EUR',
+      timezone: 'Europe/Sofia',
+      industry: null,
+      fiscalYearStartMonth: 4,
+      lowBalanceThresholdCents: null,
+    },
+  };
+
+  it('describes a business with its onboarding settings and the caller’s role', () => {
+    expect(businessResponseSchema.parse(response)).toEqual(response);
+  });
+
+  it('rejects settings the database would not hold', () => {
+    const withBusiness = (overrides: object) => ({
+      ...response,
+      business: { ...response.business, ...overrides },
+    });
+    expect(
+      businessResponseSchema.safeParse(withBusiness({ fiscalYearStartMonth: 0 })).success,
+    ).toBe(false);
+    expect(
+      businessResponseSchema.safeParse(withBusiness({ lowBalanceThresholdCents: -5 })).success,
+    ).toBe(false);
   });
 });
 

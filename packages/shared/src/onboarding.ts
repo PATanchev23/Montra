@@ -7,6 +7,18 @@ import {
   timeZoneSchema,
 } from './business';
 
+/** `error.code` values the onboarding endpoints add to the standard error envelope. */
+export const ONBOARDING_ERROR_CODES = {
+  /** Onboarding already created this user's business; it cannot be changed or repeated. */
+  ALREADY_COMPLETED: 'ONBOARDING_ALREADY_COMPLETED',
+  /** The saved draft is missing required answers; `details` lists them like VALIDATION_ERROR. */
+  INCOMPLETE: 'ONBOARDING_INCOMPLETE',
+  /** The draft was saved again while completing; nothing was created. Review and retry. */
+  CHANGED: 'ONBOARDING_CHANGED',
+} as const;
+export type OnboardingErrorCode =
+  (typeof ONBOARDING_ERROR_CODES)[keyof typeof ONBOARDING_ERROR_CODES];
+
 /** Mirrors the database's OnboardingStep enum, in the order the user walks through it. */
 export const onboardingStepSchema = z.enum(['BUSINESS_DETAILS', 'FINANCIAL_PREFERENCES', 'REVIEW']);
 export type OnboardingStep = z.infer<typeof onboardingStepSchema>;

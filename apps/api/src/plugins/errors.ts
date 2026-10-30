@@ -34,7 +34,12 @@ export const errorsPlugin = fp(
 
       if (error instanceof AppError) {
         const body: ApiErrorBody = {
-          error: { code: error.code, message: error.message, requestId: request.id },
+          error: {
+            code: error.code,
+            message: error.message,
+            ...(error.details !== undefined && { details: error.details }),
+            requestId: request.id,
+          },
         };
         return reply.status(error.statusCode).headers(error.headers).send(body);
       }

@@ -68,3 +68,20 @@ export const membershipSummarySchema = z.object({
   business: businessSummarySchema,
 });
 export type MembershipSummary = z.infer<typeof membershipSummarySchema>;
+
+/** A business with the settings chosen during onboarding. */
+export const businessProfileSchema = businessSummarySchema.extend({
+  industry: z.string().nullable(),
+  /** Month the financial year starts, 1 (January) to 12. */
+  fiscalYearStartMonth: z.int().min(1).max(12),
+  /** Warn when the projected balance drops below this many cents; null means no warning. */
+  lowBalanceThresholdCents: z.int().min(0).nullable(),
+});
+export type BusinessProfile = z.infer<typeof businessProfileSchema>;
+
+/** GET /businesses/:businessId: the business, and the caller's role in it. */
+export const businessResponseSchema = z.object({
+  role: membershipRoleSchema,
+  business: businessProfileSchema,
+});
+export type BusinessResponse = z.infer<typeof businessResponseSchema>;

@@ -42,7 +42,7 @@ export interface AuthPluginOptions {
 
 const invalidAccessToken = () =>
   new AppError(401, AUTH_ERROR_CODES.INVALID_ACCESS_TOKEN, 'Sign in to continue.', {
-    'WWW-Authenticate': 'Bearer',
+    headers: { 'WWW-Authenticate': 'Bearer' },
   });
 
 /** The authenticated caller; only valid in routes guarded by `app.authenticate`. */
