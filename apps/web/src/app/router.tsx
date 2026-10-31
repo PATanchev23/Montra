@@ -4,7 +4,6 @@ import { GuestOnly, RequireAuth, RequireBusiness } from '../features/auth/guards
 import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
-import { OnboardingPendingPage } from '../features/onboarding/OnboardingPendingPage';
 import { AppLoading } from './AppLoading';
 import { AppShell } from './AppShell';
 import { NotFoundPage } from './NotFoundPage';
@@ -61,7 +60,7 @@ const appRoutes: RouteObject[] = [
 /*
  * Sign-in, registration and the dashboard ship in the main bundle; every other
  * page loads on demand. The financial app needs a signed-in user with a
- * business; users still setting one up wait at /onboarding.
+ * business; users without one set it up at /onboarding.
  */
 export const router = createBrowserRouter([
   {
@@ -83,7 +82,12 @@ export const router = createBrowserRouter([
       {
         element: <RequireAuth />,
         children: [
-          { path: 'onboarding', element: <OnboardingPendingPage /> },
+          {
+            path: 'onboarding',
+            lazy: async () => ({
+              Component: (await import('../features/onboarding/OnboardingPage')).OnboardingPage,
+            }),
+          },
           {
             element: <RequireBusiness />,
             children: [{ element: <AppShell />, children: appRoutes }],

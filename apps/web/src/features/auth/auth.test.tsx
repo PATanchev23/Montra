@@ -1,86 +1,28 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMemoryRouter, Outlet, useLocation } from 'react-router';
-import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { useLogout } from '../../api/auth';
-import { resetSessionForTests, restoreSession } from '../../api/session';
-import { Providers } from '../../app/Providers';
+import { resetSessionForTests } from '../../api/session';
 import { useToastStore } from '../../stores/toasts';
-import { apiError, authBody, jsonResponse, mockApi, noBusiness, profile } from '../../test/authApi';
-import { OnboardingPendingPage } from '../onboarding/OnboardingPendingPage';
-import { AuthLayout } from './AuthLayout';
-import { useSignedInUser } from './currentUser';
-import { GuestOnly, RequireAuth, RequireBusiness } from './guards';
-import { LoginPage } from './LoginPage';
-import { RegisterPage } from './RegisterPage';
+import {
+  apiError,
+  authBody,
+  jsonResponse,
+  mockApi,
+  newProgress,
+  noBusiness,
+  profile,
+} from '../../test/authApi';
+import { renderApp } from '../../test/renderApp';
 
 const REFRESH = 'POST /api/v1/auth/refresh';
 const LOGIN = 'POST /api/v1/auth/login';
 const REGISTER = 'POST /api/v1/auth/register';
 const LOGOUT = 'POST /api/v1/auth/logout';
 const ME = 'GET /api/v1/auth/me';
+const ONBOARDING = 'GET /api/v1/onboarding';
 
 const noSession = () =>
   apiError(401, 'INVALID_REFRESH_TOKEN', 'Your session has ended. Sign in again.');
-
-/** Stands in for the financial app: shows where we are and who is signed in. */
-function AppPage() {
-  const { user } = useSignedInUser();
-  const location = useLocation();
-  const logout = useLogout();
-  return (
-    <div>
-      <h1>App {location.pathname}</h1>
-      <p>Signed in as {user.name}</p>
-      <button onClick={() => logout.mutate()}>Sign out</button>
-    </div>
-  );
-}
-
-/** The real guards and pages, with the shell replaced by AppPage. */
-function renderApp(path: string) {
-  const router = createMemoryRouter(
-    [
-      {
-        children: [
-          {
-            element: <GuestOnly />,
-            children: [
-              {
-                element: <AuthLayout />,
-                children: [
-                  { path: 'login', element: <LoginPage /> },
-                  { path: 'register', element: <RegisterPage /> },
-                ],
-              },
-            ],
-          },
-          {
-            element: <RequireAuth />,
-            children: [
-              { path: 'onboarding', element: <OnboardingPendingPage /> },
-              {
-                element: <RequireBusiness />,
-                children: [
-                  { element: <Outlet />, children: [{ path: '*', element: <AppPage /> }] },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-    { initialEntries: [path] },
-  );
-  restoreSession();
-  render(
-    <Providers>
-      <RouterProvider router={router} />
-    </Providers>,
-  );
-  return router;
-}
 
 const user = () => userEvent.setup();
 
@@ -131,18 +73,18 @@ describe('protected navigation', () => {
     expect(await screen.findByRole('heading', { name: 'App /budgets' })).toBeInTheDocument();
   });
 
-  it('holds users without a business on the onboarding page', async () => {
+  it('sends users without a business to business setup', async () => {
     mockApi({
       [REFRESH]: () => jsonResponse(authBody(profile(noBusiness()))),
       [ME]: () => jsonResponse(profile(noBusiness())),
+      [ONBOARDING]: () => jsonResponse(newProgress()),
     });
     const router = renderApp('/');
 
     expect(
-      await screen.findByRole('heading', { name: 'Let’s set up your business, Ana' }),
+      await screen.findByRole('heading', { name: 'Tell us about your business' }),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/onboarding');
-    expect(screen.getByText('Not started')).toBeInTheDocument();
   });
 
   it('lets a viewer, who never onboards, into the app', async () => {
@@ -312,14 +254,16 @@ describe('registration form', () => {
       [REFRESH]: noSession,
       [REGISTER]: () => jsonResponse(authBody(created), 201),
       [ME]: () => jsonResponse(created),
+      [ONBOARDING]: () => jsonResponse(newProgress()),
     });
     const router = renderApp('/register');
 
     await fillRegistration();
 
     expect(
-      await screen.findByRole('heading', { name: 'Let’s set up your business, Ana' }),
+      await screen.findByRole('heading', { name: 'Tell us about your business' }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/^Welcome, Ana\./)).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/onboarding');
     expect(await screen.findByText('Account created')).toBeInTheDocument();
     expect(JSON.parse(api.calls(REGISTER)[0]![1]!.body as string)).toEqual({

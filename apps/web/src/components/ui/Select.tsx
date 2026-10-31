@@ -50,7 +50,10 @@ export function Select<T extends string>({
         <RadixSelect.Content
           position="popper"
           sideOffset={6}
-          className={cn(popoverSurface, 'min-w-[var(--radix-select-trigger-width)]')}
+          className={cn(
+            popoverSurface,
+            'max-h-[min(20rem,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)]',
+          )}
         >
           <RadixSelect.Viewport>
             {options.map((option) => (

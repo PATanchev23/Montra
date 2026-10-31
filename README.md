@@ -84,6 +84,10 @@ get `409 ONBOARDING_ALREADY_COMPLETED`, and an incomplete draft gets `422 ONBOAR
 with the missing fields. Access to the app comes from memberships, so VIEWER accounts (such as the
 judges' demo account) never need to onboard.
 
+In the web app, users without a business land on `/onboarding`: business details, financial
+preferences, then a review. Each Continue saves to the API, so setup resumes at the same step on any
+device; the dashboard opens only after the API confirms the business was created.
+
 Open http://localhost:5173/status to see the web app, API, and database talking to each other.
 The interactive API reference is at http://localhost:5173/api/docs.
 

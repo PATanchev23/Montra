@@ -1,4 +1,4 @@
-import type { AuthResponse, CurrentUserResponse } from '@montra/shared';
+import type { AuthResponse, CurrentUserResponse, OnboardingProgress } from '@montra/shared';
 import { vi } from 'vitest';
 
 /* A fake Montra auth API for tests: routes fetch calls by "METHOD /path". */
@@ -35,6 +35,16 @@ export const profile = (overrides: Partial<CurrentUserResponse> = {}): CurrentUs
 export const noBusiness = (): Partial<CurrentUserResponse> => ({
   memberships: [],
   onboarding: { status: 'NOT_STARTED', currentStep: 'BUSINESS_DETAILS' },
+});
+
+/** GET /onboarding for a user who has not saved anything yet. */
+export const newProgress = (overrides: Partial<OnboardingProgress> = {}): OnboardingProgress => ({
+  status: 'NOT_STARTED',
+  currentStep: 'BUSINESS_DETAILS',
+  draft: {},
+  completedAt: null,
+  businessId: null,
+  ...overrides,
 });
 
 let tokenCounter = 0;

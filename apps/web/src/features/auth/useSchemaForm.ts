@@ -41,6 +41,19 @@ export function useSchemaForm<S extends z.ZodObject>(
     };
   }
 
+  /** For controls without an input event, such as selects. Counts as visiting the field. */
+  function setValue(name: Name, value: string) {
+    setValues((v) => ({ ...v, [name]: value }));
+    setTouched((t) => ({ ...t, [name]: true }));
+  }
+
+  /** Replaces every value (e.g. with answers saved elsewhere) and hides errors until the next submit. */
+  function reset(next: Record<Name, string>) {
+    setValues(next);
+    setTouched({});
+    setSubmitted(false);
+  }
+
   /** Calls `onValid` with the parsed (normalised) values, or focuses the first invalid field. */
   function handleSubmit(onValid: (data: z.output<S>) => void) {
     return (event: FormEvent<HTMLFormElement>) => {
@@ -56,5 +69,7 @@ export function useSchemaForm<S extends z.ZodObject>(
     };
   }
 
-  return { values, errors, register, handleSubmit };
+  return { values, errors, register, setValue, reset, handleSubmit };
 }
+
+export type SchemaForm<S extends z.ZodObject> = ReturnType<typeof useSchemaForm<S>>;
