@@ -101,6 +101,34 @@ describe('protected navigation', () => {
     expect(await screen.findByRole('heading', { name: 'App /' })).toBeInTheDocument();
   });
 
+  it('signs a viewer in straight to the dashboard, never to business setup', async () => {
+    const viewer = profile({
+      user: { id: 'user-2', email: 'judge@example.com', name: 'Competition Judge' },
+      memberships: [{ ...profile().memberships[0]!, role: 'VIEWER' }],
+      onboarding: { status: 'NOT_STARTED', currentStep: 'BUSINESS_DETAILS' },
+    });
+    const api = mockApi({
+      [REFRESH]: noSession,
+      [LOGIN]: () => jsonResponse(authBody(viewer)),
+      [ME]: () => jsonResponse(viewer),
+    });
+    const router = renderApp('/login');
+    const u = user();
+
+    await u.type(await screen.findByLabelText('Email'), 'judge@example.com');
+    await u.type(screen.getByLabelText('Password'), 'viewer password');
+    await u.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByRole('heading', { name: 'App /' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/');
+    expect(screen.getByText('Signed in as Competition Judge')).toBeInTheDocument();
+    // mockApi fails any unrouted call, so onboarding was never even fetched.
+    expect(api.fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/onboarding'),
+      expect.anything(),
+    );
+  });
+
   it('keeps signed-in users away from the sign-in page', async () => {
     mockApi({
       [REFRESH]: () => jsonResponse(authBody()),
