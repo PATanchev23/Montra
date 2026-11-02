@@ -19,7 +19,9 @@ import { AppError } from './lib/app-error';
 import { authRoutes } from './modules/auth/routes';
 import { businessRoutes } from './modules/businesses/routes';
 import { healthRoutes } from './modules/health/routes';
+import { importRoutes, importTemplateRoutes } from './modules/imports/routes';
 import { onboardingRoutes } from './modules/onboarding/routes';
+import { transactionRoutes } from './modules/transactions/routes';
 import { authPlugin } from './plugins/auth';
 import { errorsPlugin } from './plugins/errors';
 import { prismaPlugin } from './plugins/prisma';
@@ -116,6 +118,11 @@ export async function buildApp(env: Env) {
   await app.register(authRoutes, { prefix: `${API_PREFIX}/auth`, env });
   await app.register(onboardingRoutes, { prefix: `${API_PREFIX}/onboarding` });
   await app.register(businessRoutes, { prefix: `${API_PREFIX}/businesses` });
+  await app.register(transactionRoutes, {
+    prefix: `${API_PREFIX}/businesses/:businessId/transactions`,
+  });
+  await app.register(importRoutes, { prefix: `${API_PREFIX}/businesses/:businessId/imports` });
+  await app.register(importTemplateRoutes, { prefix: `${API_PREFIX}/imports` });
 
   return app;
 }

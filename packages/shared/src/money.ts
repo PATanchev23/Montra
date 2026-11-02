@@ -5,6 +5,9 @@
  */
 export type Cents = number;
 
+/** Largest value a Postgres `integer` column (where cents are stored) can hold. */
+export const MAX_CENTS = 2_147_483_647;
+
 export const DEFAULT_CURRENCY = 'EUR';
 export const DEFAULT_LOCALE = 'en-IE';
 

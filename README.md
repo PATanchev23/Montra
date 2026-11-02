@@ -88,6 +88,34 @@ In the web app, users without a business land on `/onboarding`: business details
 preferences, then a review. Each Continue saves to the API, so setup resumes at the same step on any
 device; the dashboard opens only after the API confirms the business was created.
 
+### Transactions and imports
+
+Transactions live under `/api/v1/businesses/:businessId/transactions`: list (filter by `type`,
+`category`, `from`/`to`; sort; paginate), read, create, `PATCH` and `DELETE`. Amounts are positive
+integer cents in the business currency; `type` (`INCOME` or `EXPENSE`) gives the direction. Members
+can read; only the OWNER can change anything, and the role is checked before a request body is read.
+
+Owners bring in existing data under `/api/v1/businesses/:businessId/imports`, from the official
+Montra template (`MONTRA_TEMPLATE`, CSV or XLSX) or any other CSV (`GENERIC_CSV`) or Excel workbook
+(`GENERIC_EXCEL`), in three steps:
+
+1. **Upload** a `.csv` or `.xlsx` (at most 5 MB, 5,000 rows) as the raw request body, with
+   `?source=` and `&fileName=`. The response previews every record: valid, invalid (with row-level
+   reasons and the original cells), duplicate, or possible duplicate, plus a summary.
+2. **Map** columns (`PUT …/:importId/mapping`). Montra suggests a mapping from the headers, in
+   English and Bulgarian (ignoring case, brackets and a trailing currency, so “Amount (EUR)” and
+   “Сума, лв.” both map to the amount), and detects the date format and decimal separator where
+   they are unambiguous. Without a type column, negative amounts are expenses. The preview's
+   notices say how the file is read and which columns are left out.
+3. **Confirm** (`POST …/:importId/confirm`). Nothing is saved before this; then every valid
+   record is saved in one database transaction. `DELETE …/:importId` cancels instead.
+
+The file itself is never stored: its parsed cells are kept only until the import is confirmed,
+cancelled, or expires after 24 hours. Records with an external id (an External ID column) are never
+imported twice. Records without one that match an existing transaction's date, type, amount and
+description are flagged as possible duplicates and left out unless the owner includes them. The
+template is at `/api/v1/imports/template?format=xlsx` (or `csv`).
+
 Open http://localhost:5173/status to see the web app, API, and database talking to each other.
 The interactive API reference is at http://localhost:5173/api/docs.
 

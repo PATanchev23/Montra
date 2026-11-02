@@ -9,7 +9,7 @@ export function useTestDb(): Db {
   const db = createDb(process.env.DATABASE_URL!);
   beforeEach(async () => {
     await db.$executeRawUnsafe(
-      'TRUNCATE "OnboardingProgress", "Membership", "Session", "User", "Business" CASCADE',
+      'TRUNCATE "Transaction", "ImportBatch", "OnboardingProgress", "Membership", "Session", "User", "Business" CASCADE',
     );
   });
   afterAll(() => db.$disconnect());

@@ -6,6 +6,7 @@ import {
   membershipSummarySchema,
   timeZoneSchema,
 } from './business';
+import { MAX_CENTS } from './money';
 
 /** `error.code` values the onboarding endpoints add to the standard error envelope. */
 export const ONBOARDING_ERROR_CODES = {
@@ -29,9 +30,6 @@ export type OnboardingStep = z.infer<typeof onboardingStepSchema>;
  */
 export const onboardingStatusSchema = z.enum(['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED']);
 export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
-
-/** Largest value a Postgres `integer` column (where cents are stored) can hold. */
-const MAX_INT4 = 2_147_483_647;
 
 export const businessDetailsSchema = z.object({
   name: businessNameSchema,
@@ -58,7 +56,7 @@ export const financialPreferencesSchema = z.object({
   lowBalanceThresholdCents: z
     .int('Enter a whole amount in cents.')
     .min(0, 'The threshold cannot be negative.')
-    .max(MAX_INT4, 'The threshold is too large.')
+    .max(MAX_CENTS, 'The threshold is too large.')
     .nullable()
     .optional(),
 });

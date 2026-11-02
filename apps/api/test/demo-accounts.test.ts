@@ -175,6 +175,49 @@ describe('demo accounts', () => {
     });
   });
 
+  it('VIEWER is refused every business write route, and an outsider cannot find them', async () => {
+    const viewer = await login(VIEWER);
+    const outsider = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: { name: 'Outsider', email: 'outsider@demo.example', password: 'outsider-password' },
+    });
+    const outsiderToken = authResponseSchema.parse(outsider.json()).accessToken;
+    const transaction = await db.transaction.create({
+      data: {
+        businessId: techstoreId,
+        type: 'INCOME',
+        amountCents: 1000,
+        description: 'Sale',
+        category: 'Sales',
+        date: new Date('2026-10-01'),
+      },
+    });
+    const before = await db.transaction.findMany({ orderBy: { id: 'asc' } });
+
+    const routes = writeRoutes(app).filter((route) => route.includes('{businessId}'));
+    expect(routes.length).toBeGreaterThan(0);
+    for (const route of routes) {
+      const [method, path] = route.split(' ') as ['POST' | 'PUT' | 'PATCH' | 'DELETE', string];
+      const url = path
+        .replace('{businessId}', techstoreId)
+        .replace('{transactionId}', transaction.id)
+        .replace(/\{\w+\}/g, 'some-id');
+      const send = (token: string) =>
+        app.inject({
+          method,
+          url: `${url}?source=GENERIC_CSV&fileName=x.csv`,
+          headers: { ...bearer(token), 'content-type': 'text/csv' },
+          payload: 'Date,Description,Amount\n2026-10-01,Sale,10\n',
+        });
+      expect((await send(viewer.accessToken)).statusCode, `VIEWER ${route}`).toBe(403);
+      expect((await send(outsiderToken)).statusCode, `outsider ${route}`).toBe(404);
+    }
+
+    expect(await db.transaction.findMany({ orderBy: { id: 'asc' } })).toEqual(before);
+    expect(await db.importBatch.count()).toBe(0);
+  });
+
   describe('both accounts', () => {
     it.each([
       ['OWNER', OWNER],
@@ -226,6 +269,19 @@ describe('demo accounts', () => {
   });
 });
 
+/** Every route that changes data, from the OpenAPI document, as "METHOD /path". */
+function writeRoutes(app: App): string[] {
+  const paths = (app.swagger() as { paths: Record<string, Record<string, unknown>> }).paths;
+  return Object.entries(paths)
+    .flatMap(([path, methods]) =>
+      Object.keys(methods)
+        .map((method) => method.toUpperCase())
+        .filter((method) => !['GET', 'HEAD', 'OPTIONS'].includes(method))
+        .map((method) => `${method} ${path.replace(/\/$/, '')}`),
+    )
+    .sort();
+}
+
 describe('write surface of the API', () => {
   let app: App;
   beforeAll(async () => {
@@ -234,26 +290,24 @@ describe('write surface of the API', () => {
   afterAll(() => app.close());
 
   /*
-   * Every route that changes data. None takes a business id: they act only on
-   * the caller's own account and onboarding, so no role can change an
-   * existing business. A new write route must check the caller's role (OWNER
-   * for business changes) and be added here with tests for both roles.
+   * Account and onboarding writes act only on the caller. Every write under
+   * /businesses/{businessId} must be OWNER-only: the test below calls each of
+   * them as the demo viewer. A new write route must be added here.
    */
-  it('has only account and onboarding writes, none on an existing business', () => {
-    const paths = (app.swagger() as { paths: Record<string, Record<string, unknown>> }).paths;
-    const writes = Object.entries(paths).flatMap(([path, methods]) =>
-      Object.keys(methods)
-        .map((method) => method.toUpperCase())
-        .filter((method) => !['GET', 'HEAD', 'OPTIONS'].includes(method))
-        .map((method) => `${method} ${path.replace(/\/$/, '')}`),
-    );
-
-    expect(writes.sort()).toEqual([
+  it('lists every write route', () => {
+    expect(writeRoutes(app)).toEqual([
+      'DELETE /api/v1/businesses/{businessId}/imports/{importId}',
+      'DELETE /api/v1/businesses/{businessId}/transactions/{transactionId}',
+      'PATCH /api/v1/businesses/{businessId}/transactions/{transactionId}',
       'POST /api/v1/auth/login',
       'POST /api/v1/auth/logout',
       'POST /api/v1/auth/refresh',
       'POST /api/v1/auth/register',
+      'POST /api/v1/businesses/{businessId}/imports',
+      'POST /api/v1/businesses/{businessId}/imports/{importId}/confirm',
+      'POST /api/v1/businesses/{businessId}/transactions',
       'POST /api/v1/onboarding/complete',
+      'PUT /api/v1/businesses/{businessId}/imports/{importId}/mapping',
       'PUT /api/v1/onboarding',
     ]);
   });

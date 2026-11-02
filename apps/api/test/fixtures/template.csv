@@ -1,0 +1,9 @@
+Date,Type,Amount,Description,Category,Currency,External ID
+2026-10-01,Income,1500.00,Wholesale order,Sales,EUR,INV-1
+2026-10-02,Expense,89.99,Website hosting,Software,,
+2026-10-03,Expense,abc,Broken amount,Software,,
+2026-10-04,Income,10.00,,Sales,,
+2026-31-12,Expense,5.00,Typo date,Other,,
+2026-10-05,Expense,20.00,Paid in dollars,Other,USD,
+2026-10-06,Expense,15.50,Coffee beans,Supplies,,
+2026-10-06,Expense,15.50,Coffee beans,Supplies,,

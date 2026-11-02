@@ -1,6 +1,6 @@
 // Montra data model.
 //
-// Business is the tenant root. Every financial record added later hangs off a
+// Business is the tenant root. Every financial record hangs off a
 // Business and is always queried scoped by businessId. Users reach a business
 // only through a Membership, which is the single source of truth for access.
 //
@@ -36,6 +36,7 @@ model User {
   memberships Membership[]
   sessions    Session[]
   onboarding  OnboardingProgress?
+  imports     ImportBatch[]
 }
 
 /// One signed-in device. The refresh token itself lives only in an httpOnly
@@ -79,8 +80,10 @@ model Business {
   createdAt                DateTime @default(now()) @db.Timestamptz(3)
   updatedAt                DateTime @updatedAt @db.Timestamptz(3)
 
-  memberships Membership[]
-  onboarding  OnboardingProgress?
+  memberships  Membership[]
+  onboarding   OnboardingProgress?
+  transactions Transaction[]
+  imports      ImportBatch[]
 }
 
 /// Grants a user access to a business. Every business-scoped API request is
@@ -128,4 +131,119 @@ model OnboardingProgress {
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   business Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+// ── Money ────────────────────────────────────────────────────────────────
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+/// Where imported data came from. Transactions entered by hand have none.
+enum ImportSource {
+  /// The official Montra template (CSV or XLSX).
+  MONTRA_TEMPLATE
+  /// Any other CSV, read through a column mapping.
+  GENERIC_CSV
+  /// Any other XLSX workbook (first sheet), read through a column mapping.
+  GENERIC_EXCEL
+}
+
+/// One movement of money into or out of a business, in the business currency.
+model Transaction {
+  id            String          @id @default(cuid())
+  businessId    String
+  type          TransactionType
+  /// Always positive, in cents (CHECK > 0); `type` gives the direction.
+  amountCents   Int
+  /// Not blank (CHECK constraint).
+  description   String
+  /// Free-form label, e.g. "Advertising". Not blank (CHECK constraint).
+  category      String
+  date          DateTime        @db.Date
+  /// Null for transactions entered by hand; set with importBatchId (CHECK constraint).
+  importSource  ImportSource?
+  importBatchId String?
+  /// The source system's own id (an External ID column in the file). Unique per
+  /// business, so re-importing the same record is always recognised.
+  externalId    String?
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(3)
+
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  /// Deleting an import's record keeps the transactions it created.
+  importBatch ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@unique([businessId, externalId])
+  // History pages: newest first, ties broken by creation then id.
+  @@index([businessId, date(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])
+  @@index([businessId, type, date])
+  @@index([businessId, category])
+  @@index([importBatchId])
+}
+
+// ── Imports ──────────────────────────────────────────────────────────────
+
+enum ImportFileFormat {
+  CSV
+  XLSX
+}
+
+enum ImportStatus {
+  /// Uploaded; required columns or settings still need mapping.
+  AWAITING_MAPPING
+  /// Preview available; nothing is saved until the owner confirms.
+  READY
+  /// Confirmed. Individual records may still have been skipped or invalid.
+  COMPLETED
+  /// Confirmed, but every record was invalid, so nothing was imported.
+  FAILED
+  CANCELLED
+  /// Not confirmed within the time limit.
+  EXPIRED
+}
+
+/// One uploaded file and what became of it.
+///
+/// The file itself is never stored. While awaiting confirmation, the parsed
+/// cells are kept in pendingData so the owner can map columns and review a
+/// preview; they are cleared as soon as the import finishes, is cancelled or
+/// expires (CHECK constraint).
+model ImportBatch {
+  id              String           @id @default(cuid())
+  businessId      String
+  /// Who uploaded it; kept if that user is later deleted.
+  createdById     String?
+  source          ImportSource
+  fileFormat      ImportFileFormat
+  fileName        String
+  fileSize        Int
+  /// SHA-256 of the file, hex: recognises the same file uploaded again.
+  fileSha256      String           @db.Char(64)
+  status          ImportStatus
+  /// Counts of records found and their outcome (CHECK >= 0; once finished,
+  /// imported + skipped + failed = total).
+  totalRecords    Int              @default(0)
+  importedRecords Int              @default(0)
+  skippedRecords  Int              @default(0)
+  failedRecords   Int              @default(0)
+  /// Column mapping for template and generic files.
+  mapping         Json?
+  /// Parsed header and rows, only while awaiting confirmation.
+  pendingData     Json?
+  /// When an unconfirmed upload is discarded.
+  expiresAt       DateTime         @db.Timestamptz(3)
+  completedAt     DateTime?        @db.Timestamptz(3)
+  createdAt       DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @db.Timestamptz(3)
+
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdBy    User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  transactions Transaction[]
+
+  @@index([businessId, createdAt(sort: Desc)])
+  @@index([businessId, fileSha256])
+  @@index([businessId, status])
+  @@index([createdById])
 }
