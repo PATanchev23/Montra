@@ -2,6 +2,7 @@ import {
   TRANSACTION_ERROR_CODES,
   type CreateTransactionRequest,
   type Transaction,
+  type TransactionCategoryListResponse,
   type TransactionListQuery,
   type TransactionListResponse,
   type TransactionSort,
@@ -102,6 +103,37 @@ export async function listTransactions(
     total,
     pageCount: Math.ceil(total / pageSize),
   };
+}
+
+/** The categories in use, merged case-insensitively under their most used spelling. */
+export async function listCategories(
+  db: Db,
+  businessId: string,
+): Promise<TransactionCategoryListResponse> {
+  const groups = await db.transaction.groupBy({
+    by: ['category', 'type'],
+    where: { businessId },
+    _count: { _all: true },
+  });
+  const merged = new Map<
+    string,
+    { spellings: Map<string, number>; incomeCount: number; expenseCount: number }
+  >();
+  for (const { category, type, _count } of groups) {
+    const key = category.toLocaleLowerCase('en');
+    const entry = merged.get(key) ?? { spellings: new Map(), incomeCount: 0, expenseCount: 0 };
+    entry.spellings.set(category, (entry.spellings.get(category) ?? 0) + _count._all);
+    if (type === 'INCOME') entry.incomeCount += _count._all;
+    else entry.expenseCount += _count._all;
+    merged.set(key, entry);
+  }
+  const items = [...merged.values()].map(({ spellings, incomeCount, expenseCount }) => {
+    // Most used spelling; ties go to the alphabetically first, so the answer is stable.
+    const [name] = [...spellings].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]!;
+    return { name, incomeCount, expenseCount };
+  });
+  items.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+  return { items };
 }
 
 export async function getTransaction(

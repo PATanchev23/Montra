@@ -1,6 +1,7 @@
 import {
   apiErrorSchema,
   createTransactionRequestSchema,
+  transactionCategoryListResponseSchema,
   transactionListQuerySchema,
   transactionListResponseSchema,
   transactionSchema,
@@ -14,6 +15,7 @@ import {
   createTransaction,
   deleteTransaction,
   getTransaction,
+  listCategories,
   listTransactions,
   updateTransaction,
 } from './service';
@@ -73,6 +75,24 @@ export const transactionRoutes: FastifyPluginAsyncZod = async (app) => {
       const transaction = await createTransaction(app.db, businessId, request.body);
       reply.status(201);
       return transaction;
+    },
+  );
+
+  app.get(
+    '/categories',
+    {
+      schema: {
+        tags,
+        summary: 'Categories the business’s transactions use, for filters and suggestions',
+        security,
+        params: businessParamsSchema,
+        response: { 200: transactionCategoryListResponseSchema, ...errors },
+      },
+    },
+    async (request) => {
+      const { businessId } = request.params;
+      await requireMembership(app.db, authOf(request).userId, businessId);
+      return listCategories(app.db, businessId);
     },
   );
 

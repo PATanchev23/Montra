@@ -11,12 +11,15 @@ export function Amount({
   type,
   decimals = 2,
   quietExpense = false,
+  currency,
   className,
 }: {
   cents: number;
   type: EntryType;
   decimals?: MoneyOptions['decimals'];
   quietExpense?: boolean;
+  /** The business currency; EUR when omitted. */
+  currency?: string;
   className?: string;
 }) {
   const signedCents = type === 'income' ? cents : -cents;
@@ -28,7 +31,7 @@ export function Amount({
         className,
       )}
     >
-      {money(signedCents, { decimals, sign: 'always' })}
+      {money(signedCents, { decimals, sign: 'always', currency })}
     </span>
   );
 }

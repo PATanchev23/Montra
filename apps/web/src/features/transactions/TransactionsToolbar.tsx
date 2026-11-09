@@ -1,156 +1,173 @@
+import {
+  TRANSACTION_DATE_MAX,
+  TRANSACTION_DATE_MIN,
+  type TransactionCategory,
+} from '@montra/shared';
 import { ChevronDown, RotateCcw, Tags } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { accounts, categories } from '../../api/finance';
-import { CategoryIcon } from '../../components/finance/CategoryIcon';
 import { Button } from '../../components/ui/Button';
-import { SearchField } from '../../components/ui/Input';
+import { Input } from '../../components/ui/Input';
 import {
   Menu,
-  MenuCheckboxItem,
   MenuContent,
-  MenuItem,
   MenuLabel,
+  MenuRadioGroup,
+  MenuRadioItem,
   MenuSeparator,
   MenuTrigger,
 } from '../../components/ui/Menu';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Select } from '../../components/ui/Select';
-import type { DateRange } from '../../demo/api';
-import type { CategoryId } from '../../demo/types';
-import type { useTransactionFilters } from './useTransactionFilters';
-
-const rangeOptions: { value: DateRange; label: string }[] = [
-  { value: '30d', label: 'Last 30 days' },
-  { value: 'month', label: 'This month' },
-  { value: 'last-month', label: 'Last month' },
-  { value: '90d', label: 'Last 90 days' },
-  { value: 'year', label: 'This year' },
-  { value: 'all', label: 'All time' },
-];
+import { DATE_RANGES, type DateRange, type useTransactionFilters } from './useTransactionFilters';
 
 type Filters = ReturnType<typeof useTransactionFilters>;
 
+const ALL = '__all__';
+
 function CategoryFilter({
   selected,
+  categories,
+  loading,
   onChange,
 }: {
-  selected: CategoryId[];
-  onChange: (ids: CategoryId[]) => void;
+  selected: string;
+  categories: TransactionCategory[];
+  loading: boolean;
+  onChange: (category: string) => void;
 }) {
-  const label =
-    selected.length === 0
-      ? 'All categories'
-      : selected.length === 1
-        ? categories.find((c) => c.id === selected[0])?.name
-        : `${selected.length} categories`;
-  const toggle = (id: CategoryId, on: boolean) =>
-    onChange(on ? [...selected, id] : selected.filter((s) => s !== id));
+  // A category from a link may not be in use (yet); it is still the active filter.
+  const known = categories.find((c) => c.name.toLowerCase() === selected.toLowerCase());
+  const options =
+    selected && !known
+      ? [{ name: selected, incomeCount: 0, expenseCount: 0 }, ...categories]
+      : categories;
+  const value = known?.name ?? selected;
 
   return (
     <Menu>
       <MenuTrigger asChild>
-        <Button size="md" className={selected.length ? 'border-accent-line text-ink' : ''}>
+        <Button size="md" className={selected ? 'border-accent-line text-ink' : ''}>
           <Tags className="text-muted" strokeWidth={1.75} />
-          <span className="max-w-32 truncate">{label}</span>
+          <span className="max-w-40 truncate">{selected ? value : 'All categories'}</span>
           <ChevronDown className="text-muted" strokeWidth={1.75} />
         </Button>
       </MenuTrigger>
       <MenuContent
         align="start"
-        className="max-h-[min(420px,var(--radix-dropdown-menu-content-available-height))] w-60 overflow-y-auto"
+        className="max-h-[min(420px,var(--radix-dropdown-menu-content-available-height))] w-64 overflow-y-auto"
       >
-        {(['income', 'expense'] as const).map((type) => (
-          <div key={type}>
-            <MenuLabel>{type === 'income' ? 'Income' : 'Expenses'}</MenuLabel>
-            {categories
-              .filter((c) => c.type === type)
-              .map((c) => (
-                <MenuCheckboxItem
-                  key={c.id}
-                  checked={selected.includes(c.id)}
-                  onCheckedChange={(on) => toggle(c.id, on === true)}
-                >
-                  <CategoryIcon
-                    categoryId={c.id}
-                    size="sm"
-                    className="size-6 rounded-md [&_svg]:size-3.5"
-                  />
-                  {c.name}
-                </MenuCheckboxItem>
-              ))}
-          </div>
-        ))}
-        {selected.length > 0 && (
-          <>
-            <MenuSeparator />
-            <MenuItem onSelect={() => onChange([])}>Clear selection</MenuItem>
-          </>
-        )}
+        <MenuRadioGroup
+          value={value || ALL}
+          onValueChange={(next) => onChange(next === ALL ? '' : next)}
+        >
+          <MenuRadioItem value={ALL}>All categories</MenuRadioItem>
+          <MenuSeparator />
+          <MenuLabel>
+            {loading
+              ? 'Loading categories…'
+              : options.length
+                ? 'Categories in use'
+                : 'No categories yet'}
+          </MenuLabel>
+          {options.map((c) => (
+            <MenuRadioItem
+              key={c.name}
+              value={c.name}
+              hint={
+                c.incomeCount + c.expenseCount > 0
+                  ? [
+                      c.incomeCount && `${c.incomeCount} income`,
+                      c.expenseCount &&
+                        `${c.expenseCount} expense${c.expenseCount === 1 ? '' : 's'}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : 'Not used yet'
+              }
+            >
+              {c.name}
+            </MenuRadioItem>
+          ))}
+        </MenuRadioGroup>
       </MenuContent>
     </Menu>
   );
 }
 
-export function TransactionsToolbar({ filters, update, reset, activeCount }: Filters) {
-  // Typing updates the URL after a short pause, so every keystroke doesn't refetch.
-  const [search, setSearch] = useState(filters.q);
-  // Follow outside changes to the URL (reset, global search) without an effect.
-  const [syncedQuery, setSyncedQuery] = useState(filters.q);
-  if (filters.q !== syncedQuery) {
-    setSyncedQuery(filters.q);
-    setSearch(filters.q);
-  }
-  useEffect(() => {
-    if (search === filters.q) return;
-    const timer = setTimeout(() => update({ q: search }), 250);
-    return () => clearTimeout(timer);
-  }, [search, filters.q, update]);
-
+export function TransactionsToolbar({
+  filters,
+  update,
+  reset,
+  activeCount,
+  categories,
+  categoriesLoading,
+  rangeError,
+}: Filters & {
+  categories: TransactionCategory[];
+  categoriesLoading: boolean;
+  rangeError: string | null;
+}) {
   return (
-    <div className="flex flex-wrap items-center gap-2.5">
-      <SearchField
-        value={search}
-        onValueChange={setSearch}
-        placeholder="Search description, counterparty…"
-        aria-label="Search transactions"
-        className="w-full sm:w-64 lg:w-72"
-      />
-      <SegmentedControl
-        label="Type"
-        value={filters.type}
-        onChange={(type) => update({ type })}
-        options={[
-          { value: 'all', label: 'All' },
-          { value: 'income', label: 'Income' },
-          { value: 'expense', label: 'Expenses' },
-        ]}
-      />
-      <CategoryFilter
-        selected={filters.categories}
-        onChange={(ids) => update({ categories: ids })}
-      />
-      <Select
-        label="Account"
-        value={filters.account}
-        onChange={(account) => update({ account })}
-        options={[
-          { value: 'all', label: 'All accounts' },
-          ...accounts.map((a) => ({ value: a.id, label: a.name })),
-        ]}
-        className="w-[148px]"
-      />
-      <Select
-        label="Date range"
-        value={filters.range}
-        onChange={(range) => update({ range })}
-        options={rangeOptions}
-        className="w-[140px]"
-      />
-      {activeCount > 0 && (
-        <Button variant="ghost" onClick={reset}>
-          <RotateCcw />
-          Reset
-        </Button>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2.5">
+        <SegmentedControl
+          label="Type"
+          value={filters.type}
+          onChange={(type) => update({ type })}
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'income', label: 'Income' },
+            { value: 'expense', label: 'Expenses' },
+          ]}
+        />
+        <CategoryFilter
+          selected={filters.category}
+          categories={categories}
+          loading={categoriesLoading}
+          onChange={(category) => update({ category })}
+        />
+        <Select<DateRange>
+          label="Date range"
+          value={filters.range}
+          onChange={(range) => update({ range })}
+          options={DATE_RANGES}
+          className="w-[148px]"
+        />
+        {filters.range === 'custom' && (
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              aria-label="From date"
+              aria-invalid={rangeError ? true : undefined}
+              min={TRANSACTION_DATE_MIN}
+              max={TRANSACTION_DATE_MAX}
+              value={filters.from}
+              onChange={(e) => update({ from: e.target.value })}
+              className="w-[150px]"
+            />
+            <span className="text-[13px] text-muted">to</span>
+            <Input
+              type="date"
+              aria-label="To date"
+              aria-invalid={rangeError ? true : undefined}
+              min={TRANSACTION_DATE_MIN}
+              max={TRANSACTION_DATE_MAX}
+              value={filters.to}
+              onChange={(e) => update({ to: e.target.value })}
+              className="w-[150px]"
+            />
+          </div>
+        )}
+        {activeCount > 0 && (
+          <Button variant="ghost" onClick={reset}>
+            <RotateCcw />
+            Reset
+          </Button>
+        )}
+      </div>
+      {rangeError && (
+        <p role="alert" className="text-[12px] text-negative">
+          {rangeError}
+        </p>
       )}
     </div>
   );

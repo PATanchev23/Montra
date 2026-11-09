@@ -1,15 +1,11 @@
+import type { Transaction } from '@montra/shared';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import { accounts, categories, DEMO_TODAY } from '../../api/finance';
 import { Amount } from '../../components/finance/Amount';
-import { CategoryIcon } from '../../components/finance/CategoryIcon';
-import { Badge } from '../../components/ui/Badge';
-import type { Transaction } from '../../demo/types';
 import { cn } from '../../lib/cn';
 import { formatDate, money, relativeDay } from '../../lib/format';
+import { entryType, sourceLabels, typeLabel } from './display';
+import { TypeIcon } from './TypeIcon';
 import type { SortKey } from './useTransactionFilters';
-
-const categoryName = Object.fromEntries(categories.map((c) => [c.id, c.name]));
-const accountName = Object.fromEntries(accounts.map((a) => [a.id, a.name]));
 
 function SortButton({
   column,
@@ -30,7 +26,7 @@ function SortButton({
   return (
     <button
       type="button"
-      onClick={() => onSort(`${column}-${active && descending ? 'asc' : 'desc'}` as SortKey)}
+      onClick={() => onSort(`${column}_${active && descending ? 'asc' : 'desc'}`)}
       className={cn(
         'inline-flex cursor-pointer items-center gap-1 rounded-md uppercase hover:text-ink',
         active && 'text-ink-2',
@@ -43,20 +39,33 @@ function SortButton({
   );
 }
 
+const ariaSort = (sort: SortKey, column: 'date' | 'amount') =>
+  sort.startsWith(column) ? (sort.endsWith('desc') ? 'descending' : 'ascending') : 'none';
+
+const signed = (t: Transaction) => (t.type === 'INCOME' ? t.amountCents : -t.amountCents);
+
 const headerCell =
   'h-10 px-3 text-left text-[11px] font-medium tracking-[0.08em] text-muted uppercase first:pl-5 last:pr-5 sm:first:pl-6 sm:last:pr-6';
 const cell = 'px-3 py-3 first:pl-5 last:pr-5 sm:first:pl-6 sm:last:pr-6';
 
+/**
+ * One page of history. Sorted by date, rows are grouped by day with each
+ * day's net; sorted by amount, each row carries its own date instead.
+ */
 export function TransactionsTable({
   items,
+  currency,
   sort,
   onSort,
   onSelect,
+  today = new Date(),
 }: {
   items: Transaction[];
+  currency: string;
   sort: SortKey;
   onSort: (sort: SortKey) => void;
   onSelect: (transaction: Transaction) => void;
+  today?: Date;
 }) {
   const grouped = sort.startsWith('date');
   const groups: { date: string; items: Transaction[] }[] = [];
@@ -75,42 +84,33 @@ export function TransactionsTable({
       onClick={() => onSelect(t)}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect(t))}
       className="group cursor-pointer border-t border-line-soft transition-colors hover:bg-hover/60 focus-visible:bg-hover focus-visible:outline-none"
-      aria-label={`${t.description}, ${money(t.type === 'income' ? t.amountCents : -t.amountCents)}`}
+      aria-label={`${t.description}, ${typeLabel(t.type)}, ${t.category}, ${formatDate(t.date, 'd MMMM yyyy')}, ${money(signed(t), { currency })}`}
     >
       {!grouped && (
         <td className={cn(cell, 'tabular text-[13px] whitespace-nowrap text-ink-2')}>
           {formatDate(t.date, 'd MMM yyyy')}
         </td>
       )}
-      <td className={cn(cell, 'max-w-0 w-full')}>
+      <td className={cn(cell, 'w-full max-w-0')}>
         <div className="flex items-center gap-3">
-          <CategoryIcon categoryId={t.categoryId} size="sm" />
+          <TypeIcon type={t.type} size="sm" />
           <div className="min-w-0 leading-tight">
             <p className="truncate text-[14px] text-ink">{t.description}</p>
             <p className="mt-1 truncate text-[12px] text-muted">
-              {t.counterparty}
-              <span className="md:hidden"> · {categoryName[t.categoryId]}</span>
+              <span className="md:hidden">{t.category} · </span>
+              {typeLabel(t.type)}
             </p>
           </div>
         </div>
       </td>
       <td className={cn(cell, 'hidden text-[13px] whitespace-nowrap text-ink-2 md:table-cell')}>
-        {categoryName[t.categoryId]}
+        {t.category}
       </td>
-      <td className={cn(cell, 'hidden text-[13px] whitespace-nowrap text-muted lg:table-cell')}>
-        {accountName[t.accountId]}
-      </td>
-      <td className={cn(cell, 'hidden sm:table-cell')}>
-        {t.status === 'pending' ? (
-          <Badge tone="warning" dot>
-            Pending
-          </Badge>
-        ) : (
-          <span className="text-[12px] text-faint">Cleared</span>
-        )}
+      <td className={cn(cell, 'hidden text-[12px] whitespace-nowrap text-muted lg:table-cell')}>
+        {t.importSource ? sourceLabels[t.importSource] : 'Manual'}
       </td>
       <td className={cn(cell, 'text-right text-[14px]')}>
-        <Amount cents={t.amountCents} type={t.type} />
+        <Amount cents={t.amountCents} type={entryType(t.type)} currency={currency} />
       </td>
     </tr>
   );
@@ -120,23 +120,17 @@ export function TransactionsTable({
       <thead>
         <tr className="border-t border-line">
           {!grouped && (
-            <th
-              scope="col"
-              className={headerCell}
-              aria-sort={
-                sort.startsWith('date')
-                  ? sort.endsWith('desc')
-                    ? 'descending'
-                    : 'ascending'
-                  : 'none'
-              }
-            >
+            <th scope="col" className={headerCell} aria-sort={ariaSort(sort, 'date')}>
               <SortButton column="date" sort={sort} onSort={onSort}>
                 Date
               </SortButton>
             </th>
           )}
-          <th scope="col" className={headerCell}>
+          <th
+            scope="col"
+            className={headerCell}
+            aria-sort={grouped ? ariaSort(sort, 'date') : undefined}
+          >
             {grouped ? (
               <SortButton column="date" sort={sort} onSort={onSort}>
                 Transaction
@@ -149,21 +143,12 @@ export function TransactionsTable({
             Category
           </th>
           <th scope="col" className={cn(headerCell, 'hidden lg:table-cell')}>
-            Account
-          </th>
-          <th scope="col" className={cn(headerCell, 'hidden sm:table-cell')}>
-            Status
+            Source
           </th>
           <th
             scope="col"
             className={cn(headerCell, 'text-right')}
-            aria-sort={
-              sort.startsWith('amount')
-                ? sort.endsWith('desc')
-                  ? 'descending'
-                  : 'ascending'
-                : 'none'
-            }
+            aria-sort={ariaSort(sort, 'amount')}
           >
             <SortButton column="amount" sort={sort} onSort={onSort} align="right">
               Amount
@@ -173,26 +158,24 @@ export function TransactionsTable({
       </thead>
       {grouped ? (
         groups.map((group) => {
-          const net = group.items.reduce(
-            (s, t) => s + (t.type === 'income' ? t.amountCents : -t.amountCents),
-            0,
-          );
+          const net = group.items.reduce((sum, t) => sum + signed(t), 0);
           return (
             <tbody key={group.date}>
               <tr className="border-t border-line bg-sunken/70">
                 <th
                   scope="colgroup"
-                  colSpan={4}
+                  colSpan={3}
                   className="px-5 py-2 text-left text-[12px] font-medium text-ink-2 sm:px-6"
                 >
-                  {relativeDay(group.date, DEMO_TODAY, 'EEEE')}
+                  {relativeDay(group.date, today, 'EEEE')}
                   <span className="font-normal text-muted">
                     {' '}
                     · {formatDate(group.date, 'd MMMM yyyy')}
                   </span>
                 </th>
                 <td className="tabular px-5 py-2 text-right text-[12px] whitespace-nowrap text-muted sm:px-6">
-                  {money(net, { sign: 'always' })}
+                  <span className="sr-only">Net for the day on this page: </span>
+                  {money(net, { sign: 'always', currency })}
                 </td>
               </tr>
               {group.items.map(row)}

@@ -1,6 +1,7 @@
 import {
   apiErrorSchema,
   authResponseSchema,
+  transactionCategoryListResponseSchema,
   transactionListResponseSchema,
   transactionSchema,
   type Transaction,
@@ -273,6 +274,27 @@ describe('transactions API', () => {
         ['2026-10-03', 2500],
         ['2026-10-02', 9900],
       ]);
+    });
+
+    it('lists the categories in use, merging case, with counts by type', async () => {
+      await history();
+      const res = await request('GET', `${base(ctx.business.id)}/categories`, ctx.viewer.token);
+      expect(res.statusCode).toBe(200);
+      // "sales" is merged into the more common "Sales"; the other business's never appears.
+      expect(transactionCategoryListResponseSchema.parse(res.json()).items).toEqual([
+        { name: 'Advertising', incomeCount: 0, expenseCount: 2 },
+        { name: 'Fees', incomeCount: 0, expenseCount: 2 },
+        { name: 'Rent', incomeCount: 0, expenseCount: 1 },
+        { name: 'Sales', incomeCount: 5, expenseCount: 0 },
+      ]);
+    });
+
+    it('lists no categories for a business without transactions, and none to outsiders', async () => {
+      const url = `${base(ctx.business.id)}/categories`;
+      const empty = await request('GET', url, ctx.owner.token);
+      expect(transactionCategoryListResponseSchema.parse(empty.json()).items).toEqual([]);
+      expect((await request('GET', url, ctx.outsider.token)).statusCode).toBe(404);
+      expect((await request('GET', url)).statusCode).toBe(401);
     });
 
     it.each([

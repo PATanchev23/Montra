@@ -1,20 +1,20 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import * as sample from '../demo/api';
-import type { FlowRange, TransactionQuery } from '../demo/api';
+import type { FlowRange } from '../demo/api';
 import type { Period } from '../demo/types';
 
 /*
- * Query hooks for financial data. They currently resolve against the
- * deterministic TechStore sample layer (src/demo). When the REST endpoints
- * land, only the queryFn bodies change — to `apiRequest(...)` — and every
- * page keeps working, including loading and error states.
+ * Query hooks for financial data the API does not serve yet. They resolve
+ * against the deterministic TechStore sample layer (src/demo). Transactions
+ * and imports already come from the API (see transactions.ts, imports.ts).
+ * When the remaining REST endpoints land, only the queryFn bodies change and
+ * every page keeps working, including loading and error states.
  */
 
 export const financeKeys = {
   dashboard: (period: Period) => ['dashboard', period] as const,
   flows: (range: FlowRange) => ['flows', range] as const,
   cashFlow: ['cash-flow'] as const,
-  transactions: (query: TransactionQuery) => ['transactions', query] as const,
   budgets: (offset: number) => ['budgets', offset] as const,
   scenarios: ['scenarios'] as const,
   scenario: (id: string) => ['scenarios', id] as const,
@@ -40,14 +40,6 @@ export function useMonthlyFlows(range: FlowRange) {
 
 export function useCashFlow() {
   return useQuery({ queryKey: financeKeys.cashFlow, queryFn: sample.getCashFlow });
-}
-
-export function useTransactions(query: TransactionQuery) {
-  return useQuery({
-    queryKey: financeKeys.transactions(query),
-    queryFn: () => sample.listTransactions(query),
-    placeholderData: keepPreviousData,
-  });
 }
 
 export function useBudgets(offset: number) {

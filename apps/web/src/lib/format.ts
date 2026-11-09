@@ -20,13 +20,18 @@ export interface MoneyOptions {
   decimals?: 0 | 2;
   /** `always` prefixes + / −; `auto` only marks negatives. */
   sign?: 'auto' | 'always' | 'never';
+  /** ISO 4217 code; the business currency where one is known. Defaults to EUR. */
+  currency?: string;
 }
 
-export function money(cents: number, { decimals = 2, sign = 'auto' }: MoneyOptions = {}) {
+export function money(
+  cents: number,
+  { decimals = 2, sign = 'auto', currency = DEFAULT_CURRENCY }: MoneyOptions = {},
+) {
   const value = sign === 'never' ? Math.abs(cents) / 100 : cents / 100;
-  const text = numberFormat(`m${decimals}${sign}`, {
+  const text = numberFormat(`m${decimals}${sign}${currency}`, {
     style: 'currency',
-    currency: DEFAULT_CURRENCY,
+    currency,
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
     signDisplay: sign === 'always' ? 'exceptZero' : 'auto',

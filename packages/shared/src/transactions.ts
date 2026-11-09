@@ -150,3 +150,22 @@ export const transactionListResponseSchema = z.object({
   pageCount: z.int().min(0),
 });
 export type TransactionListResponse = z.infer<typeof transactionListResponseSchema>;
+
+/**
+ * GET /businesses/:businessId/transactions/categories: every category the
+ * business's transactions use, for filters and suggestions. Spellings that
+ * differ only in case are one category (filters ignore case), listed under
+ * the most used spelling. Sorted alphabetically.
+ */
+export const transactionCategoryListResponseSchema = z.object({
+  items: z.array(
+    z.object({
+      name: z.string(),
+      /** Transactions in this category, by type. */
+      incomeCount: z.int().min(0),
+      expenseCount: z.int().min(0),
+    }),
+  ),
+});
+export type TransactionCategoryListResponse = z.infer<typeof transactionCategoryListResponseSchema>;
+export type TransactionCategory = TransactionCategoryListResponse['items'][number];

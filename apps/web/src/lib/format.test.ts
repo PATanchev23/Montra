@@ -12,6 +12,12 @@ describe('money', () => {
     expect(money(342000, { sign: 'always' })).toBe('+€3,420.00');
     expect(money(-500, { sign: 'never' })).toBe('€5.00');
   });
+
+  it('formats in the business currency when one is given', () => {
+    expect(money(123456, { currency: 'USD' })).toBe('US$1,234.56');
+    expect(money(-500, { currency: 'GBP', sign: 'always' })).toBe('−£5.00');
+    expect(money(123456)).toBe('€1,234.56');
+  });
 });
 
 describe('compactMoney and percent', () => {
