@@ -6,13 +6,16 @@ import { CategoryIcon } from './CategoryIcon';
 /** One line in a compact money list: icon, two lines of text, figure and meta on the right. */
 export function LedgerRow({
   categoryId,
+  icon,
   title,
   subtitle,
   amount,
   meta,
   className,
 }: {
-  categoryId: CategoryId;
+  /** A sample-data category; or pass `icon` for anything else. */
+  categoryId?: CategoryId;
+  icon?: ReactNode;
   title: ReactNode;
   subtitle: ReactNode;
   amount: ReactNode;
@@ -26,7 +29,7 @@ export function LedgerRow({
         className,
       )}
     >
-      <CategoryIcon categoryId={categoryId} />
+      {icon ?? (categoryId && <CategoryIcon categoryId={categoryId} />)}
       <div className="min-w-0 flex-1 leading-tight">
         <p className="truncate text-[14px] text-ink">{title}</p>
         <p className="mt-1 truncate text-[12px] text-muted">{subtitle}</p>

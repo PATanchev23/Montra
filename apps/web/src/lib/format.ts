@@ -40,10 +40,10 @@ export function money(
 }
 
 /** €15.2K — for chart axes and tight spaces. */
-export function compactMoney(cents: number) {
-  return numberFormat('compact', {
+export function compactMoney(cents: number, currency: string = DEFAULT_CURRENCY) {
+  return numberFormat(`compact${currency}`, {
     style: 'currency',
-    currency: DEFAULT_CURRENCY,
+    currency,
     notation: 'compact',
     maximumFractionDigits: 1,
   })

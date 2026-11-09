@@ -1,8 +1,9 @@
+import { resolvePeriod, todayIn, type DashboardPeriod } from '@montra/shared';
 import { Bell, CalendarDays, ChevronDown, FlaskConical, Menu as MenuIcon } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { describePeriod, listPeriods, useNotifications } from '../api/finance';
+import { useNotifications } from '../api/finance';
 import { Logo } from '../components/Logo';
 import { Badge } from '../components/ui/Badge';
 import { IconButton } from '../components/ui/IconButton';
@@ -16,6 +17,8 @@ import {
   MenuTrigger,
 } from '../components/ui/Menu';
 import { Tooltip } from '../components/ui/Tooltip';
+import { useCurrentMembership } from '../features/auth/currentUser';
+import { periodOptions, previewRange, rangeLabel } from '../features/dashboard/period';
 import { cn } from '../lib/cn';
 import { useUiStore } from '../stores/ui';
 
@@ -74,38 +77,58 @@ function GlobalSearch() {
   );
 }
 
+/** The dashboard's reporting period, with the dates each choice covers today. */
 function PeriodPicker() {
-  const period = useUiStore((s) => s.period);
+  const params = useUiStore((s) => s.period);
   const setPeriod = useUiStore((s) => s.setPeriod);
-  const info = describePeriod(period);
-  const options = listPeriods(period.unit, period.unit === 'year' ? 2 : 6);
+  const navigate = useNavigate();
+  const { business } = useCurrentMembership();
+  const today = todayIn(business.timezone);
+  const current = previewRange(params, today);
+  const currentLabel = periodOptions.find((o) => o.value === params.period)!.label;
 
   return (
     <Menu>
       <MenuTrigger
         className="flex h-11 cursor-pointer items-center gap-3 rounded-[12px] border border-line bg-surface px-3.5 text-[13px] text-ink transition-colors hover:border-line-strong data-[state=open]:border-line-strong"
-        aria-label={`Reporting period: ${info.label}`}
+        aria-label={`Reporting period: ${currentLabel}`}
       >
         <CalendarDays className="size-[18px] text-muted" strokeWidth={1.6} />
-        <span className="tabular hidden whitespace-nowrap lg:inline">{info.rangeLabel}</span>
-        <span className="whitespace-nowrap lg:hidden">{info.label}</span>
+        <span className="tabular hidden whitespace-nowrap lg:inline">
+          {current ? rangeLabel(current.from, current.to) : currentLabel}
+        </span>
+        <span className="whitespace-nowrap lg:hidden">{currentLabel}</span>
         <ChevronDown className="size-4 text-muted" strokeWidth={1.75} />
       </MenuTrigger>
       <MenuContent className="w-64">
         <MenuLabel>Reporting period</MenuLabel>
         <MenuRadioGroup
-          value={String(period.offset)}
-          onValueChange={(offset) => setPeriod({ ...period, offset: Number(offset) })}
+          value={params.period}
+          onValueChange={(value) => {
+            const period = value as DashboardPeriod;
+            if (period !== 'custom') return setPeriod({ period });
+            // A custom range starts from the dates in view; adjust them on the dashboard.
+            setPeriod({ period, from: current?.from, to: current?.to });
+            navigate('/');
+          }}
         >
-          {options.map((option) => (
-            <MenuRadioItem
-              key={option.period.offset}
-              value={String(option.period.offset)}
-              hint={option.rangeLabel}
-            >
-              {option.label}
-            </MenuRadioItem>
-          ))}
+          {periodOptions.map((option) => {
+            const range =
+              option.value === 'custom'
+                ? params.period === 'custom' && current
+                  ? current
+                  : null
+                : resolvePeriod({ period: option.value }, today);
+            return (
+              <MenuRadioItem
+                key={option.value}
+                value={option.value}
+                hint={range ? rangeLabel(range.from, range.to) : 'Choose dates on the dashboard'}
+              >
+                {option.label}
+              </MenuRadioItem>
+            );
+          })}
         </MenuRadioGroup>
       </MenuContent>
     </Menu>
@@ -149,7 +172,11 @@ function Notifications() {
   );
 }
 
+/** Pages whose figures come from the API; the sample-data badge stays off them. */
+const LIVE_DATA_PATHS = ['/', '/transactions', '/status'];
+
 export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
+  const location = useLocation();
   return (
     <div className="flex items-center gap-3 lg:gap-4">
       <IconButton label="Open navigation" className="lg:hidden" onClick={onOpenNavigation}>
@@ -162,14 +189,16 @@ export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
         <GlobalSearch />
       </div>
       <div className="ml-auto flex items-center gap-3">
-        <Tooltip content="Figures are deterministic TechStore sample data. Live data arrives with the financial API.">
-          <span tabIndex={0} className="hidden rounded-full xl:inline-flex">
-            <Badge tone="analytic">
-              <FlaskConical className="size-3" strokeWidth={2} />
-              Sample data
-            </Badge>
-          </span>
-        </Tooltip>
+        {!LIVE_DATA_PATHS.includes(location.pathname) && (
+          <Tooltip content="Figures on this page are deterministic TechStore sample data. Live data arrives with the financial API.">
+            <span tabIndex={0} className="hidden rounded-full xl:inline-flex">
+              <Badge tone="analytic">
+                <FlaskConical className="size-3" strokeWidth={2} />
+                Sample data
+              </Badge>
+            </span>
+          </Tooltip>
+        )}
         <PeriodPicker />
         <Notifications />
       </div>

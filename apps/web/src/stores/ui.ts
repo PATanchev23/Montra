@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { Period, PeriodUnit } from '../demo/types';
+import type { DashboardParams } from '../api/dashboard';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -16,9 +16,8 @@ interface UiState {
   setTheme: (theme: ThemePreference) => void;
 
   /** The reporting period shared by the dashboard and the top bar. */
-  period: Period;
-  setPeriodUnit: (unit: PeriodUnit) => void;
-  setPeriod: (period: Period) => void;
+  period: DashboardParams;
+  setPeriod: (period: DashboardParams) => void;
 
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
@@ -38,8 +37,7 @@ export const useUiStore = create<UiState>()(
       theme: 'dark',
       setTheme: (theme) => set({ theme }),
 
-      period: { unit: 'month', offset: 0 },
-      setPeriodUnit: (unit) => set({ period: { unit, offset: 0 } }),
+      period: { period: '30d' },
       setPeriod: (period) => set({ period }),
 
       sidebarCollapsed: false,

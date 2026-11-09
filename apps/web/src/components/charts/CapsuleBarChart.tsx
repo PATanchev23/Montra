@@ -254,32 +254,35 @@ export function CapsuleBarChart({
         </ChartTooltip>
       )}
 
-      <table className="sr-only">
-        <caption>{ariaLabel}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Period</th>
-            {drawn.map((s) => (
-              <th key={s.id} scope="col">
-                {s.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {categories.map((c, i) => (
-            <tr key={c.key}>
-              <th scope="row">
-                {c.label}
-                {c.projected ? ' (projected)' : ''}
-              </th>
+      {/* sr-only on a wrapper: a table grows to fit its rows whatever its own height. */}
+      <div className="sr-only">
+        <table>
+          <caption>{ariaLabel}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Period</th>
               {drawn.map((s) => (
-                <td key={s.id}>{formatTick(s.values[i] ?? 0)}</td>
+                <th key={s.id} scope="col">
+                  {s.label}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {categories.map((c, i) => (
+              <tr key={c.key}>
+                <th scope="row">
+                  {c.label}
+                  {c.projected ? ' (projected)' : ''}
+                </th>
+                {drawn.map((s) => (
+                  <td key={s.id}>{formatTick(s.values[i] ?? 0)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

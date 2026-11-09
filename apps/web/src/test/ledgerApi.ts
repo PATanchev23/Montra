@@ -2,10 +2,16 @@ import {
   columnMappingSchema,
   confirmImportRequestSchema,
   createTransactionRequestSchema,
+  dashboardQuerySchema,
+  isoDaysBetween,
+  resolvePeriod,
+  shareBasisPoints,
+  trendBuckets,
   transactionListQuerySchema,
   updateTransactionRequestSchema,
   type ColumnMapping,
   type CurrentUserResponse,
+  type DashboardResponse,
   type ImportDetail,
   type ImportSource,
   type MembershipRole,
@@ -21,6 +27,8 @@ import { apiError, authBody, jsonResponse, profile } from './authApi';
  */
 
 export const BUSINESS_ID = 'biz-1';
+/** "Today" for the fake's dashboard, in the business's time zone. */
+export const FAKE_TODAY = '2026-11-09';
 const BASE = `/api/v1/businesses/${BUSINESS_ID}`;
 
 export function transaction(overrides: Partial<Transaction> & { id: string }): Transaction {
@@ -165,11 +173,82 @@ export function ledgerServer(options: LedgerOptions = {}) {
     };
   }
 
+  /** The dashboard, computed from the fake's transactions as the API computes it. */
+  function dashboard(url: URL) {
+    const query = dashboardQuerySchema.safeParse(Object.fromEntries(url.searchParams));
+    if (!query.success) return apiError(400, 'VALIDATION_ERROR', 'The request is invalid.');
+    const p = resolvePeriod(query.data, FAKE_TODAY);
+    const between = (from: string, to: string) =>
+      state.transactions.filter((t) => t.date >= from && t.date <= to);
+    const sum = (list: Transaction[], type: Transaction['type']) =>
+      list.filter((t) => t.type === type).reduce((total, t) => total + t.amountCents, 0);
+    const now = between(p.from, p.to);
+    const before = between(p.previousFrom, p.previousTo);
+    const compared = (cents: number, previousCents: number) => ({
+      cents,
+      previousCents,
+      changeCents: cents - previousCents,
+      changeRatio: previousCents === 0 ? null : (cents - previousCents) / Math.abs(previousCents),
+    });
+    const byCategory = new Map<string, { cents: number; transactionCount: number }>();
+    for (const t of now.filter((t) => t.type === 'EXPENSE')) {
+      const entry = byCategory.get(t.category) ?? { cents: 0, transactionCount: 0 };
+      byCategory.set(t.category, {
+        cents: entry.cents + t.amountCents,
+        transactionCount: entry.transactionCount + 1,
+      });
+    }
+    const categories = [...byCategory.entries()]
+      .map(([category, entry]) => ({ category, ...entry }))
+      .sort((a, b) => b.cents - a.cents);
+    const shares = shareBasisPoints(categories.map((c) => c.cents));
+    const response: DashboardResponse = {
+      currency,
+      today: FAKE_TODAY,
+      period: {
+        period: p.period,
+        from: p.from,
+        to: p.to,
+        days: isoDaysBetween(p.from, p.to) + 1,
+        previousFrom: p.previousFrom,
+        previousTo: p.previousTo,
+      },
+      overview: {
+        income: compared(sum(now, 'INCOME'), sum(before, 'INCOME')),
+        expenses: compared(sum(now, 'EXPENSE'), sum(before, 'EXPENSE')),
+        net: compared(
+          sum(now, 'INCOME') - sum(now, 'EXPENSE'),
+          sum(before, 'INCOME') - sum(before, 'EXPENSE'),
+        ),
+        transactionCount: now.length,
+        previousTransactionCount: before.length,
+      },
+      trend: {
+        interval: p.interval,
+        points: trendBuckets(p.from, p.to, p.interval).map(({ start, end }) => {
+          const inside = between(start, end);
+          const incomeCents = sum(inside, 'INCOME');
+          const expenseCents = sum(inside, 'EXPENSE');
+          return { start, end, incomeCents, expenseCents, netCents: incomeCents - expenseCents };
+        }),
+      },
+      expenseBreakdown: {
+        totalCents: sum(now, 'EXPENSE'),
+        items: categories.map((c, i) => ({ ...c, shareBasisPoints: shares[i]! })),
+      },
+      recent: [...state.transactions]
+        .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
+        .slice(0, 6),
+    };
+    return jsonResponse(response);
+  }
+
   const routes: [string, RegExp, Handler][] = [
     ['POST', /^\/api\/v1\/auth\/refresh$/, () => jsonResponse(authBody(me))],
     ['GET', /^\/api\/v1\/auth\/me$/, () => jsonResponse(me)],
     ['GET', new RegExp(`^${BASE}/transactions$`), (url) => list(url)],
     ['GET', new RegExp(`^${BASE}/transactions/categories$`), () => categories()],
+    ['GET', new RegExp(`^${BASE}/dashboard$`), (url) => dashboard(url)],
     [
       'POST',
       new RegExp(`^${BASE}/transactions$`),
@@ -328,6 +407,12 @@ export function ledgerServer(options: LedgerOptions = {}) {
     /** Requests made, as "METHOD /path?query". */
     requests: () =>
       fetchMock.mock.calls.map(([input, init]) => `${init?.method ?? 'GET'} ${String(input)}`),
+    /** The query of every dashboard request, in order. */
+    dashboardQueries: () =>
+      fetchMock.mock.calls
+        .map(([input]) => new URL(String(input), 'http://montra.test'))
+        .filter((url) => url.pathname === `${BASE}/dashboard`)
+        .map((url) => Object.fromEntries(url.searchParams)),
     /** The query of every list request, in order. */
     listQueries: () =>
       fetchMock.mock.calls

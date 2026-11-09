@@ -1,19 +1,16 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import * as sample from '../demo/api';
-import type { FlowRange } from '../demo/api';
-import type { Period } from '../demo/types';
 
 /*
  * Query hooks for financial data the API does not serve yet. They resolve
- * against the deterministic TechStore sample layer (src/demo). Transactions
- * and imports already come from the API (see transactions.ts, imports.ts).
+ * against the deterministic TechStore sample layer (src/demo). Transactions,
+ * imports and the dashboard already come from the API (see transactions.ts,
+ * imports.ts, dashboard.ts).
  * When the remaining REST endpoints land, only the queryFn bodies change and
  * every page keeps working, including loading and error states.
  */
 
 export const financeKeys = {
-  dashboard: (period: Period) => ['dashboard', period] as const,
-  flows: (range: FlowRange) => ['flows', range] as const,
   cashFlow: ['cash-flow'] as const,
   budgets: (offset: number) => ['budgets', offset] as const,
   scenarios: ['scenarios'] as const,
@@ -21,22 +18,6 @@ export const financeKeys = {
   report: (year: number) => ['report', year] as const,
   notifications: ['notifications'] as const,
 };
-
-export function useDashboard(period: Period) {
-  return useQuery({
-    queryKey: financeKeys.dashboard(period),
-    queryFn: () => sample.getDashboard(period),
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useMonthlyFlows(range: FlowRange) {
-  return useQuery({
-    queryKey: financeKeys.flows(range),
-    queryFn: () => sample.getMonthlyFlows(range),
-    placeholderData: keepPreviousData,
-  });
-}
 
 export function useCashFlow() {
   return useQuery({ queryKey: financeKeys.cashFlow, queryFn: sample.getCashFlow });
@@ -75,5 +56,5 @@ export function useNotifications() {
   return useQuery({ queryKey: financeKeys.notifications, queryFn: sample.getNotifications });
 }
 
-export { describePeriod, exportTransactions, listPeriods, rangeBounds } from '../demo/api';
+export { exportTransactions } from '../demo/api';
 export { accounts, business, categories, DEMO_TODAY } from '../demo/api';

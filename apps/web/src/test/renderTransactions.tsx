@@ -4,9 +4,10 @@ import { RouterProvider } from 'react-router/dom';
 import { restoreSession } from '../api/session';
 import { Providers } from '../app/Providers';
 import { RequireAuth, RequireBusiness } from '../features/auth/guards';
+import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { TransactionsPage } from '../features/transactions/TransactionsPage';
 
-/** The Transactions page behind the real guards and providers, signed in through the fake API. */
+/** The Dashboard and Transactions pages behind the real guards and providers, signed in through the fake API. */
 export function renderTransactions(url = '/transactions') {
   const router = createMemoryRouter(
     [
@@ -15,7 +16,10 @@ export function renderTransactions(url = '/transactions') {
         children: [
           {
             element: <RequireBusiness />,
-            children: [{ path: 'transactions', element: <TransactionsPage /> }],
+            children: [
+              { index: true, element: <DashboardPage /> },
+              { path: 'transactions', element: <TransactionsPage /> },
+            ],
           },
         ],
       },
