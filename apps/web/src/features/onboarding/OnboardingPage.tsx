@@ -6,7 +6,8 @@ import {
   type OnboardingStep,
 } from '@montra/shared';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Check, Loader2, LogOut, RotateCw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Loader2, LogOut, RotateCw } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Navigate } from 'react-router';
 import { z } from 'zod';
@@ -19,12 +20,14 @@ import {
   useOnboardingProgress,
   useSaveOnboarding,
 } from '../../api/onboarding';
+import { LanguageSwitch } from '../../components/LanguageSwitch';
+import { Logo } from '../../components/Logo';
 import { Button } from '../../components/ui/Button';
 import { ErrorState } from '../../components/ui/States';
+import { cn } from '../../lib/cn';
 import { showToast } from '../../stores/toasts';
 import { firstName, hasBusinessAccess } from '../auth/access';
 import { FormNotice } from '../auth/AuthFields';
-import { AuthHeading, AuthLayout } from '../auth/AuthLayout';
 import { useSignedInUser } from '../auth/currentUser';
 import { useSchemaForm } from '../auth/useSchemaForm';
 import {
@@ -36,7 +39,8 @@ import {
   toDraft,
   type MissingAnswer,
 } from './draft';
-import { DetailsFields, PreferencesFields, ReviewSummary, SetupProgress } from './OnboardingSteps';
+import { DetailsFields, PreferencesFields, ReviewSummary, SetupRail } from './OnboardingSteps';
+import { railAnswers } from './railAnswers';
 
 import { messagesFor, useMessages } from '../../i18n';
 import { common } from '../../i18n/common';
@@ -79,7 +83,7 @@ export function OnboardingPage() {
   if (progress.data) return <OnboardingWizard saved={progress.data} />;
 
   return (
-    <AuthLayout>
+    <OnboardingFrame>
       {progress.isError ? (
         <ErrorState title={m.loadError} onRetry={() => progress.refetch()} />
       ) : (
@@ -87,7 +91,22 @@ export function OnboardingPage() {
           <Loader2 className="size-6 animate-spin text-muted" strokeWidth={1.75} />
         </div>
       )}
-    </AuthLayout>
+    </OnboardingFrame>
+  );
+}
+
+/** The quiet frame around setup's waiting states: the mark, the language, one centred message. */
+function OnboardingFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-dvh flex-col bg-surface">
+      <header className="flex items-center justify-between gap-4 border-b border-line bg-sidebar px-5 py-4 sm:px-8">
+        <Logo />
+        <LanguageSwitch />
+      </header>
+      <main className="mx-auto flex w-full max-w-[32rem] flex-1 flex-col justify-center px-5 py-12">
+        {children}
+      </main>
+    </div>
   );
 }
 
@@ -103,8 +122,9 @@ function SetupFinished() {
   }, [refetch]);
 
   return (
-    <AuthLayout>
-      <AuthHeading title={m.finishedTitle} description={m.finishedBody} />
+    <OnboardingFrame>
+      <h1 className="text-display text-balance text-ink">{m.finishedTitle}</h1>
+      <p className="mt-3 mb-8 text-[15px] leading-6 text-ink-2">{m.finishedBody}</p>
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="primary" size="lg" disabled={isFetching} onClick={() => refetch()}>
           {isFetching ? <Loader2 className="animate-spin" /> : <RotateCw />}
@@ -120,7 +140,7 @@ function SetupFinished() {
           {c.account.signOut}
         </Button>
       </div>
-    </AuthLayout>
+    </OnboardingFrame>
   );
 }
 
@@ -294,97 +314,122 @@ function OnboardingWizard({ saved }: { saved: OnboardingProgress }) {
       await logout.mutateAsync();
     });
 
-  const stepIndex = steps.indexOf(step);
   const copy = t.steps[step];
   const savingLabel = save.isPending ? m.saving : m.continue;
+  const status = (
+    <SaveStatus saving={save.isPending} dirty={dirty} everSaved={saved.status !== 'NOT_STARTED'} />
+  );
 
   return (
-    <AuthLayout>
-      <header className="mb-7">
-        <p className="eyebrow mb-3">{t.stepOf(stepIndex + 1, steps.length)}</p>
-        <SetupProgress step={step} />
-        <h1
-          ref={headingRef}
-          tabIndex={-1}
-          className="mt-7 text-[26px] leading-[1.15] font-semibold tracking-[-0.025em] text-ink outline-none"
+    <div className="min-h-dvh bg-surface lg:grid lg:grid-cols-[18.75rem_minmax(0,1fr)]">
+      <SetupRail
+        step={step}
+        answers={railAnswers({ details, preferences, step, savedStep: saved.currentStep }, t)}
+        // The review lists every answer itself; the rail keeps only the steps there.
+        showAnswers={step !== 'REVIEW'}
+        account={
+          <>
+            <LanguageSwitch />
+            <div className="flex min-w-0 items-center gap-2 lg:justify-between">
+              <span className="hidden min-w-0 truncate text-[12px] text-muted lg:block">
+                {me.user.email}
+              </span>
+              <Button variant="ghost" size="sm" disabled={busy} onClick={signOut}>
+                <LogOut />
+                <span className="sr-only sm:not-sr-only">{c.account.signOut}</span>
+              </Button>
+            </div>
+          </>
+        }
+      />
+
+      <main className="flex min-w-0 flex-col">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+          className="flex w-full flex-1 flex-col px-5 pt-8 sm:px-8 sm:pt-12 lg:px-16 lg:pt-16 xl:px-20"
         >
-          {copy.title}
-        </h1>
-        <p className="mt-2 text-[14px] text-muted">
-          {step === 'BUSINESS_DETAILS' && saved.status === 'NOT_STARTED'
-            ? t.welcome(firstName(me.user.name), copy.description)
-            : copy.description}
-        </p>
-      </header>
+          <header className="max-w-[42rem] pb-8">
+            <h1
+              ref={headingRef}
+              tabIndex={-1}
+              className="text-display text-balance text-ink outline-none sm:text-figure-xl"
+            >
+              {copy.title}
+            </h1>
+            <p className="mt-3 text-[15px] leading-6 text-ink-2">
+              {step === 'BUSINESS_DETAILS' && saved.status === 'NOT_STARTED'
+                ? t.welcome(firstName(me.user.name), copy.description)
+                : copy.description}
+            </p>
+          </header>
 
-      {notice && (
-        <div className="mb-5">
-          <SetupNotice notice={notice} onGoTo={setStep} />
-        </div>
-      )}
+          {notice && (
+            <div className="mb-6 max-w-[42rem]">
+              <SetupNotice notice={notice} onGoTo={setStep} />
+            </div>
+          )}
 
-      {step === 'BUSINESS_DETAILS' && (
-        <StepForm
-          busy={busy}
-          onSubmit={(event) =>
-            details.handleSubmit(() => continueTo('FINANCIAL_PREFERENCES'))(event)
-          }
-          actions={<ContinueButton busy={busy} label={savingLabel} />}
-        >
-          <DetailsFields form={details} />
-        </StepForm>
-      )}
+          {step === 'BUSINESS_DETAILS' && (
+            <StepForm
+              busy={busy}
+              status={status}
+              onSubmit={(event) =>
+                details.handleSubmit(() => continueTo('FINANCIAL_PREFERENCES'))(event)
+              }
+              actions={<ContinueButton busy={busy} label={savingLabel} forward />}
+            >
+              <DetailsFields form={details} />
+            </StepForm>
+          )}
 
-      {step === 'FINANCIAL_PREFERENCES' && (
-        <StepForm
-          busy={busy}
-          onSubmit={(event) => preferences.handleSubmit(() => continueTo('REVIEW'))(event)}
-          onBack={goBack}
-          actions={<ContinueButton busy={busy} label={savingLabel} />}
-        >
-          <PreferencesFields form={preferences} currency={details.values.currency} />
-        </StepForm>
-      )}
+          {step === 'FINANCIAL_PREFERENCES' && (
+            <StepForm
+              busy={busy}
+              status={status}
+              onSubmit={(event) => preferences.handleSubmit(() => continueTo('REVIEW'))(event)}
+              onBack={goBack}
+              actions={<ContinueButton busy={busy} label={savingLabel} forward />}
+            >
+              <PreferencesFields form={preferences} currency={details.values.currency} />
+            </StepForm>
+          )}
 
-      {step === 'REVIEW' && (
-        <StepForm
-          busy={busy}
-          onSubmit={createBusiness}
-          onBack={goBack}
-          actions={
-            <ContinueButton busy={busy} label={complete.isPending ? m.creating : m.create} />
-          }
-        >
-          <ReviewSummary draft={saved.draft} onEdit={setStep} disabled={busy} />
-        </StepForm>
-      )}
-
-      <footer className="mt-8 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line pt-4 text-[12px]">
-        <SaveStatus
-          saving={save.isPending}
-          dirty={dirty}
-          everSaved={saved.status !== 'NOT_STARTED'}
-        />
-        <span className="flex items-center gap-2 text-faint">
-          <span className="max-w-[180px] truncate">{me.user.email}</span>
-          <Button variant="ghost" size="sm" disabled={busy} onClick={signOut}>
-            <LogOut />
-            {c.account.signOut}
-          </Button>
-        </span>
-      </footer>
-    </AuthLayout>
+          {step === 'REVIEW' && (
+            <StepForm
+              busy={busy}
+              status={status}
+              onSubmit={createBusiness}
+              onBack={goBack}
+              actions={
+                <ContinueButton busy={busy} label={complete.isPending ? m.creating : m.create} />
+              }
+            >
+              <ReviewSummary draft={saved.draft} onEdit={setStep} disabled={busy} />
+            </StepForm>
+          )}
+        </motion.div>
+      </main>
+    </div>
   );
 }
 
+/**
+ * A step's questions with the action bar beneath. The bar sticks to the foot
+ * of the screen, so Continue is always in reach however long the step is.
+ */
 function StepForm({
   busy,
+  status,
   onSubmit,
   onBack,
   actions,
   children,
 }: {
   busy: boolean;
+  status: ReactNode;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onBack?: () => void;
   actions: ReactNode;
@@ -392,28 +437,55 @@ function StepForm({
 }) {
   const m = useMessages(onboardingMessages).page;
   return (
-    <form noValidate onSubmit={onSubmit} aria-busy={busy} className="flex flex-col gap-5">
-      {children}
-      <div className="mt-1 flex items-center justify-between gap-3">
-        {onBack ? (
-          <Button variant="ghost" size="lg" disabled={busy} onClick={onBack}>
-            <ArrowLeft />
-            {m.back}
-          </Button>
-        ) : (
-          <span />
-        )}
-        {actions}
+    <form noValidate onSubmit={onSubmit} aria-busy={busy} className="flex flex-1 flex-col">
+      {/* The scroll margin keeps a focused control clear of the sticky bar below. */}
+      <div className="w-full max-w-[57.5rem] flex-1 pb-10 [&_button]:scroll-mb-32 [&_input]:scroll-mb-32">
+        {children}
+      </div>
+      <div className="sticky bottom-0 z-10 -mx-5 border-t border-line bg-surface px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-8 sm:px-8 lg:-mx-16 lg:px-16 xl:-mx-20 xl:px-20">
+        <div className="flex max-w-[57.5rem] flex-wrap items-center gap-x-3 gap-y-2">
+          {/* With Back on a phone, status takes its own row; without it, it sits beside Continue. */}
+          <div
+            className={cn(
+              'min-w-0 sm:order-2 sm:flex-1 sm:basis-auto',
+              onBack ? 'order-first basis-full' : 'order-2 flex-1',
+            )}
+          >
+            {status}
+          </div>
+          {onBack && (
+            <Button
+              variant="ghost"
+              size="lg"
+              disabled={busy}
+              onClick={onBack}
+              className="order-1 -ml-3 sm:ml-0"
+            >
+              <ArrowLeft />
+              {m.back}
+            </Button>
+          )}
+          <div className="order-3 ml-auto">{actions}</div>
+        </div>
       </div>
     </form>
   );
 }
 
-function ContinueButton({ busy, label }: { busy: boolean; label: string }) {
+function ContinueButton({
+  busy,
+  label,
+  forward,
+}: {
+  busy: boolean;
+  label: string;
+  forward?: boolean;
+}) {
   return (
-    <Button type="submit" variant="primary" size="lg" disabled={busy}>
+    <Button type="submit" variant="primary" size="lg" disabled={busy} className="min-w-[9.5rem]">
       {busy && <Loader2 className="animate-spin" />}
       {label}
+      {forward && !busy && <ArrowRight />}
     </Button>
   );
 }
@@ -475,20 +547,20 @@ function SaveStatus({
   } else if (dirty) {
     content = (
       <>
-        <span className="size-1.5 rounded-full bg-warning" /> {m.unsaved}
+        <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-ink-2" /> {m.unsaved}
       </>
     );
   } else if (everSaved) {
     content = (
       <>
-        <Check className="size-3.5 text-positive" strokeWidth={2.5} /> {m.saved}
+        <Check aria-hidden className="size-3.5 shrink-0 text-ink-2" strokeWidth={2.5} /> {m.saved}
       </>
     );
   } else {
     content = m.savedEachTime;
   }
   return (
-    <p role="status" className="flex items-center gap-1.5 text-muted">
+    <p role="status" className="flex items-center gap-1.5 text-[12px] leading-4 text-muted">
       {content}
     </p>
   );

@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "geist",
+        "createdAt": "2026-11-17T18:22:48.975Z",
+        "reason": "agent: same family as DESIGN.md 'Geist Variable' (Google Fonts URL slug)"
+      },
+      {
+        "rule": "overused-font",
+        "value": "geist",
+        "createdAt": "2026-11-17T18:23:01.102Z",
+        "reason": "user brief: 'Use the typography already established by Montra. Do not randomly introduce another font.' Geist is DESIGN.md's family"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "16px",
+        "createdAt": "2026-11-17T18:44:33.594Z",
+        "reason": "agent: form inputs are 16px so iOS Safari does not zoom on focus (brief: inputs usable with the mobile keyboard)"
+      }
+    ]
+  }
+}

@@ -138,7 +138,7 @@ describe('starting and resuming', () => {
       'step',
     );
     expect(screen.getByLabelText('Business name')).toHaveValue('');
-    expect(screen.getByRole('combobox', { name: 'Currency' })).toHaveTextContent('Euro (EUR)');
+    expect(screen.getByRole('radio', { name: /^Euro/ })).toBeChecked();
     expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
     expect(api.calls(PROGRESS)).toHaveLength(1);
   });
@@ -159,10 +159,8 @@ describe('starting and resuming', () => {
       await screen.findByRole('heading', { name: 'Financial preferences' }),
     ).toBeInTheDocument();
     expect(screen.getByText('Business setup · Step 2 of 3')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Financial year starts in' })).toHaveTextContent(
-      'April',
-    );
-    expect(screen.getByLabelText('Low-balance threshold in EUR (optional)')).toHaveValue('2500');
+    expect(screen.getByRole('radio', { name: 'April' })).toBeChecked();
+    expect(screen.getByLabelText('Low-balance warning')).toHaveValue('2500');
     expect(screen.getByText('Progress saved')).toBeInTheDocument();
 
     // Back moves without saving; the earlier answers are all there.
@@ -171,7 +169,9 @@ describe('starting and resuming', () => {
       await screen.findByRole('heading', { name: 'Tell us about your business' }),
     ).toHaveFocus();
     expect(screen.getByLabelText('Business name')).toHaveValue('TechStore');
-    expect(screen.getByLabelText('Industry (optional)')).toHaveValue('Consumer electronics');
+    // Text that matches no preset card is the owner's own description.
+    expect(screen.getByRole('radio', { name: /^Something else/ })).toBeChecked();
+    expect(screen.getByLabelText('Describe what you sell')).toHaveValue('Consumer electronics');
     expect(api.calls(SAVE)).toHaveLength(0);
   });
 
@@ -183,7 +183,7 @@ describe('starting and resuming', () => {
 
     await u.type(await screen.findByLabelText('Business name'), 'TechStore');
     await u.click(screen.getByRole('button', { name: 'Continue' }));
-    await u.type(await screen.findByLabelText('Low-balance threshold in EUR (optional)'), '1500');
+    await u.type(await screen.findByLabelText('Low-balance warning'), '1500');
     await u.click(screen.getByRole('button', { name: 'Continue' }));
     expect(await screen.findByRole('heading', { name: 'Review and create' })).toBeInTheDocument();
 
@@ -225,7 +225,8 @@ describe('moving between steps', () => {
     const u = user();
 
     await u.type(await screen.findByLabelText('Business name'), '  TechStore ');
-    await u.type(screen.getByLabelText('Industry (optional)'), 'Consumer electronics');
+    await u.click(screen.getByRole('radio', { name: /^Something else/ }));
+    await u.type(screen.getByLabelText('Describe what you sell'), 'Consumer electronics');
     await u.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(await screen.findByRole('heading', { name: 'Financial preferences' })).toHaveFocus();
@@ -259,9 +260,8 @@ describe('moving between steps', () => {
     renderApp('/onboarding');
     const u = user();
 
-    await u.click(await screen.findByRole('combobox', { name: 'Financial year starts in' }));
-    await u.click(await screen.findByRole('option', { name: 'July' }));
-    await u.type(screen.getByLabelText('Low-balance threshold in EUR (optional)'), '2500,50');
+    await u.click(await screen.findByRole('radio', { name: 'July' }));
+    await u.type(screen.getByLabelText('Low-balance warning'), '2500,50');
     await u.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(await screen.findByRole('heading', { name: 'Review and create' })).toBeInTheDocument();
@@ -319,7 +319,7 @@ describe('validation', () => {
     );
     renderApp('/onboarding');
     const u = user();
-    const threshold = await screen.findByLabelText('Low-balance threshold in EUR (optional)');
+    const threshold = await screen.findByLabelText('Low-balance warning');
 
     await u.type(threshold, 'lots');
     await u.tab();
@@ -619,5 +619,140 @@ describe('who sees onboarding', () => {
     expect(router.state.location.pathname).toBe('/');
     await waitFor(() => expect(api.calls(ME)).toHaveLength(1));
     expect(api.calls(PROGRESS)).toHaveLength(0);
+  });
+});
+
+describe('answering each question', () => {
+  it('saves a business-type card as its label, and the owner’s own words for “Something else”', async () => {
+    const api = mockApi(onboardingServer().routes);
+    renderApp('/onboarding');
+    const u = user();
+
+    await u.type(await screen.findByLabelText('Business name'), 'TechStore');
+    await u.click(screen.getByRole('radio', { name: /^Electronics/ }));
+    expect(screen.queryByLabelText('Describe what you sell')).not.toBeInTheDocument();
+
+    // "Something else" starts empty rather than keeping the card's label.
+    await u.click(screen.getByRole('radio', { name: /^Something else/ }));
+    expect(screen.getByLabelText('Describe what you sell')).toHaveValue('');
+    await u.click(screen.getByRole('radio', { name: /^Electronics/ }));
+    await u.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await screen.findByRole('heading', { name: 'Financial preferences' });
+    expect(bodyOf(api.calls(SAVE)[0]!).draft.businessDetails.industry).toBe('Electronics');
+  });
+
+  it('leaves the industry out once the answer is cleared', async () => {
+    const api = mockApi(onboardingServer().routes);
+    renderApp('/onboarding');
+    const u = user();
+
+    await u.type(await screen.findByLabelText('Business name'), 'TechStore');
+    await u.click(screen.getByRole('radio', { name: /^Fashion/ }));
+    await u.click(screen.getByRole('button', { name: 'Clear this answer' }));
+    expect(screen.getByRole('radio', { name: /^Fashion/ })).not.toBeChecked();
+    await u.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await screen.findByRole('heading', { name: 'Financial preferences' });
+    expect(bodyOf(api.calls(SAVE)[0]!).draft.businessDetails).not.toHaveProperty('industry');
+  });
+
+  it('finds a time zone by searching, chooses it with Enter without leaving the step', async () => {
+    const api = mockApi(onboardingServer().routes);
+    renderApp('/onboarding');
+    const u = user();
+
+    await u.type(await screen.findByLabelText('Business name'), 'TechStore');
+    const zone = screen.getByRole('combobox', { name: 'Time zone' });
+    await u.click(zone);
+    expect(zone).toHaveAttribute('aria-expanded', 'true');
+    await u.type(zone, 'london');
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      expect.stringMatching(/^Europe\/London/),
+    ]);
+    await u.keyboard('{Enter}');
+
+    expect(zone).toHaveAttribute('aria-expanded', 'false');
+    expect((zone as HTMLInputElement).value).toMatch(/^Europe\/London/);
+    expect(api.calls(SAVE)).toHaveLength(0);
+    expect(
+      screen.getByRole('heading', { name: 'Tell us about your business' }),
+    ).toBeInTheDocument();
+
+    // Escape closes a search without changing the answer.
+    await u.click(zone);
+    await u.type(zone, 'tokyo');
+    await u.keyboard('{Escape}');
+    expect((zone as HTMLInputElement).value).toMatch(/^Europe\/London/);
+
+    await u.click(screen.getByRole('button', { name: 'Continue' }));
+    await screen.findByRole('heading', { name: 'Financial preferences' });
+    expect(bodyOf(api.calls(SAVE)[0]!).draft.businessDetails.timezone).toBe('Europe/London');
+  });
+
+  it('saves the chosen currency and writes the warning in it', async () => {
+    const server = onboardingServer();
+    const api = mockApi(server.routes);
+    renderApp('/onboarding');
+    const u = user();
+
+    await u.type(await screen.findByLabelText('Business name'), 'TechStore');
+    await u.click(screen.getByRole('radio', { name: /^US dollar/i }));
+    await u.click(screen.getByRole('button', { name: 'Continue' }));
+    await screen.findByRole('heading', { name: 'Financial preferences' });
+    expect(bodyOf(api.calls(SAVE)[0]!).draft.businessDetails.currency).toBe('USD');
+
+    expect(screen.getByText(/No warning is set/)).toBeInTheDocument();
+    await u.type(screen.getByLabelText('Low-balance warning'), '1500');
+    // en-IE writes US dollars as US$.
+    expect(
+      screen.getByText(/^Montra will warn you .* fall below US\$1,500\.00\.$/),
+    ).toBeInTheDocument();
+  });
+
+  it('spells out the financial year a start month makes', async () => {
+    mockApi(
+      onboardingServer(
+        newProgress({
+          status: 'IN_PROGRESS',
+          currentStep: 'FINANCIAL_PREFERENCES',
+          draft: { businessDetails: completeDraft.businessDetails },
+        }),
+      ).routes,
+    );
+    renderApp('/onboarding');
+
+    await user().click(await screen.findByRole('radio', { name: 'July' }));
+    expect(
+      screen.getByText(/^Your current financial year: 1 July 20\d\d – 30 June 20\d\d\./),
+    ).toBeInTheDocument();
+  });
+
+  it('collects the answers in the setup rail as they are given', async () => {
+    mockApi(onboardingServer().routes);
+    renderApp('/onboarding');
+    const u = user();
+
+    await u.type(await screen.findByLabelText('Business name'), 'TechStore');
+    const rail = screen.getByRole('list', { name: 'Setup progress' });
+    await u.click(screen.getByRole('radio', { name: /^Home & living/ }));
+
+    const answers = () =>
+      within(rail)
+        .getAllByRole('definition')
+        .map((value) => value.textContent);
+    // Typed and chosen answers count; a starting value is marked as a default,
+    // and nothing on the step ahead shows as answered yet.
+    expect(answers()).toEqual([
+      'TechStore',
+      'Home & living',
+      'EUR (default)',
+      expect.stringMatching(/ \(default\)$/),
+      '—Not answered yet',
+      '—Not answered yet',
+    ]);
+
+    await u.click(screen.getByRole('radio', { name: /^British pound/i }));
+    expect(answers()[2]).toBe('GBP');
   });
 });

@@ -70,7 +70,7 @@ export function useSchemaForm<S extends z.ZodObject>(
     };
   }
 
-  return { values, errors, register, setValue, reset, handleSubmit };
+  return { values, errors, touched, register, setValue, reset, handleSubmit };
 }
 
 export type SchemaForm<S extends z.ZodObject> = ReturnType<typeof useSchemaForm<S>>;

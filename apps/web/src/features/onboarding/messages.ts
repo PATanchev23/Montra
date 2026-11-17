@@ -1,20 +1,35 @@
 import { defineMessages } from '../../i18n';
 
+/** The business types offered as cards; the chosen one's label is saved as the industry text. */
+export const INDUSTRY_PRESETS = [
+  'electronics',
+  'fashion',
+  'home',
+  'beauty',
+  'food',
+  'sports',
+  'handmade',
+] as const;
+export type IndustryPreset = (typeof INDUSTRY_PRESETS)[number];
+
 export const onboardingMessages = defineMessages(
   {
     steps: {
       BUSINESS_DETAILS: {
         label: 'Business',
+        name: 'Your business',
         title: 'Tell us about your business',
         description: 'Montra uses these details to label, date and format your figures.',
       },
       FINANCIAL_PREFERENCES: {
         label: 'Preferences',
+        name: 'Financial preferences',
         title: 'Financial preferences',
         description: 'How your financial year runs, and when Montra should warn you about cash.',
       },
       REVIEW: {
         label: 'Review',
+        name: 'Review',
         title: 'Review and create',
         description:
           'Check your answers. Montra then creates your business and makes you its owner.',
@@ -22,8 +37,54 @@ export const onboardingMessages = defineMessages(
     },
     progress: 'Setup progress',
     done: '(done)',
+    current: '(current step)',
     stepOf: (step: number, total: number) => `Business setup · Step ${step} of ${total}`,
     welcome: (name: string, description: string) => `Welcome, ${name}. ${description}`,
+    /** The questions as the rail lists them, with the answer beside each. */
+    questions: {
+      name: 'Business name',
+      industry: 'What you sell',
+      currency: 'Currency',
+      timezone: 'Time zone',
+      fiscalYear: 'Financial year',
+      threshold: 'Low-balance warning',
+      noWarning: 'Off',
+      defaultValue: '(default)',
+      notAnswered: 'Not answered yet',
+    },
+    optional: 'Optional',
+    industries: {
+      electronics: { label: 'Electronics', example: 'Phones, computers, accessories' },
+      fashion: { label: 'Fashion', example: 'Clothing, shoes, jewellery' },
+      home: { label: 'Home & living', example: 'Furniture, décor, kitchen' },
+      beauty: { label: 'Beauty & health', example: 'Cosmetics, care, wellbeing' },
+      food: { label: 'Food & drink', example: 'Groceries, coffee, specialities' },
+      sports: { label: 'Sports & outdoors', example: 'Equipment, bikes, camping' },
+      handmade: { label: 'Handmade & art', example: 'Crafts, prints, gifts' },
+      other: { label: 'Something else', example: 'Describe it in your own words' },
+    } satisfies Record<IndustryPreset | 'other', { label: string; example: string }>,
+    explain: {
+      industryTitle: 'What do you sell?',
+      currencySample: (amount: string) => `Amounts will read like ${amount}.`,
+      thresholdTitle: 'Low-balance warning',
+      thresholdPlaceholder: '2500',
+      industry: 'Pick the closest match, or describe it yourself.',
+      industryOther: 'Describe what you sell',
+      industrySkip: 'Clear this answer',
+      currencyEuro: 'Bulgaria has used the euro since 1 January 2026.',
+      timeZoneSearch: 'Search by city or region',
+      timeZoneResults: (count: number) => (count === 1 ? '1 time zone' : `${count} time zones`),
+      timeZoneNone: (query: string) => `No time zone matches “${query}”.`,
+      useDeviceZone: (zone: string) => `Use this device’s time zone (${zone})`,
+      localTime: (time: string) => `It is ${time} there now.`,
+      fiscalSpan: (range: string) =>
+        `Your current financial year: ${range}${range.endsWith('.') ? '' : '.'}`,
+      fiscalMonth: (month: number) => `Today is in month ${month} of 12.`,
+      fiscalCalendar: 'Choose January if your financial year matches the calendar year.',
+      thresholdPreview: (amount: string) =>
+        `Montra will warn you when your projected balance is set to fall below ${amount}.`,
+      thresholdOff: 'No warning is set. Leave the field blank to keep it that way.',
+    },
     fields: {
       businessName: 'Business name',
       businessNamePlaceholder: 'e.g. TechStore',
@@ -52,6 +113,14 @@ export const onboardingMessages = defineMessages(
       noWarning: 'No warning',
       edit: 'Edit',
       editSection: (title: string) => `Edit ${title.toLowerCase()}`,
+      noName: 'Business name missing',
+      noIndustry: 'Industry not provided',
+      nextTitle: 'What happens next',
+      next: [
+        'Montra creates your business and makes you its owner.',
+        'Your dashboard opens, ready for your first transactions.',
+        'Add transactions by hand, or import them from a CSV or Excel file.',
+      ],
     },
     /** Answers named in API error details (`businessDetails.name` …). */
     answers: {
@@ -95,17 +164,20 @@ export const onboardingMessages = defineMessages(
     steps: {
       BUSINESS_DETAILS: {
         label: 'Бизнес',
+        name: 'Вашият бизнес',
         title: 'Разкажете ни за бизнеса си',
         description: 'Montra използва тези данни, за да обозначава, датира и форматира сумите ви.',
       },
       FINANCIAL_PREFERENCES: {
-        label: 'Предпочитания',
+        label: 'Финанси',
+        name: 'Финансови предпочитания',
         title: 'Финансови предпочитания',
         description:
           'Кога започва финансовата ви година и кога Montra да ви предупреждава за наличностите.',
       },
       REVIEW: {
         label: 'Преглед',
+        name: 'Преглед',
         title: 'Преглед и създаване',
         description:
           'Проверете отговорите си. След това Montra създава бизнеса ви и ви прави негов собственик.',
@@ -113,8 +185,53 @@ export const onboardingMessages = defineMessages(
     },
     progress: 'Напредък на настройката',
     done: '(завършено)',
+    current: '(текуща стъпка)',
     stepOf: (step: number, total: number) => `Настройка на бизнеса · Стъпка ${step} от ${total}`,
     welcome: (name: string, description: string) => `Добре дошли, ${name}. ${description}`,
+    questions: {
+      name: 'Име на бизнеса',
+      industry: 'Какво продавате',
+      currency: 'Валута',
+      timezone: 'Часова зона',
+      fiscalYear: 'Финансова година',
+      threshold: 'Нисък баланс',
+      noWarning: 'Изключено',
+      defaultValue: '(по подразбиране)',
+      notAnswered: 'Още няма отговор',
+    },
+    optional: 'По избор',
+    industries: {
+      electronics: { label: 'Електроника', example: 'Телефони, компютри, аксесоари' },
+      fashion: { label: 'Мода', example: 'Дрехи, обувки, бижута' },
+      home: { label: 'Дом и обзавеждане', example: 'Мебели, декорация, кухня' },
+      beauty: { label: 'Красота и здраве', example: 'Козметика, грижа, здраве' },
+      food: { label: 'Храни и напитки', example: 'Хранителни стоки, кафе, деликатеси' },
+      sports: { label: 'Спорт и туризъм', example: 'Екипировка, велосипеди, къмпинг' },
+      handmade: { label: 'Ръчна изработка', example: 'Занаяти, принтове, подаръци' },
+      other: { label: 'Нещо друго', example: 'Опишете го със свои думи' },
+    },
+    explain: {
+      industryTitle: 'Какво продавате?',
+      currencySample: (amount: string) => `Сумите ще изглеждат така: ${amount}.`,
+      thresholdTitle: 'Предупреждение за нисък баланс',
+      thresholdPlaceholder: '2500',
+      industry: 'Изберете най-близкия вариант или го опишете сами.',
+      industryOther: 'Опишете какво продавате',
+      industrySkip: 'Изчисти отговора',
+      currencyEuro: 'България използва еврото от 1 януари 2026 г.',
+      timeZoneSearch: 'Търсете по град или регион',
+      timeZoneResults: (count: number) => (count === 1 ? '1 часова зона' : `${count} часови зони`),
+      timeZoneNone: (query: string) => `Няма часова зона, отговаряща на „${query}“.`,
+      useDeviceZone: (zone: string) => `Използвай часовата зона на това устройство (${zone})`,
+      localTime: (time: string) => `Там сега е ${time} ч.`,
+      fiscalSpan: (range: string) =>
+        `Текущата ви финансова година: ${range}${range.endsWith('.') ? '' : '.'}`,
+      fiscalMonth: (month: number) => `Днес е месец ${month} от 12.`,
+      fiscalCalendar: 'Изберете януари, ако финансовата ви година съвпада с календарната.',
+      thresholdPreview: (amount: string) =>
+        `Montra ще ви предупреди, когато прогнозният ви баланс е на път да падне под ${amount}.`,
+      thresholdOff: 'Няма зададено предупреждение. Оставете полето празно, ако не искате такова.',
+    },
     fields: {
       businessName: 'Име на бизнеса',
       businessNamePlaceholder: 'напр. TechStore',
@@ -143,6 +260,14 @@ export const onboardingMessages = defineMessages(
       noWarning: 'Без предупреждение',
       edit: 'Редактирай',
       editSection: (title: string) => `Редактирай: ${title.toLowerCase()}`,
+      noName: 'Липсва име на бизнеса',
+      noIndustry: 'Отрасълът не е посочен',
+      nextTitle: 'Какво следва',
+      next: [
+        'Montra създава бизнеса ви и ви прави негов собственик.',
+        'Отваря се таблото ви, готово за първите транзакции.',
+        'Добавете транзакции ръчно или ги импортирайте от CSV или Excel файл.',
+      ],
     },
     answers: {
       businessDetails: 'Данни за бизнеса',
