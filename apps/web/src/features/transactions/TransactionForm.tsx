@@ -14,6 +14,8 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { showToast } from '../../stores/toasts';
 import { FormNotice, TextField } from '../auth/AuthFields';
 import { useSchemaForm } from '../auth/useSchemaForm';
+import { useMessages } from '../../i18n';
+import { transactionMessages } from './messages';
 import {
   createRequestFrom,
   fieldErrorsFrom,
@@ -58,6 +60,8 @@ export function TransactionForm({
   } | null>(null);
   const amountId = useId();
   const categoryListId = useId();
+  const t = useMessages(transactionMessages);
+  const m = t.form;
 
   const busy = create.isPending || update.isPending;
   const unchanged =
@@ -79,12 +83,12 @@ export function TransactionForm({
         const changes = updateRequestFrom(data, transaction, currency);
         if (!changes) return onDone(transaction);
         saved = await update.mutateAsync({ id: transaction.id, changes });
-        showToast({ tone: 'positive', title: 'Transaction updated' });
+        showToast({ tone: 'positive', title: m.updated });
       } else {
         saved = await create.mutateAsync(createRequestFrom(data, currency));
         showToast({
           tone: 'positive',
-          title: data.type === 'INCOME' ? 'Income recorded' : 'Expense recorded',
+          title: data.type === 'INCOME' ? m.incomeRecorded : m.expenseRecorded,
           body: data.description,
         });
       }
@@ -94,18 +98,13 @@ export function TransactionForm({
       if (Object.keys(fieldErrors).length > 0) {
         setServer({ values: form.values, errors: fieldErrors });
       } else {
-        setProblem(
-          errorMessage(
-            err,
-            'The transaction could not be saved. Check your connection and try again.',
-          ),
-        );
+        setProblem(errorMessage(err, m.saveFailed));
       }
     }
   }
 
   const amountError = errorOf('amount');
-  const amountHint = `In ${currency}, the business currency.`;
+  const amountHint = m.amountHint(currency);
 
   return (
     <form noValidate onSubmit={form.handleSubmit(save)} className="flex flex-col gap-5">
@@ -113,28 +112,28 @@ export function TransactionForm({
 
       <div className="flex flex-col gap-1.5">
         <span className="text-[13px] font-medium text-ink-2" aria-hidden>
-          Type
+          {m.type}
         </span>
         <SegmentedControl<TransactionType>
-          label="Type"
+          label={m.type}
           value={form.values.type as TransactionType}
           onChange={(type) => form.setValue('type', type)}
           options={[
-            { value: 'EXPENSE', label: 'Expense' },
-            { value: 'INCOME', label: 'Income' },
+            { value: 'EXPENSE', label: t.type.EXPENSE },
+            { value: 'INCOME', label: t.type.INCOME },
           ]}
           className="self-start"
         />
         {errorOf('type') && <p className="text-[12px] text-negative">{errorOf('type')}</p>}
       </div>
 
-      <Field label="Amount" htmlFor={amountId} hint={amountHint} error={amountError}>
+      <Field label={m.amount} htmlFor={amountId} hint={amountHint} error={amountError}>
         <div className="relative">
           <Input
             id={amountId}
             inputMode="decimal"
             autoComplete="off"
-            placeholder="0.00"
+            placeholder={m.amountPlaceholder}
             aria-invalid={amountError ? true : undefined}
             aria-describedby={amountError ? fieldErrorId(amountId) : fieldHintId(amountId)}
             className="tabular h-11 pr-14 text-[14px]"
@@ -150,23 +149,19 @@ export function TransactionForm({
       </Field>
 
       <TextField
-        label="Description"
+        label={m.description}
         autoComplete="off"
-        placeholder="e.g. Supplier invoice 1042"
+        placeholder={m.descriptionPlaceholder}
         error={errorOf('description')}
         {...form.register('description')}
       />
 
       <TextField
-        label="Category"
+        label={m.category}
         autoComplete="off"
-        placeholder="e.g. Advertising"
+        placeholder={m.categoryPlaceholder}
         list={categoryListId}
-        hint={
-          categories.length > 0
-            ? 'Choose a category you already use, or type a new one.'
-            : undefined
-        }
+        hint={categories.length > 0 ? m.categoryHint : undefined}
         error={errorOf('category')}
         {...form.register('category')}
       />
@@ -177,7 +172,7 @@ export function TransactionForm({
       </datalist>
 
       <TextField
-        label="Date"
+        label={m.date}
         type="date"
         min={TRANSACTION_DATE_MIN}
         max={TRANSACTION_DATE_MAX}
@@ -187,10 +182,10 @@ export function TransactionForm({
 
       <div className="mt-2 flex justify-end gap-2 border-t border-line-soft pt-5">
         <Button onClick={onCancel} disabled={busy}>
-          Cancel
+          {m.cancel}
         </Button>
         <Button type="submit" variant="primary" disabled={busy || unchanged}>
-          {busy ? 'Saving…' : transaction ? 'Save changes' : 'Add transaction'}
+          {busy ? m.saving : transaction ? m.saveChanges : m.add}
         </Button>
       </div>
     </form>

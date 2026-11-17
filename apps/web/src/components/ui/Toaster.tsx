@@ -2,6 +2,8 @@ import { CheckCircle2, Info, X } from 'lucide-react';
 import { Toast } from 'radix-ui';
 import { cn } from '../../lib/cn';
 import { useToastStore, type ToastTone } from '../../stores/toasts';
+import { useMessages } from '../../i18n';
+import { common } from '../../i18n/common';
 
 const toneIcon: Record<ToastTone, { icon: typeof Info; className: string }> = {
   positive: { icon: CheckCircle2, className: 'bg-positive-soft text-positive' },
@@ -13,8 +15,9 @@ export function Toaster() {
   const toasts = useToastStore((s) => s.toasts);
   const dismiss = useToastStore((s) => s.dismiss);
 
+  const m = useMessages(common);
   return (
-    <Toast.Provider swipeDirection="right" duration={4500}>
+    <Toast.Provider swipeDirection="right" duration={4500} label={m.toasts.announcement}>
       {toasts.map(({ id, title, body, tone }) => {
         const { icon: Icon, className } = toneIcon[tone];
         return (
@@ -42,7 +45,7 @@ export function Toaster() {
               )}
             </div>
             <Toast.Close
-              aria-label="Dismiss"
+              aria-label={m.dismiss}
               className="flex size-6 cursor-pointer items-center justify-center rounded-md text-faint hover:bg-hover hover:text-ink"
             >
               <X className="size-3.5" strokeWidth={2} />
@@ -50,7 +53,10 @@ export function Toaster() {
           </Toast.Root>
         );
       })}
-      <Toast.Viewport className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[100] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2 outline-none sm:bottom-4" />
+      <Toast.Viewport
+        label={m.toasts.region}
+        className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[100] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2 outline-none sm:bottom-4"
+      />
     </Toast.Provider>
   );
 }

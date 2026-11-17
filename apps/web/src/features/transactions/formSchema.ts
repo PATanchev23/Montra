@@ -12,6 +12,7 @@ import {
 import { format } from 'date-fns';
 import { z } from 'zod';
 
+import { localizeMessage } from '../../i18n/serverMessages';
 /*
  * The transaction form holds what was typed (strings). It validates with the
  * shared schemas, so the browser accepts exactly what the API does; only the
@@ -131,7 +132,7 @@ export function fieldErrorsFrom(
     const { path, message } = (detail ?? {}) as { path?: unknown; message?: unknown };
     if (typeof path !== 'string' || typeof message !== 'string') continue;
     const field = fieldOfPath[path.split('.')[0] ?? ''];
-    if (field) errors[field] ??= message;
+    if (field) errors[field] ??= localizeMessage(message);
   }
   return errors;
 }

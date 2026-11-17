@@ -6,11 +6,17 @@ import { restoreSession, useSession } from '../../api/session';
 import { AppLoading } from '../../app/AppLoading';
 import { Button } from '../../components/ui/Button';
 import { ErrorState } from '../../components/ui/States';
+import { useMessages } from '../../i18n';
+import { common } from '../../i18n/common';
+import { localizeMessage } from '../../i18n/serverMessages';
 import { hasBusinessAccess, returnPathFrom } from './access';
 import { CurrentUserContext, useSignedInUser } from './currentUser';
+import { authMessages } from './messages';
 
 /** Shown when the session could not be checked at all (API down, rate limited). */
 function SessionUnavailable({ problem }: { problem: string | null }) {
+  const m = useMessages(authMessages).guards;
+  const c = useMessages(common);
   return (
     <div
       role="alert"
@@ -20,13 +26,13 @@ function SessionUnavailable({ problem }: { problem: string | null }) {
         <CloudOff className="size-5" strokeWidth={1.75} />
       </span>
       <h1 className="mt-5 text-[22px] font-semibold tracking-[-0.02em] text-ink">
-        Montra can’t check your session
+        {m.sessionTitle}
       </h1>
       <p className="mt-2 max-w-md text-[14px] text-muted">
-        {problem ?? 'Could not reach the Montra API.'} Your data is safe; try again in a moment.
+        {problem ? localizeMessage(problem) : m.apiUnreachable} {m.dataSafe}
       </p>
       <Button variant="primary" className="mt-6" onClick={restoreSession}>
-        Try again
+        {c.tryAgain}
       </Button>
     </div>
   );
@@ -41,6 +47,7 @@ export function RequireAuth() {
   const session = useSession();
   const location = useLocation();
   const me = useCurrentUser();
+  const accountError = useMessages(authMessages).guards.accountError;
 
   if (session.status === 'loading') return <AppLoading />;
   if (session.status === 'unavailable') return <SessionUnavailable problem={session.problem} />;
@@ -60,7 +67,7 @@ export function RequireAuth() {
   if (me.isError) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-canvas">
-        <ErrorState title="Could not load your account" onRetry={() => me.refetch()} />
+        <ErrorState title={accountError} onRetry={() => me.refetch()} />
       </div>
     );
   }

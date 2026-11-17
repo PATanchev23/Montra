@@ -1,4 +1,3 @@
-import { format, parseISO } from 'date-fns';
 import { Download, FileSpreadsheet, Printer, Receipt, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import { DEMO_TODAY, exportTransactions, useReport } from '../../api/finance';
@@ -13,15 +12,23 @@ import { ErrorState, Skeleton } from '../../components/ui/States';
 import type { ReportData } from '../../demo/api';
 import { cn } from '../../lib/cn';
 import { centsToDecimal, downloadCsv } from '../../lib/csv';
+import { sampleDescription } from '../../demo/messages';
+import { messagesFor, useMessages } from '../../i18n';
 import { formatDate, money, percent } from '../../lib/format';
+import { reportMessages } from './messages';
 
 const YEARS = [DEMO_TODAY.getFullYear(), DEMO_TODAY.getFullYear() - 1];
 
+/*
+ * The report CSVs are read by people, so their headers follow the interface
+ * language. Amounts keep a decimal point, which every spreadsheet imports.
+ */
 function exportProfitAndLoss(report: ReportData) {
-  const header = ['Line', 'Type', ...report.quarters, 'Total'];
+  const m = messagesFor(reportMessages).csv;
+  const header = [m.line, m.type, ...report.quarters, m.total];
   const lines = report.rows.map((r) => [
     r.name,
-    r.type,
+    m.types[r.type],
     ...r.quarters.map(centsToDecimal),
     centsToDecimal(r.total),
   ]);
@@ -32,20 +39,21 @@ function exportProfitAndLoss(report: ReportData) {
   const net = [0, 1, 2, 3].map((q) => sum('income', q) - sum('expense', q));
   downloadCsv(`techstore-profit-and-loss-${report.year}.csv`, header, [
     ...lines,
-    ['Net profit', '', ...net.map(centsToDecimal), centsToDecimal(report.summary.netCents)],
+    [m.netProfit, '', ...net.map(centsToDecimal), centsToDecimal(report.summary.netCents)],
   ]);
 }
 
 function exportMonthly(report: ReportData) {
+  const m = messagesFor(reportMessages).csv;
   downloadCsv(
     `techstore-monthly-cash-flow-${report.year}.csv`,
-    ['Month', 'Income (EUR)', 'Expenses (EUR)', 'Net (EUR)', 'Projected'],
-    report.monthlyNet.map((m) => [
-      m.key,
-      centsToDecimal(m.incomeCents),
-      centsToDecimal(m.expenseCents),
-      centsToDecimal(m.netCents),
-      m.projected ? 'yes' : 'no',
+    [m.month, m.income, m.expenses, m.net, m.projected],
+    report.monthlyNet.map((month) => [
+      month.key,
+      centsToDecimal(month.incomeCents),
+      centsToDecimal(month.expenseCents),
+      centsToDecimal(month.netCents),
+      month.projected ? m.yes : m.no,
     ]),
   );
 }
@@ -53,14 +61,15 @@ function exportMonthly(report: ReportData) {
 async function exportYearTransactions(year: number) {
   const range = year === DEMO_TODAY.getFullYear() ? 'year' : 'all';
   const rows = (await exportTransactions({ range })).filter((t) => t.date.startsWith(String(year)));
+  const m = messagesFor(reportMessages).csv;
   downloadCsv(
     `techstore-transactions-${year}.csv`,
-    ['Date', 'Description', 'Counterparty', 'Type', 'Amount (EUR)'],
+    [m.date, m.description, m.counterparty, m.type, m.amount],
     rows.map((t) => [
       t.date,
-      t.description,
+      sampleDescription(t.description),
       t.counterparty,
-      t.type,
+      m.types[t.type],
       centsToDecimal(t.type === 'income' ? t.amountCents : -t.amountCents),
     ]),
   );
@@ -69,21 +78,24 @@ async function exportYearTransactions(year: number) {
 export function ReportsPage() {
   const [year, setYear] = useState(YEARS[0]!);
   const { data, isPending, isError, isPlaceholderData, refetch } = useReport(year);
+  const m = useMessages(reportMessages).page;
 
   return (
     <div className="flex flex-col gap-7">
       <PageHeader
-        eyebrow="Reports"
-        title="Financial reports"
+        eyebrow={m.eyebrow}
+        title={m.title}
         description={
           data
-            ? `${year} · ${data.asOf.startsWith(String(DEMO_TODAY.getFullYear())) ? `year to date, as of ${formatDate(data.asOf, 'd MMMM')}` : 'full year'}`
+            ? data.asOf.startsWith(String(DEMO_TODAY.getFullYear()))
+              ? m.yearToDate(year, formatDate(data.asOf, 'd MMMM'))
+              : m.fullYear(year)
             : `${year}`
         }
         actions={
           <div className="no-print flex flex-wrap items-center gap-2">
             <Select
-              label="Report year"
+              label={m.year}
               value={String(year)}
               onChange={(v) => setYear(Number(v))}
               options={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
@@ -91,7 +103,7 @@ export function ReportsPage() {
             />
             <Button onClick={() => window.print()}>
               <Printer />
-              Print / PDF
+              {m.print}
             </Button>
             <Button
               variant="primary"
@@ -99,7 +111,7 @@ export function ReportsPage() {
               onClick={() => data && exportProfitAndLoss(data)}
             >
               <Download />
-              Export P&L
+              {m.exportPnl}
             </Button>
           </div>
         }
@@ -107,7 +119,7 @@ export function ReportsPage() {
 
       {isError ? (
         <Panel>
-          <ErrorState title="Could not build this report" onRetry={() => refetch()} />
+          <ErrorState title={m.loadError} onRetry={() => refetch()} />
         </Panel>
       ) : isPending ? (
         <div className="space-y-6">
@@ -135,24 +147,25 @@ export function ReportsPage() {
 }
 
 function Summary({ report }: { report: ReportData }) {
+  const m = useMessages(reportMessages).summary;
   const items = [
     {
-      label: 'Revenue',
+      label: m.revenue,
       value: money(report.summary.revenueCents, { decimals: 0 }),
       className: 'text-ink',
     },
     {
-      label: 'Expenses',
+      label: m.expenses,
       value: money(report.summary.expenseCents, { decimals: 0 }),
       className: 'text-ink',
     },
     {
-      label: 'Net profit',
+      label: m.netProfit,
       value: money(report.summary.netCents, { decimals: 0, sign: 'always' }),
       className: report.summary.netCents < 0 ? 'text-negative' : 'text-positive',
     },
     {
-      label: 'Net margin',
+      label: m.margin,
       value: percent(report.summary.margin, { decimals: 1 }),
       className: 'text-ink',
     },
@@ -178,18 +191,19 @@ function Summary({ report }: { report: ReportData }) {
 
 function MonthlyRevenue({ report }: { report: ReportData }) {
   const hasProjection = report.monthlyNet.some((m) => m.projected);
+  const t = useMessages(reportMessages).monthly;
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="monthly-revenue">
       <PanelHeader
         id="monthly-revenue"
-        title="Monthly revenue"
-        description={hasProjection ? 'Remaining months are projected' : 'Full year'}
+        title={t.title}
+        description={hasProjection ? t.projectedHint : t.fullYear}
         actions={
           hasProjection && (
             <Legend
               items={[
-                { label: 'Actual', swatch: 'bg-chart-1' },
-                { label: 'Projected', swatch: 'border-chart-1', dashed: true },
+                { label: t.actual, swatch: 'bg-chart-1' },
+                { label: t.projected, swatch: 'border-chart-1', dashed: true },
               ]}
             />
           )
@@ -199,7 +213,7 @@ function MonthlyRevenue({ report }: { report: ReportData }) {
         <CapsuleBarChart
           height={260}
           maxBarWidth={44}
-          ariaLabel={`Monthly revenue ${report.year}`}
+          ariaLabel={t.chart(report.year)}
           categories={report.monthlyNet.map((m) => ({
             key: m.key,
             label: m.label,
@@ -208,7 +222,7 @@ function MonthlyRevenue({ report }: { report: ReportData }) {
           series={[
             {
               id: 'revenue',
-              label: 'Revenue',
+              label: t.revenue,
               tone: 'primary',
               values: report.monthlyNet.map((m) => m.incomeCents),
             },
@@ -218,18 +232,20 @@ function MonthlyRevenue({ report }: { report: ReportData }) {
             return (
               <>
                 <TooltipTitle>
-                  {format(parseISO(`${m.key}-01`), 'MMMM yyyy')}
-                  {m.projected && <span className="font-normal text-chart-1"> · projected</span>}
+                  {formatDate(`${m.key}-01`, 'LLLL yyyy')}
+                  {m.projected && (
+                    <span className="font-normal text-chart-1">{t.projectedSuffix}</span>
+                  )}
                 </TooltipTitle>
                 <TooltipRow
                   swatch="bg-chart-1"
-                  label="Revenue"
+                  label={t.revenue}
                   value={money(m.incomeCents, { decimals: 0 })}
                   emphasis
                 />
-                <TooltipRow label="Expenses" value={money(m.expenseCents, { decimals: 0 })} />
+                <TooltipRow label={t.expenses} value={money(m.expenseCents, { decimals: 0 })} />
                 <TooltipRow
-                  label="Net"
+                  label={t.net}
                   value={money(m.netCents, { decimals: 0, sign: 'always' })}
                 />
               </>
@@ -242,13 +258,10 @@ function MonthlyRevenue({ report }: { report: ReportData }) {
 }
 
 function Channels({ report }: { report: ReportData }) {
+  const m = useMessages(reportMessages).channels;
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="channels">
-      <PanelHeader
-        id="channels"
-        title="Revenue by channel"
-        description={`${report.year} to date`}
-      />
+      <PanelHeader id="channels" title={m.title} description={m.toDate(report.year)} />
       <ul className="mt-6 space-y-5">
         {report.channels.map((c) => (
           <li key={c.categoryId}>
@@ -260,19 +273,13 @@ function Channels({ report }: { report: ReportData }) {
               </span>
             </div>
             <div className="mt-2">
-              <CapsuleProgress
-                label={`${c.name} share of revenue`}
-                value={c.share}
-                max={1}
-                tone="analytic"
-              />
+              <CapsuleProgress label={m.share(c.name)} value={c.share} max={1} tone="analytic" />
             </div>
           </li>
         ))}
       </ul>
       <p className="mt-6 border-t border-line pt-4 text-[12px] leading-relaxed text-muted">
-        The online store remains the core channel; marketplace payouts settle weekly, B2B orders by
-        bank transfer.
+        {m.note}
       </p>
     </Panel>
   );
@@ -293,6 +300,7 @@ function ProfitAndLoss({ report }: { report: ReportData }) {
   const head =
     'h-10 px-3 text-right text-[11px] font-medium tracking-[0.08em] text-muted uppercase';
   const num = 'tabular px-3 py-2.5 text-right whitespace-nowrap';
+  const m = useMessages(reportMessages).pnl;
 
   const section = (label: string, rows: typeof income) => (
     <tbody>
@@ -330,7 +338,7 @@ function ProfitAndLoss({ report }: { report: ReportData }) {
       ))}
       <tr className="border-t border-line">
         <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-medium text-ink sm:pl-6">
-          Total {label.toLowerCase()}
+          {m.totalOf(label)}
         </th>
         {[0, 1, 2, 3].map((q) => (
           <td key={q} className={cn(num, 'font-medium text-ink')}>
@@ -350,10 +358,8 @@ function ProfitAndLoss({ report }: { report: ReportData }) {
       <div className="px-5 pt-5 pb-4 sm:px-6">
         <PanelHeader
           id="pnl"
-          title="Profit & loss"
-          description={
-            currentQuarter >= 0 ? `By quarter · Q${currentQuarter + 1} to date` : 'By quarter'
-          }
+          title={m.title}
+          description={currentQuarter >= 0 ? m.toDate(currentQuarter + 1) : m.byQuarter}
         />
       </div>
       <div className="overflow-x-auto">
@@ -361,7 +367,7 @@ function ProfitAndLoss({ report }: { report: ReportData }) {
           <thead>
             <tr className="border-t border-line">
               <th scope="col" className={cn(head, 'pl-5 text-left sm:pl-6')}>
-                Line
+                {m.line}
               </th>
               {report.quarters.map((q) => (
                 <th key={q} scope="col" className={head}>
@@ -369,22 +375,22 @@ function ProfitAndLoss({ report }: { report: ReportData }) {
                 </th>
               ))}
               <th scope="col" className={head}>
-                Total
+                {m.total}
               </th>
               <th scope="col" className={cn(head, 'pr-5 sm:pr-6')}>
-                % of revenue
+                {m.ofRevenue}
               </th>
             </tr>
           </thead>
-          {section('Revenue', income)}
-          {section('Expenses', expenses)}
+          {section(m.revenue, income)}
+          {section(m.expenses, expenses)}
           <tbody>
             <tr className="border-t-2 border-line-strong">
               <th
                 scope="row"
                 className="py-3.5 pr-3 pl-5 text-left text-[14px] font-semibold text-ink sm:pl-6"
               >
-                Net profit
+                {m.netProfit}
               </th>
               {[0, 1, 2, 3].map((q) => {
                 const value = quarterSum(income, q) - quarterSum(expenses, q);
@@ -418,34 +424,31 @@ function ProfitAndLoss({ report }: { report: ReportData }) {
 }
 
 function Exports({ report }: { report: ReportData }) {
+  const m = useMessages(reportMessages).exports;
   const exports = [
     {
       icon: FileSpreadsheet,
-      title: 'Profit & loss statement',
-      body: 'Revenue and expenses by category and quarter',
+      title: m.pnl,
+      body: m.pnlBody,
       action: () => exportProfitAndLoss(report),
     },
     {
       icon: TrendingUp,
-      title: 'Monthly cash flow',
-      body: 'Income, expenses and net per month, projections flagged',
+      title: m.monthly,
+      body: m.monthlyBody,
       action: () => exportMonthly(report),
     },
     {
       icon: Receipt,
-      title: 'Transaction ledger',
-      body: `Every transaction in ${report.year}, signed amounts`,
+      title: m.ledger,
+      body: m.ledgerBody(report.year),
       action: () => exportYearTransactions(report.year),
     },
   ];
   return (
     <Panel className="no-print overflow-hidden" aria-labelledby="exports">
       <div className="px-5 pt-5 pb-4 sm:px-6">
-        <PanelHeader
-          id="exports"
-          title="Exports"
-          description="CSV files open in Excel, Numbers and Google Sheets"
-        />
+        <PanelHeader id="exports" title={m.title} description={m.description} />
       </div>
       <ul className="grid border-t border-line md:grid-cols-3 md:divide-x md:divide-line">
         {exports.map(({ icon: Icon, title, body, action }) => (
@@ -460,7 +463,7 @@ function Exports({ report }: { report: ReportData }) {
               <p className="text-[14px] font-medium text-ink">{title}</p>
               <p className="mt-0.5 text-[12px] text-muted">{body}</p>
             </div>
-            <Button size="sm" onClick={action} aria-label={`Download ${title}`}>
+            <Button size="sm" onClick={action} aria-label={m.download(title)}>
               <Download />
               CSV
             </Button>

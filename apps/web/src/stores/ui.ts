@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { DashboardParams } from '../api/dashboard';
+import { detectLanguage, isLanguage, type Language } from '../i18n/language';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -14,6 +15,10 @@ export interface NotificationPrefs {
 interface UiState {
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
+
+  /** The interface language. index.html also reads it to set <html lang> before first paint. */
+  language: Language;
+  setLanguage: (language: Language) => void;
 
   /** The reporting period shared by the dashboard and the top bar. */
   period: DashboardParams;
@@ -64,6 +69,9 @@ export const useUiStore = create<UiState>()(
       theme: 'light',
       setTheme: (theme) => set({ theme }),
 
+      language: detectLanguage(),
+      setLanguage: (language) => set({ language }),
+
       period: { period: '30d' },
       setPeriod: (period) => set({ period }),
 
@@ -89,9 +97,16 @@ export const useUiStore = create<UiState>()(
         const state = (persisted ?? {}) as Partial<UiState>;
         return version < 1 && state.theme === 'dark' ? { ...state, theme: 'light' } : state;
       },
+      // Saved data from before languages existed has no language; it keeps the detected one.
+      // An unknown saved value (hand-edited, or a language since removed) is ignored too.
+      merge: (persisted, current) => {
+        const { language, ...rest } = (persisted ?? {}) as Partial<UiState>;
+        return { ...current, ...rest, ...(isLanguage(language) && { language }) };
+      },
       storage,
-      partialize: ({ theme, sidebarCollapsed, notifications }) => ({
+      partialize: ({ theme, language, sidebarCollapsed, notifications }) => ({
         theme,
+        language,
         sidebarCollapsed,
         notifications,
       }),

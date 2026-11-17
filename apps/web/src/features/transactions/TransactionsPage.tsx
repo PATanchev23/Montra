@@ -35,7 +35,10 @@ import { FormNotice } from '../auth/AuthFields';
 import { useCurrentMembership } from '../auth/currentUser';
 import { ImportHistory } from '../imports/ImportHistory';
 import { ImportSheet } from '../imports/ImportSheet';
-import { typeLabel } from './display';
+import { useMessages } from '../../i18n';
+import { count } from '../../lib/format';
+import { templateTypeLabel } from './display';
+import { transactionMessages } from './messages';
 import { TransactionSheet, type SheetState } from './TransactionDetail';
 import { TableSkeleton, TransactionsTable } from './TransactionsTable';
 import { TransactionsToolbar } from './TransactionsToolbar';
@@ -65,7 +68,7 @@ async function exportCsv(
     MONTRA_TEMPLATE_COLUMNS.map((column) => column.header),
     rows.map((t) => [
       t.date,
-      typeLabel(t.type),
+      templateTypeLabel(t.type),
       centsToDecimal(t.amountCents),
       safeCell(t.description),
       safeCell(t.category),
@@ -82,6 +85,8 @@ export function TransactionsPage() {
   const { business, role } = useCurrentMembership();
   const canEdit = role === 'OWNER';
   const { currency } = business;
+  const t = useMessages(transactionMessages);
+  const m = t.page;
 
   const filterState = useTransactionFilters();
   const { filters, update, reset, activeCount } = filterState;
@@ -113,10 +118,10 @@ export function TransactionsPage() {
   async function handleExport() {
     setExporting(true);
     try {
-      const count = await exportCsv(business.id, params, { currency, slug: business.slug });
-      showToast({ tone: 'positive', title: `Exported ${count} transactions` });
+      const exported = await exportCsv(business.id, params, { currency, slug: business.slug });
+      showToast({ tone: 'positive', title: m.exported(exported) });
     } catch (err) {
-      showToast({ tone: 'neutral', title: 'Export failed', body: errorMessage(err) });
+      showToast({ tone: 'neutral', title: m.exportFailed, body: errorMessage(err) });
     } finally {
       setExporting(false);
     }
@@ -129,32 +134,32 @@ export function TransactionsPage() {
   return (
     <div className="flex flex-col gap-7">
       <PageHeader
-        eyebrow="Ledger"
-        title="Transactions"
-        description={`Every payment in and out of ${business.name}, in ${currency}.`}
+        eyebrow={m.eyebrow}
+        title={m.title}
+        description={m.description(business.name, currency)}
         actions={
           <>
             <Button onClick={() => void handleExport()} disabled={!data?.total || exporting}>
               <Download />
-              {exporting ? 'Exporting…' : 'Export CSV'}
+              {exporting ? m.exporting : m.export}
             </Button>
             {canEdit ? (
               <>
                 <Button onClick={() => setImportSheet({ importId: null })}>
                   <Upload />
-                  Import
+                  {m.import}
                 </Button>
                 <Button variant="primary" onClick={() => setSheet({ mode: 'create' })}>
                   <Plus />
-                  New transaction
+                  {m.newTransaction}
                 </Button>
               </>
             ) : (
-              <Tooltip content="You can read transactions and imports. Only the business owner can add, change, delete or import them.">
+              <Tooltip content={m.viewOnlyHint}>
                 <span tabIndex={0} className="rounded-full">
                   <Badge tone="neutral">
                     <Eye className="size-3" strokeWidth={2} />
-                    View only
+                    {m.viewOnly}
                   </Badge>
                 </span>
               </Tooltip>
@@ -173,14 +178,13 @@ export function TransactionsPage() {
           />
           {filters.q && (
             <FormNotice tone="neutral">
-              Searching by text isn’t available yet, so “{filters.q}” is not applied. Use the type,
-              category and date filters instead.{' '}
+              {m.searchUnavailable(filters.q)}{' '}
               <button
                 type="button"
                 onClick={() => update({ q: '' })}
                 className="cursor-pointer font-medium text-ink underline-offset-2 hover:underline"
               >
-                Dismiss
+                {m.dismiss}
               </button>
             </FormNotice>
           )}
@@ -189,13 +193,13 @@ export function TransactionsPage() {
         {rangeError ? (
           <EmptyState
             icon={SearchX}
-            title="Check the date range"
-            body="The start date must be on or before the end date."
+            title={m.checkRange}
+            body={m.checkRangeBody}
             className="border-t border-line"
           />
         ) : isError ? (
           <ErrorState
-            title={errorMessage(error, 'Could not load transactions')}
+            title={errorMessage(error, m.loadError)}
             onRetry={() => refetch()}
             className="border-t border-line"
           />
@@ -204,23 +208,19 @@ export function TransactionsPage() {
         ) : data.total === 0 && !filtered ? (
           <EmptyState
             icon={ReceiptText}
-            title="No transactions yet"
-            body={
-              canEdit
-                ? 'Record your first payment, or import your history from a spreadsheet or bank statement.'
-                : 'The business owner hasn’t recorded any transactions yet.'
-            }
+            title={m.empty}
+            body={canEdit ? m.emptyOwner : m.emptyViewer}
             className="border-t border-line"
             action={
               canEdit && (
                 <div className="flex flex-wrap justify-center gap-2">
                   <Button onClick={() => setImportSheet({ importId: null })}>
                     <Upload />
-                    Import a file
+                    {m.importFile}
                   </Button>
                   <Button variant="primary" onClick={() => setSheet({ mode: 'create' })}>
                     <Plus />
-                    New transaction
+                    {m.newTransaction}
                   </Button>
                 </div>
               )
@@ -229,10 +229,10 @@ export function TransactionsPage() {
         ) : data.items.length === 0 ? (
           <EmptyState
             icon={SearchX}
-            title="No transactions match these filters"
-            body="Try a wider date range or fewer filters."
+            title={m.noMatch}
+            body={m.noMatchBody}
             className="border-t border-line"
-            action={<Button onClick={reset}>Clear filters</Button>}
+            action={<Button onClick={reset}>{m.clearFilters}</Button>}
           />
         ) : (
           <>
@@ -253,18 +253,18 @@ export function TransactionsPage() {
             </div>
             <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line px-5 py-3 sm:px-6">
               <p className="tabular text-[13px] text-muted">
-                Showing{' '}
+                {m.showing.before && <>{m.showing.before} </>}
                 <span className="text-ink-2">
-                  {first}–{last}
+                  {count(first)}–{count(last)}
                 </span>{' '}
-                of <span className="text-ink-2">{data.total}</span>
+                {m.showing.of} <span className="text-ink-2">{count(data.total)}</span>
               </p>
               <div className="flex items-center gap-1">
                 <span className="tabular mr-2 text-[13px] text-muted">
-                  Page {data.page} of {Math.max(1, data.pageCount)}
+                  {m.pageOf(count(data.page), count(Math.max(1, data.pageCount)))}
                 </span>
                 <IconButton
-                  label="Previous page"
+                  label={m.previous}
                   size="sm"
                   bordered
                   disabled={data.page <= 1 || isPlaceholderData}
@@ -273,7 +273,7 @@ export function TransactionsPage() {
                   <ChevronLeft />
                 </IconButton>
                 <IconButton
-                  label="Next page"
+                  label={m.next}
                   size="sm"
                   bordered
                   disabled={data.page >= data.pageCount || isPlaceholderData}

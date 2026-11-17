@@ -1,4 +1,4 @@
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { DEMO_TODAY, useCashFlow } from '../../api/finance';
@@ -14,22 +14,21 @@ import { Panel, PanelHeader } from '../../components/ui/Panel';
 import { ErrorState, Skeleton } from '../../components/ui/States';
 import type { CashFlowData } from '../../demo/api';
 import { cn } from '../../lib/cn';
-import { formatDate, money, relativeDay } from '../../lib/format';
+import { useMessages } from '../../i18n';
+import { formatDate, formatDay, money, relativeDay } from '../../lib/format';
+import { cashFlowMessages } from './messages';
 
 export function CashFlowPage() {
   const { data, isPending, isError, refetch } = useCashFlow();
+  const m = useMessages(cashFlowMessages).page;
 
   return (
     <div className="flex flex-col gap-7">
-      <PageHeader
-        eyebrow="Analysis"
-        title="Cash flow"
-        description="Twelve months of history and a 90-day projection built from scheduled payments and seasonal averages."
-      />
+      <PageHeader eyebrow={m.eyebrow} title={m.title} description={m.description} />
 
       {isError ? (
         <Panel>
-          <ErrorState title="Could not load cash flow" onRetry={() => refetch()} />
+          <ErrorState title={m.loadError} onRetry={() => refetch()} />
         </Panel>
       ) : (
         <>
@@ -44,24 +43,28 @@ export function CashFlowPage() {
 }
 
 function StatStrip({ stats }: { stats: CashFlowData['stats'] | undefined }) {
+  const m = useMessages(cashFlowMessages).stats;
   const items = [
     {
-      label: 'Opening balance',
-      hint: format(new Date(DEMO_TODAY.getFullYear() - 1, DEMO_TODAY.getMonth(), 1), 'd MMM yyyy'),
+      label: m.opening,
+      hint: formatDay(
+        new Date(DEMO_TODAY.getFullYear() - 1, DEMO_TODAY.getMonth(), 1),
+        'd MMM yyyy',
+      ),
       value: stats?.openingCents,
     },
     {
-      label: 'Money in',
-      hint: 'Last 12 months',
+      label: m.moneyIn,
+      hint: m.last12,
       value: stats?.incomeCents,
       className: 'text-positive',
       sign: 'always' as const,
     },
-    { label: 'Money out', hint: 'Last 12 months', value: stats ? -stats.expenseCents : undefined },
-    { label: 'Balance today', hint: format(DEMO_TODAY, 'd MMM yyyy'), value: stats?.closingCents },
+    { label: m.moneyOut, hint: m.last12, value: stats ? -stats.expenseCents : undefined },
+    { label: m.today, hint: formatDay(DEMO_TODAY, 'd MMM yyyy'), value: stats?.closingCents },
     {
-      label: 'Projected',
-      hint: 'In 90 days',
+      label: m.projected,
+      hint: m.in90,
       value: stats?.projectedCents,
       className: 'text-chart-1',
     },
@@ -100,18 +103,19 @@ function MonthlyComparison({
   data: CashFlowData | undefined;
   loading: boolean;
 }) {
+  const t = useMessages(cashFlowMessages).monthly;
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="monthly-comparison">
       <PanelHeader
         id="monthly-comparison"
-        title="Income vs. expenses"
-        description="Monthly totals · the last three months are projected"
+        title={t.title}
+        description={t.description}
         actions={
           <Legend
             items={[
-              { label: 'Income', swatch: 'bg-chart-1' },
-              { label: 'Expenses', swatch: 'bg-chart-2' },
-              { label: 'Projected', swatch: 'border-chart-1', dashed: true },
+              { label: t.income, swatch: 'bg-chart-1' },
+              { label: t.expenses, swatch: 'bg-chart-2' },
+              { label: t.projected, swatch: 'border-chart-1', dashed: true },
             ]}
           />
         }
@@ -123,7 +127,7 @@ function MonthlyComparison({
           <CapsuleBarChart
             layout="grouped"
             height={300}
-            ariaLabel="Monthly income and expenses, with three projected months"
+            ariaLabel={t.chart}
             categories={data.months.map((m) => ({
               key: m.key,
               label: m.label,
@@ -132,13 +136,13 @@ function MonthlyComparison({
             series={[
               {
                 id: 'income',
-                label: 'Income',
+                label: t.income,
                 tone: 'primary',
                 values: data.months.map((m) => m.incomeCents),
               },
               {
                 id: 'expenses',
-                label: 'Expenses',
+                label: t.expenses,
                 tone: 'secondary',
                 values: data.months.map((m) => m.expenseCents),
               },
@@ -148,22 +152,24 @@ function MonthlyComparison({
               return (
                 <>
                   <TooltipTitle>
-                    {format(parseISO(`${m.key}-01`), 'MMMM yyyy')}
-                    {m.projected && <span className="font-normal text-chart-1"> · projected</span>}
+                    {formatDate(`${m.key}-01`, 'LLLL yyyy')}
+                    {m.projected && (
+                      <span className="font-normal text-chart-1">{t.projectedSuffix}</span>
+                    )}
                   </TooltipTitle>
                   <TooltipRow
                     swatch="bg-chart-1"
-                    label="Income"
+                    label={t.income}
                     value={money(m.incomeCents, { decimals: 0 })}
                   />
                   <TooltipRow
                     swatch="bg-chart-2"
-                    label="Expenses"
+                    label={t.expenses}
                     value={money(m.expenseCents, { decimals: 0 })}
                   />
                   <div className="mt-1.5 border-t border-line pt-1.5">
                     <TooltipRow
-                      label="Net"
+                      label={t.net}
                       value={money(m.netCents, { decimals: 0, sign: 'always' })}
                       emphasis
                     />
@@ -186,18 +192,20 @@ function BalanceProjection({
   loading: boolean;
 }) {
   const todayIso = format(DEMO_TODAY, 'yyyy-MM-dd');
+  const t = useMessages(cashFlowMessages).balance;
+  const projectedSuffix = useMessages(cashFlowMessages).monthly.projectedSuffix;
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="balance-projection">
       <PanelHeader
         id="balance-projection"
-        title="Balance & projection"
-        description="Daily balance for the last five months, then the expected path with its likely range"
+        title={t.title}
+        description={t.description}
         actions={
           <Legend
             items={[
-              { label: 'Balance', swatch: 'bg-chart-1' },
-              { label: 'Projection', swatch: 'border-chart-1', dashed: true },
-              { label: 'Likely range', swatch: 'bg-chart-1/25' },
+              { label: t.balance, swatch: 'bg-chart-1' },
+              { label: t.projection, swatch: 'border-chart-1', dashed: true },
+              { label: t.range, swatch: 'bg-chart-1/25' },
             ]}
           />
         }
@@ -208,11 +216,11 @@ function BalanceProjection({
         ) : (
           <LineChart
             height={280}
-            ariaLabel="Daily cash balance with a 90-day projection"
+            ariaLabel={t.chart}
             series={[
               {
                 id: 'balance',
-                label: 'Balance',
+                label: t.balance,
                 tone: 'primary',
                 area: true,
                 points: data.balance.map((p) => ({
@@ -225,10 +233,10 @@ function BalanceProjection({
             band={data.balance
               .filter((p) => p.projected && p.lowCents !== undefined)
               .map((p) => ({ date: p.date, low: p.lowCents!, high: p.highCents! }))}
-            markers={[{ date: todayIso, label: 'Today' }]}
+            markers={[{ date: todayIso, label: t.today }]}
             threshold={{
               value: data.thresholdCents,
-              label: `Safety buffer ${money(data.thresholdCents, { decimals: 0 })}`,
+              label: t.buffer(money(data.thresholdCents, { decimals: 0 })),
             }}
             renderTooltip={(date) => {
               const p = data.balance.find((b) => b.date === date)!;
@@ -236,17 +244,19 @@ function BalanceProjection({
                 <>
                   <TooltipTitle>
                     {formatDate(date, 'EEE, d MMM yyyy')}
-                    {p.projected && <span className="font-normal text-chart-1"> · projected</span>}
+                    {p.projected && (
+                      <span className="font-normal text-chart-1">{projectedSuffix}</span>
+                    )}
                   </TooltipTitle>
                   <TooltipRow
                     swatch="bg-chart-1"
-                    label="Balance"
+                    label={t.balance}
                     value={money(p.balanceCents, { decimals: 0 })}
                     emphasis
                   />
                   {p.projected && p.lowCents !== undefined && (
                     <TooltipRow
-                      label="Likely range"
+                      label={t.range}
                       value={`${money(p.lowCents, { decimals: 0 })} – ${money(p.highCents!, { decimals: 0 })}`}
                     />
                   )}
@@ -259,22 +269,22 @@ function BalanceProjection({
       {data && (
         <dl className="mt-6 grid gap-4 border-t border-line pt-5 text-[13px] sm:grid-cols-3">
           <div>
-            <dt className="text-muted">Lowest projected balance</dt>
+            <dt className="text-muted">{t.lowest}</dt>
             <dd className="tabular mt-0.5 text-[15px] font-medium text-ink">
               {money(data.stats.lowestCents, { decimals: 0 })}{' '}
               <span className="font-normal text-muted">
-                on {formatDate(data.stats.lowestDate, 'd MMM')}
+                {t.on(formatDate(data.stats.lowestDate, 'd MMM'))}
               </span>
             </dd>
           </div>
           <div>
-            <dt className="text-muted">Headroom above buffer</dt>
+            <dt className="text-muted">{t.headroom}</dt>
             <dd className="tabular mt-0.5 text-[15px] font-medium text-positive">
               {money(data.stats.lowestCents - data.thresholdCents, { decimals: 0 })}
             </dd>
           </div>
           <div>
-            <dt className="text-muted">Change over 90 days</dt>
+            <dt className="text-muted">{t.change}</dt>
             <dd className="tabular mt-0.5 text-[15px] font-medium text-ink">
               {money(data.stats.projectedCents - data.stats.closingCents, {
                 decimals: 0,
@@ -292,6 +302,7 @@ const COLLAPSED_ROWS = 10;
 
 function UpcomingTable({ data, loading }: { data: CashFlowData | undefined; loading: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const t = useMessages(cashFlowMessages).upcoming;
   const rows = data ? (expanded ? data.upcoming : data.upcoming.slice(0, COLLAPSED_ROWS)) : [];
   const inflow =
     data?.upcoming.filter((u) => u.type === 'income').reduce((s, u) => s + u.amountCents, 0) ?? 0;
@@ -303,19 +314,19 @@ function UpcomingTable({ data, loading }: { data: CashFlowData | undefined; load
       <div className="px-5 pt-5 pb-4 sm:px-6">
         <PanelHeader
           id="upcoming-heading"
-          title="Next 30 days"
-          description="Scheduled payments, expected payouts and the running balance after each"
+          title={t.title}
+          description={t.description}
           actions={
             data && (
               <div className="tabular flex gap-4 text-[13px]">
                 <span className="text-muted">
-                  In{' '}
+                  {t.in}{' '}
                   <span className="font-medium text-positive">
                     {money(inflow, { decimals: 0 })}
                   </span>
                 </span>
                 <span className="text-muted">
-                  Out{' '}
+                  {t.out}{' '}
                   <span className="font-medium text-ink">{money(outflow, { decimals: 0 })}</span>
                 </span>
               </div>
@@ -336,22 +347,22 @@ function UpcomingTable({ data, loading }: { data: CashFlowData | undefined; load
               <thead>
                 <tr className="border-t border-line text-left text-[11px] tracking-[0.08em] text-muted uppercase">
                   <th scope="col" className="h-10 pr-3 pl-5 font-medium sm:pl-6">
-                    Due
+                    {t.due}
                   </th>
                   <th scope="col" className="px-3 font-medium">
-                    Item
+                    {t.item}
                   </th>
                   <th scope="col" className="hidden px-3 font-medium md:table-cell">
-                    Basis
+                    {t.basis}
                   </th>
                   <th scope="col" className="px-3 text-right font-medium">
-                    Amount
+                    {t.amount}
                   </th>
                   <th
                     scope="col"
                     className="hidden pr-5 pl-3 text-right font-medium sm:table-cell sm:pr-6"
                   >
-                    Balance after
+                    {t.after}
                   </th>
                 </tr>
               </thead>
@@ -372,9 +383,9 @@ function UpcomingTable({ data, loading }: { data: CashFlowData | undefined; load
                     </td>
                     <td className="hidden px-3 md:table-cell">
                       {u.certainty === 'scheduled' ? (
-                        <Badge tone="accent">Scheduled</Badge>
+                        <Badge tone="accent">{t.scheduled}</Badge>
                       ) : (
-                        <Badge>Estimated</Badge>
+                        <Badge>{t.estimated}</Badge>
                       )}
                     </td>
                     <td className="px-3 text-right text-[14px]">
@@ -397,7 +408,7 @@ function UpcomingTable({ data, loading }: { data: CashFlowData | undefined; load
                 aria-expanded={expanded}
               >
                 <ChevronDown className={cn('transition-transform', expanded && 'rotate-180')} />
-                {expanded ? 'Show fewer' : `Show all ${data.upcoming.length}`}
+                {expanded ? t.showFewer : t.showAll(data.upcoming.length)}
               </Button>
             </div>
           )}

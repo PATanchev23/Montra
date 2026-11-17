@@ -1,32 +1,40 @@
-import { SUPPORTED_CURRENCIES, type Currency, type OnboardingStep } from '@montra/shared';
+import { SUPPORTED_CURRENCIES, type Currency } from '@montra/shared';
 import type { SelectOption } from '../../components/ui/Select';
+import { currentIntlLocale } from '../../i18n';
 
-const currencyNames = new Intl.DisplayNames(['en'], { type: 'currency' });
+/*
+ * Names come from Intl in the interface language ("Euro" / "евро",
+ * "January" / "януари"), so these are built on each call, not once.
+ */
 
 export function currencyLabel(code: string): string {
-  return `${currencyNames.of(code) ?? code} (${code})`;
+  const names = new Intl.DisplayNames([currentIntlLocale()], { type: 'currency' });
+  return `${names.of(code) ?? code} (${code})`;
 }
 
-export const currencyOptions: SelectOption<Currency>[] = SUPPORTED_CURRENCIES.map((code) => ({
-  value: code,
-  label: currencyLabel(code),
-}));
-
-const monthFormat = new Intl.DateTimeFormat('en', { month: 'long', timeZone: 'UTC' });
+export function currencyOptions(): SelectOption<Currency>[] {
+  return SUPPORTED_CURRENCIES.map((code) => ({ value: code, label: currencyLabel(code) }));
+}
 
 /** January to December; values are month numbers as text, 1 to 12. */
-export const monthOptions: SelectOption<string>[] = Array.from({ length: 12 }, (_, index) => ({
-  value: String(index + 1),
-  label: monthFormat.format(Date.UTC(2026, index, 1)),
-}));
+export function monthOptions(): SelectOption<string>[] {
+  const format = new Intl.DateTimeFormat(currentIntlLocale(), { month: 'long', timeZone: 'UTC' });
+  return Array.from({ length: 12 }, (_, index) => ({
+    value: String(index + 1),
+    label: format.format(Date.UTC(2026, index, 1)),
+  }));
+}
 
 export function monthName(month: number): string {
-  return monthOptions[month - 1]?.label ?? String(month);
+  return monthOptions()[month - 1]?.label ?? String(month);
 }
 
 /** "America/New_York" → "America/New York (GMT-4)", with the offset in effect today. */
 export function timeZoneLabel(zone: string): string {
-  const offset = new Intl.DateTimeFormat('en', { timeZone: zone, timeZoneName: 'shortOffset' })
+  const offset = new Intl.DateTimeFormat(currentIntlLocale(), {
+    timeZone: zone,
+    timeZoneName: 'shortOffset',
+  })
     .formatToParts(new Date())
     .find((part) => part.type === 'timeZoneName')?.value;
   return `${zone.replaceAll('_', ' ')}${offset ? ` (${offset})` : ''}`;
@@ -47,24 +55,3 @@ export function timeZoneOptions(selected: string): SelectOption<string>[] {
     ? allTimeZones
     : [{ value: selected, label: timeZoneLabel(selected) }, ...allTimeZones];
 }
-
-export const stepCopy: Record<
-  OnboardingStep,
-  { label: string; title: string; description: string }
-> = {
-  BUSINESS_DETAILS: {
-    label: 'Business',
-    title: 'Tell us about your business',
-    description: 'Montra uses these details to label, date and format your figures.',
-  },
-  FINANCIAL_PREFERENCES: {
-    label: 'Preferences',
-    title: 'Financial preferences',
-    description: 'How your financial year runs, and when Montra should warn you about cash.',
-  },
-  REVIEW: {
-    label: 'Review',
-    title: 'Review and create',
-    description: 'Check your answers. Montra then creates your business and makes you its owner.',
-  },
-};

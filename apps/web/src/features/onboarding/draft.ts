@@ -13,6 +13,8 @@ import {
 } from '@montra/shared';
 import { z } from 'zod';
 
+import { messagesFor } from '../../i18n';
+import { onboardingMessages } from './messages';
 /*
  * The onboarding form holds answers as typed (strings); the API stores them
  * as an OnboardingDraft. Both directions go through the shared schemas, so
@@ -139,18 +141,6 @@ export function hasUnsavedChanges(
   );
 }
 
-/** Answers named in API error details (`businessDetails.name` …), for the user. */
-const answerLabels: Record<string, string> = {
-  businessDetails: 'Business details',
-  'businessDetails.name': 'Business name',
-  'businessDetails.industry': 'Industry',
-  'businessDetails.currency': 'Currency',
-  'businessDetails.timezone': 'Time zone',
-  financialPreferences: 'Financial preferences',
-  'financialPreferences.fiscalYearStartMonth': 'Fiscal year start',
-  'financialPreferences.lowBalanceThresholdCents': 'Low-balance threshold',
-};
-
 export interface MissingAnswer {
   label: string;
   step: OnboardingStep;
@@ -158,10 +148,11 @@ export interface MissingAnswer {
 
 /** Reads the `path`s of a validation error's details as answers and the steps that ask them. */
 export function missingAnswersFrom(paths: string[]): MissingAnswer[] {
+  const answerLabels = messagesFor(onboardingMessages).answers;
   const seen = new Set<string>();
   const answers: MissingAnswer[] = [];
   for (const path of paths) {
-    const label = answerLabels[path] ?? 'Business details';
+    const label = answerLabels[path] ?? answerLabels.businessDetails!;
     if (seen.has(label)) continue;
     seen.add(label);
     answers.push({

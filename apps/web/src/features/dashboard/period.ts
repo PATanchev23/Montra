@@ -6,19 +6,22 @@ import {
   type DashboardPeriod,
   type TrendInterval,
 } from '@montra/shared';
-import { format, parseISO } from 'date-fns';
 import type { DashboardParams } from '../../api/dashboard';
+import { messagesFor } from '../../i18n';
+import { localizeMessage } from '../../i18n/serverMessages';
+import { decimal, formatDate } from '../../lib/format';
+import { dashboardMessages } from './messages';
 
-export const periodOptions: { value: DashboardPeriod; label: string }[] = [
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-  { value: 'month', label: 'This month' },
-  { value: 'last-month', label: 'Last month' },
-  { value: 'custom', label: 'Custom range' },
-];
+/** The reporting periods, in menu order. */
+export const PERIODS: DashboardPeriod[] = ['7d', '30d', '90d', 'month', 'last-month', 'custom'];
 
-const day = (iso: string, pattern: string) => format(parseISO(iso), pattern);
+/** The menu's choices, named in the interface language. */
+export function periodOptions(): { value: DashboardPeriod; label: string }[] {
+  const names = messagesFor(dashboardMessages).periods;
+  return PERIODS.map((value) => ({ value, label: names[value] }));
+}
+
+const day = (iso: string, pattern: string) => formatDate(iso, pattern);
 
 /** "11 Oct – 9 Nov 2026", "1 – 31 Oct 2026", or one day. */
 export function rangeLabel(from: string, to: string): string {
@@ -28,8 +31,6 @@ export function rangeLabel(from: string, to: string): string {
     return `${day(from, 'd MMM')} – ${day(to, 'd MMM yyyy')}`;
   return `${day(from, 'd MMM yyyy')} – ${day(to, 'd MMM yyyy')}`;
 }
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 export interface PeriodText {
   /** Short name, e.g. "Last 30 days" or "October 2026". */
@@ -45,47 +46,34 @@ export function describePeriod(
   period: DashboardPeriod,
   { from, to, previousFrom }: { from: string; to: string; previousFrom: string },
 ): PeriodText {
+  const m = messagesFor(dashboardMessages);
   const days = isoDaysBetween(from, to) + 1;
   switch (period) {
     case '7d':
     case '30d':
     case '90d':
-      return {
-        label: `Last ${days} days`,
-        phrase: `in the last ${days} days`,
-        comparison: `vs. previous ${days} days`,
-      };
+      return m.rolling(days);
     case 'month':
-      return {
-        label: day(from, 'MMMM yyyy'),
-        phrase: 'this month so far',
-        comparison: 'vs. same days last month',
-      };
+      return { label: day(from, 'LLLL yyyy'), ...m.thisMonth };
     case 'last-month':
       return {
-        label: day(from, 'MMMM yyyy'),
-        phrase: `in ${day(from, 'MMMM yyyy')}`,
-        comparison: `vs. ${day(previousFrom, 'MMMM')}`,
+        label: day(from, 'LLLL yyyy'),
+        ...m.lastMonth(day(from, 'LLLL yyyy'), day(previousFrom, 'LLLL')),
       };
     case 'custom':
-      return {
-        label: rangeLabel(from, to),
-        phrase: `${from === to ? 'on' : 'over'} ${rangeLabel(from, to)}`,
-        comparison: `vs. previous ${plural(days, 'day')}`,
-      };
+      return { label: rangeLabel(from, to), ...m.custom(rangeLabel(from, to), days) };
   }
 }
 
 /** Why a custom range cannot be shown, by the API's own rules; null when it can. */
 export function customRangeProblem(params: DashboardParams): string | null {
   if (params.period !== 'custom') return null;
-  if (!params.from || !params.to) return 'Choose a start and an end date.';
+  const m = messagesFor(dashboardMessages);
+  if (!params.from || !params.to) return m.rangeStartMissing;
   const parsed = dashboardQuerySchema.safeParse(params);
   if (parsed.success) return null;
   const message = parsed.error.issues[0]!.message;
-  return message === '`from` must not be after `to`.'
-    ? 'The start date is after the end date.'
-    : message;
+  return message === '`from` must not be after `to`.' ? m.rangeReversed : localizeMessage(message);
 }
 
 /** The dates a period covers on `today` (a custom range as chosen). */
@@ -112,14 +100,14 @@ export function bucketLabels(
       const whole = start.endsWith('-01') && end === isoEndOfMonth(start);
       return {
         label: day(start, 'MMM'),
-        title: whole ? day(start, 'MMMM yyyy') : rangeLabel(start, end),
+        title: whole ? day(start, 'LLLL yyyy') : rangeLabel(start, end),
       };
     }
   }
 }
 
-/** Basis points as a percentage: 6937 → "69.4%", 3 → "<0.1%". */
+/** Basis points as a percentage: 6937 → "69.4%" (Bulgarian "69,4%"), 3 → "<0.1%". */
 export function shareLabel(basisPoints: number): string {
-  if (basisPoints > 0 && basisPoints < 10) return '<0.1%';
-  return `${(basisPoints / 100).toLocaleString('en', { maximumFractionDigits: 1 })}%`;
+  if (basisPoints > 0 && basisPoints < 10) return `<${decimal(0.1)}%`;
+  return `${decimal(basisPoints / 100)}%`;
 }

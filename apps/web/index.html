@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Montra</title>
     <script>
-      // Apply the saved theme before first paint to avoid a light/dark flash.
+      // Apply the saved theme and language before first paint to avoid a light/dark flash.
       try {
         // Light is the default. A "dark" saved before version 1 (or with no version) was
         // the old default, so it starts from light once; the store in src/stores/ui.ts
@@ -20,6 +20,13 @@
           pref === 'dark' ||
           (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.classList.toggle('dark', dark);
+        // The interface language, by the rule in src/i18n/language.ts: the saved choice,
+        // otherwise Bulgarian for a browser that asks for it first, otherwise English.
+        var lang = saved.state && saved.state.language;
+        if (lang !== 'en' && lang !== 'bg') {
+          lang = /^bg/i.test(navigator.language || '') ? 'bg' : 'en';
+        }
+        document.documentElement.lang = lang;
       } catch (e) {}
     </script>
   </head>

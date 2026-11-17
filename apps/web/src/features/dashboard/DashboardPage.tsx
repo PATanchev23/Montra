@@ -10,7 +10,8 @@ import { Panel } from '../../components/ui/Panel';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { EmptyState, ErrorState } from '../../components/ui/States';
 import { cn } from '../../lib/cn';
-import { greeting } from '../../lib/format';
+import { useMessages } from '../../i18n';
+import { count, greeting } from '../../lib/format';
 import { useUiStore } from '../../stores/ui';
 import { firstName } from '../auth/access';
 import { useCurrentMembership, useSignedInUser } from '../auth/currentUser';
@@ -22,17 +23,11 @@ import {
   UpcomingPaymentsPanel,
 } from './DashboardPanels';
 import { KpiCards } from './KpiCards';
+import { dashboardMessages } from './messages';
 import { customRangeProblem, describePeriod, rangeLabel } from './period';
 
-const plural = (n: number, word: string) =>
-  `${n.toLocaleString('en')} ${word}${n === 1 ? '' : 's'}`;
-
 /** The rolling periods one tap away; the date-range menu in the top bar holds the rest. */
-const quickRanges: { value: DashboardPeriod; label: string }[] = [
-  { value: '7d', label: '7 days' },
-  { value: '30d', label: '30 days' },
-  { value: '90d', label: '90 days' },
-];
+const QUICK_RANGES = ['7d', '30d', '90d'] as const;
 
 /**
  * The dashboard: the period's net cash flow, income and expenses; how the
@@ -45,6 +40,8 @@ export function DashboardPage() {
   const { business, role } = useCurrentMembership();
   const params = useUiStore((s) => s.period);
   const setPeriod = useUiStore((s) => s.setPeriod);
+  const m = useMessages(dashboardMessages);
+  const quickRanges = QUICK_RANGES.map((value) => ({ value, label: m.quickRanges[value] }));
 
   const rangeProblem = customRangeProblem(params);
   const { data, isError, error, isPlaceholderData, refetch } = useDashboardSummary(
@@ -64,16 +61,17 @@ export function DashboardPage() {
         description={
           text ? (
             <>
-              <span className="block">
-                Here’s how {business.name} performed {text.phrase}.
-              </span>
+              <span className="block">{m.header.performed(business.name, text.phrase)}</span>
               <span className="tabular mt-1 block text-body-sm text-muted">
                 {rangeLabel(shown.period.from, shown.period.to)} ·{' '}
-                {plural(shown.overview.transactionCount, 'transaction')}
+                {m.header.transactions(
+                  count(shown.overview.transactionCount),
+                  shown.overview.transactionCount,
+                )}
               </span>
             </>
           ) : (
-            <>Here’s how {business.name} is doing.</>
+            <>{m.header.doing(business.name)}</>
           )
         }
         actions={
@@ -82,7 +80,7 @@ export function DashboardPage() {
               <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:flex sm:w-auto">
                 <Input
                   type="date"
-                  aria-label="From date"
+                  aria-label={m.header.fromDate}
                   aria-invalid={rangeProblem ? true : undefined}
                   min={TRANSACTION_DATE_MIN}
                   max={TRANSACTION_DATE_MAX}
@@ -90,10 +88,10 @@ export function DashboardPage() {
                   onChange={(e) => setPeriod({ ...params, from: e.target.value || undefined })}
                   className="sm:w-[150px]"
                 />
-                <span className="text-body-sm text-muted">to</span>
+                <span className="text-body-sm text-muted">{m.header.to}</span>
                 <Input
                   type="date"
-                  aria-label="To date"
+                  aria-label={m.header.toDate}
                   aria-invalid={rangeProblem ? true : undefined}
                   min={TRANSACTION_DATE_MIN}
                   max={TRANSACTION_DATE_MAX}
@@ -104,7 +102,7 @@ export function DashboardPage() {
               </div>
             )}
             <SegmentedControl<DashboardPeriod>
-              label="Quick period"
+              label={m.header.quickPeriod}
               value={params.period}
               onChange={(period) => setPeriod({ period })}
               options={quickRanges}
@@ -116,31 +114,24 @@ export function DashboardPage() {
 
       {rangeProblem ? (
         <Panel>
-          <EmptyState icon={CalendarRange} title="Check the date range" body={rangeProblem} />
+          <EmptyState icon={CalendarRange} title={m.states.checkRange} body={rangeProblem} />
         </Panel>
       ) : isError ? (
         <Panel>
-          <ErrorState
-            title={errorMessage(error, 'Could not load the dashboard')}
-            onRetry={() => refetch()}
-          />
+          <ErrorState title={errorMessage(error, m.states.loadError)} onRetry={() => refetch()} />
         </Panel>
       ) : noTransactions ? (
         <Panel>
           <EmptyState
             icon={ReceiptText}
-            title="No transactions yet"
-            body={
-              role === 'OWNER'
-                ? 'Your dashboard fills in as soon as you record a payment or import your history.'
-                : 'The dashboard fills in once the business owner records transactions.'
-            }
+            title={m.states.empty}
+            body={role === 'OWNER' ? m.states.emptyOwner : m.states.emptyViewer}
             action={
               role === 'OWNER' && (
                 <Button asChild variant="primary">
                   <Link to="/transactions">
                     <Plus />
-                    Add or import transactions
+                    {m.states.addOrImport}
                   </Link>
                 </Button>
               )

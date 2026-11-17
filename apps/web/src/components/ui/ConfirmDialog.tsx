@@ -1,5 +1,7 @@
 import { AlertDialog } from 'radix-ui';
 import type { ReactNode } from 'react';
+import { useMessages } from '../../i18n';
+import { common } from '../../i18n/common';
 import { Button } from './Button';
 
 /**
@@ -12,11 +14,11 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
-  busyLabel = 'Working…',
+  busyLabel,
   busy = false,
   error,
   onConfirm,
-  cancelLabel = 'Cancel',
+  cancelLabel,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -30,6 +32,7 @@ export function ConfirmDialog({
   onConfirm: () => void;
   cancelLabel?: string;
 }) {
+  const m = useMessages(common);
   return (
     <AlertDialog.Root open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
       <AlertDialog.Portal>
@@ -48,7 +51,7 @@ export function ConfirmDialog({
           )}
           <div className="mt-6 flex justify-end gap-2">
             <AlertDialog.Cancel asChild>
-              <Button disabled={busy}>{cancelLabel}</Button>
+              <Button disabled={busy}>{cancelLabel ?? m.cancel}</Button>
             </AlertDialog.Cancel>
             <Button
               className="bg-negative text-surface hover:bg-negative hover:brightness-110"
@@ -56,7 +59,7 @@ export function ConfirmDialog({
               disabled={busy}
               onClick={onConfirm}
             >
-              {busy ? busyLabel : confirmLabel}
+              {busy ? (busyLabel ?? m.working) : confirmLabel}
             </Button>
           </div>
         </AlertDialog.Content>

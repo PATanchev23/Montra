@@ -57,6 +57,9 @@ import type {
   UpcomingItem,
 } from './types';
 
+import { messagesFor } from '../i18n';
+import { formatDay, money } from '../lib/format';
+import { categoryName, sampleDescription, sampleMessages, type ScenarioId } from './messages';
 const LATENCY_MS = 180;
 const wait = () => new Promise((resolve) => setTimeout(resolve, LATENCY_MS));
 
@@ -216,13 +219,18 @@ function categoryShares(list: Transaction[], type: EntryType, top = 4) {
   const sorted = [...sums.entries()].sort((a, b) => b[1] - a[1]);
   const items: CategoryShare[] = sorted.slice(0, top).map(([id, value]) => ({
     categoryId: id,
-    name: categoryById[id].name,
+    name: categoryName(id),
     cents: value,
     share: total ? value / total : 0,
   }));
   const rest = sorted.slice(top).reduce((sum, [, value]) => sum + value, 0);
   if (rest > 0) {
-    items.push({ categoryId: 'utilities', name: 'Other', cents: rest, share: rest / total });
+    items.push({
+      categoryId: 'utilities',
+      name: messagesFor(sampleMessages).other,
+      cents: rest,
+      share: rest / total,
+    });
   }
   return { totalCents: total, items };
 }
@@ -242,18 +250,19 @@ export function upcomingItems(days: number): UpcomingItem[] {
 }
 
 function toUpcoming(e: CashEvent, i: number): UpcomingItem {
+  const m = messagesFor(sampleMessages);
   return {
     id: `up_${e.date}_${i}`,
     dueDate: e.date,
-    description: e.description,
+    description: sampleDescription(e.description),
     detail:
       e.kind === 'supplier-invoice'
-        ? `${e.counterparty} · Inventory`
+        ? `${e.counterparty} · ${categoryName('inventory')}`
         : e.type === 'income'
-          ? 'Expected payout'
+          ? m.expectedPayout
           : e.kind === 'recurring'
-            ? categoryById[e.categoryId].name
-            : 'Campaign payment',
+            ? categoryName(e.categoryId)
+            : m.campaignPayment,
     categoryId: e.categoryId,
     type: e.type,
     amountCents: e.expectedCents,
@@ -327,11 +336,7 @@ function buildInsights(period: Period): Insight[] {
 }
 
 function euro(cents: number) {
-  return new Intl.NumberFormat('en-IE', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
+  return money(cents, { decimals: 0 });
 }
 
 export async function getDashboard(period: Period): Promise<DashboardData> {
@@ -347,7 +352,7 @@ export async function getDashboard(period: Period): Promise<DashboardData> {
     balanceAt(iso(addDays(parseISO(info.start), Math.round((span * (i + 1)) / buckets)))),
   );
 
-  const scenario = scenarioPresets.find((p) => p.summary.id === 'hire-support')!;
+  const scenario = scenarioPresets.find((p) => p.id === 'hire-support')!;
   const baseline = projectBalance();
   const withScenario = projectBalance(scenario.rule);
   const weekly = (points: BalancePoint[]) =>
@@ -388,8 +393,8 @@ export async function getDashboard(period: Period): Promise<DashboardData> {
         trend: weekly(baseline),
       },
       scenario: {
-        id: scenario.summary.id,
-        label: scenario.summary.name,
+        id: scenario.id,
+        label: summaryOf(scenario).name,
         endCents: withScenario.at(-1)!.balanceCents,
         trend: weekly(withScenario),
       },
@@ -409,7 +414,7 @@ function historicalMonth(month: Date): MonthlyFlow {
   const t = totals(inRange(iso(month), iso(endOfMonth(month))));
   return {
     key: format(month, 'yyyy-MM'),
-    label: format(month, 'MMM'),
+    label: formatDay(month, 'LLL'),
     incomeCents: t.income,
     expenseCents: t.expense,
     netCents: t.net,
@@ -429,7 +434,7 @@ function projectedMonth(month: Date, rule?: ScenarioRule): MonthlyFlow {
   }
   return {
     key: format(month, 'yyyy-MM'),
-    label: format(month, 'MMM'),
+    label: formatDay(month, 'LLL'),
     incomeCents: income,
     expenseCents: expense,
     netCents: income - expense,
@@ -542,35 +547,33 @@ function projectBalance(rule?: ScenarioRule, days = FORECAST_DAYS): BalancePoint
 }
 
 interface ScenarioPreset {
-  summary: ScenarioSummary;
+  id: ScenarioId;
   rule: ScenarioRule;
+}
+
+/** A preset's name, description and assumptions, in the interface language. */
+function summaryOf(preset: ScenarioPreset): ScenarioSummary {
+  const month = formatDay(addMonths(DEMO_TODAY, 1), 'LLLL');
+  const orderDay = formatDay(
+    new Date(DEMO_TODAY.getFullYear(), DEMO_TODAY.getMonth() + 1, 3),
+    'd MMM',
+  );
+  const text = messagesFor(sampleMessages).scenarios[preset.id](month, orderDay);
+  return { id: preset.id, ...text, assumptions: [...text.assumptions] };
 }
 
 const nextMonthKey = format(addMonths(DEMO_TODAY, 1), 'yyyy-MM');
 
 export const scenarioPresets: ScenarioPreset[] = [
   {
-    summary: {
-      id: 'ads-plus-20',
-      name: 'Increase ad spend by 20%',
-      description: 'Scale Meta and Google campaigns ahead of the holiday season.',
-      assumptions: ['Advertising +20%', 'Revenue +3% from extra traffic', 'Margins unchanged'],
-    },
+    id: 'ads-plus-20',
     rule: {
       categoryFactors: { advertising: 1.2, inventory: 1.03, shipping: 1.03 },
       revenueFactor: 1.03,
     },
   },
   {
-    summary: {
-      id: 'hire-support',
-      name: 'Hire a support agent',
-      description: 'A full-time customer support hire starting next month.',
-      assumptions: [
-        '+€1,850 payroll per month',
-        `Starts ${format(addMonths(DEMO_TODAY, 1), 'MMMM')}`,
-      ],
-    },
+    id: 'hire-support',
     rule: {
       extraMonthly: [
         { description: 'Support agent salary', categoryId: 'payroll', euros: 1850, day: 25 },
@@ -578,15 +581,7 @@ export const scenarioPresets: ScenarioPreset[] = [
     },
   },
   {
-    summary: {
-      id: 'black-friday',
-      name: 'Black Friday stock-up',
-      description: 'Pre-order €8,500 of extra stock to capture more Black Friday demand.',
-      assumptions: [
-        'One-off inventory €8,500 on 3 Nov',
-        `Revenue +18% in ${format(addMonths(DEMO_TODAY, 1), 'MMMM')}`,
-      ],
-    },
+    id: 'black-friday',
     rule: {
       oneOff: [
         {
@@ -601,36 +596,31 @@ export const scenarioPresets: ScenarioPreset[] = [
     },
   },
   {
-    summary: {
-      id: 'lose-marketplace',
-      name: 'Lose the marketplace channel',
-      description: 'What if the marketplace delists TechStore from next week?',
-      assumptions: ['Marketplace revenue stops', 'Inventory purchases −20%'],
-    },
+    id: 'lose-marketplace',
     rule: { categoryFactors: { 'sales-marketplace': 0, inventory: 0.8 } },
   },
 ];
 
 export async function listScenarios(): Promise<ScenarioSummary[]> {
   await wait();
-  return scenarioPresets.map((p) => p.summary);
+  return scenarioPresets.map(summaryOf);
 }
 
 export async function getScenarioResult(id: string): Promise<ScenarioResult> {
   await wait();
-  const preset = scenarioPresets.find((p) => p.summary.id === id);
+  const preset = scenarioPresets.find((p) => p.id === id);
   if (!preset) throw new Error(`Unknown scenario: ${id}`);
   const baseline = projectBalance();
   const projection = projectBalance(preset.rule).map(({ lowCents: _l, highCents: _h, ...p }) => p);
   const low = projection.reduce((min, p) => (p.balanceCents < min.balanceCents ? p : min));
   const months = monthKeys(addMonths(startOfMonth(DEMO_TODAY), 1), 3).map((m) => ({
     key: format(m, 'yyyy-MM'),
-    label: format(m, 'MMMM'),
+    label: formatDay(m, 'LLLL'),
     baselineNetCents: projectedMonth(m).netCents,
     scenarioNetCents: projectedMonth(m, preset.rule).netCents,
   }));
   return {
-    scenario: preset.summary,
+    scenario: summaryOf(preset),
     baseline: weeklySample(baseline),
     projection: weeklySample(projection),
     baselineEndCents: baseline.at(-1)!.balanceCents,
@@ -813,7 +803,7 @@ function budgetMonth(offset: number): BudgetMonth {
 
   const lines = (Object.entries(budgetLimits) as [CategoryId, number][]).map(([id, limit]) => ({
     categoryId: id,
-    name: categoryById[id].name,
+    name: categoryName(id),
     limitCents: limit,
     spentCents: spentIn(month, id, end),
     paceCents: Math.round(limit * elapsedRatio),
@@ -824,7 +814,7 @@ function budgetMonth(offset: number): BudgetMonth {
 
   return {
     key: format(month, 'yyyy-MM'),
-    label: format(month, 'MMMM'),
+    label: formatDay(month, 'LLLL'),
     isCurrent,
     daysLeft: isCurrent ? days - DEMO_TODAY.getDate() : 0,
     elapsedRatio,
@@ -873,7 +863,7 @@ export async function getReport(year: number): Promise<ReportData> {
       );
       return {
         categoryId: c.id,
-        name: c.name,
+        name: categoryName(c.id),
         type: c.type,
         quarters,
         total: quarters.reduce((a, b) => a + b, 0),
@@ -913,15 +903,16 @@ export interface Notification {
 
 export async function getNotifications(): Promise<Notification[]> {
   await wait();
+  const m = messagesFor(sampleMessages).notifications;
   const due = upcomingItems(3).find((u) => u.kind === 'supplier-invoice');
   const budget = budgetMonth(0).lines.find((l) => l.spentCents > l.limitCents);
   const list: Notification[] = [];
   if (due) {
     list.push({
       id: 'due',
-      title: `${due.description} is due ${format(parseISO(due.dueDate), 'EEEE')}`,
-      body: `${euro(due.amountCents)} to ${due.detail.split(' · ')[0]}`,
-      time: 'Today',
+      title: m.due(due.description, formatDay(parseISO(due.dueDate), 'EEEE')),
+      body: m.dueBody(euro(due.amountCents), due.detail.split(' · ')[0]!),
+      time: m.today,
       tone: 'warning',
       to: '/cash-flow',
     });
@@ -929,18 +920,18 @@ export async function getNotifications(): Promise<Notification[]> {
   if (budget) {
     list.push({
       id: 'budget',
-      title: `${budget.name} is over budget`,
-      body: `${euro(budget.spentCents)} spent of ${euro(budget.limitCents)}`,
-      time: 'Yesterday',
+      title: m.overBudget(budget.name),
+      body: m.overBudgetBody(euro(budget.spentCents), euro(budget.limitCents)),
+      time: m.yesterday,
       tone: 'negative',
       to: '/budgets',
     });
   }
   list.push({
     id: 'payout',
-    title: 'Marketplace payout received',
-    body: 'Weekly settlement cleared to the main account',
-    time: '2 days ago',
+    title: m.payout,
+    body: m.payoutBody,
+    time: m.twoDaysAgo,
     tone: 'neutral',
     to: '/transactions?category=sales-marketplace',
   });

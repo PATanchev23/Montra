@@ -4,21 +4,26 @@ import { Link, useLocation } from 'react-router';
 import { useLogin } from '../../api/auth';
 import { useSession } from '../../api/session';
 import { Button } from '../../components/ui/Button';
+import { errorMessage } from '../../api/client';
+import { useMessages } from '../../i18n';
 import { showToast } from '../../stores/toasts';
 import { firstName } from './access';
 import { FormNotice, PasswordField, TextField } from './AuthFields';
 import { AuthHeading } from './AuthLayout';
+import { authMessages } from './messages';
 import { useSchemaForm } from './useSchemaForm';
 
 const signOutNotices = {
-  expired: { tone: 'warning', text: 'Your session has ended. Sign in again to continue.' },
-  'signed-out': { tone: 'neutral', text: 'You’ve signed out.' },
+  expired: { tone: 'warning', text: 'expired' },
+  'signed-out': { tone: 'neutral', text: 'signedOut' },
 } as const;
 
 export function LoginPage() {
   const location = useLocation();
   const { signOutReason } = useSession();
   const login = useLogin();
+  const t = useMessages(authMessages);
+  const m = t.login;
   const form = useSchemaForm(loginRequestSchema, { email: '', password: '' });
   const notice = signOutReason && signOutNotices[signOutReason];
 
@@ -26,9 +31,7 @@ export function LoginPage() {
     // GuestOnly navigates away once the session and profile are loaded.
     login
       .mutateAsync(credentials)
-      .then((me) =>
-        showToast({ tone: 'positive', title: `Welcome back, ${firstName(me.user.name)}` }),
-      )
+      .then((me) => showToast({ tone: 'positive', title: m.welcomeBack(firstName(me.user.name)) }))
       .catch(() => {
         // Shown from login.error below.
       });
@@ -36,10 +39,7 @@ export function LoginPage() {
 
   return (
     <>
-      <AuthHeading
-        title="Sign in to Montra"
-        description="Welcome back. Your cash flow picks up where you left it."
-      />
+      <AuthHeading title={m.title} description={m.description} />
 
       <form
         noValidate
@@ -48,24 +48,24 @@ export function LoginPage() {
         aria-busy={login.isPending}
       >
         {login.error ? (
-          <FormNotice tone="negative">{login.error.message}</FormNotice>
+          <FormNotice tone="negative">{errorMessage(login.error)}</FormNotice>
         ) : (
-          notice && <FormNotice tone={notice.tone}>{notice.text}</FormNotice>
+          notice && <FormNotice tone={notice.tone}>{m[notice.text]}</FormNotice>
         )}
 
         <TextField
-          label="Email"
+          label={t.email}
           type="email"
           autoComplete="username"
           inputMode="email"
           autoCapitalize="none"
           spellCheck={false}
-          placeholder="you@yourstore.com"
+          placeholder={t.emailPlaceholder}
           error={form.errors.email}
           {...form.register('email')}
         />
         <PasswordField
-          label="Password"
+          label={t.password}
           autoComplete="current-password"
           error={form.errors.password}
           {...form.register('password')}
@@ -79,18 +79,18 @@ export function LoginPage() {
           className="mt-1 w-full"
         >
           {login.isPending && <Loader2 className="animate-spin" />}
-          {login.isPending ? 'Signing in…' : 'Sign in'}
+          {login.isPending ? m.submitting : m.submit}
         </Button>
       </form>
 
       <p className="mt-7 text-center text-[13px] text-muted">
-        New to Montra?{' '}
+        {m.newHere}{' '}
         <Link
           to="/register"
           state={location.state}
           className="font-medium text-accent underline-offset-4 hover:underline"
         >
-          Create an account
+          {m.createAccount}
         </Link>
       </p>
     </>

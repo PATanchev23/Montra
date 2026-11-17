@@ -16,7 +16,9 @@ import { ErrorState, Skeleton } from '../../components/ui/States';
 import { Tooltip } from '../../components/ui/Tooltip';
 import type { BudgetLine, BudgetMonth } from '../../demo/types';
 import { cn } from '../../lib/cn';
-import { money, percent } from '../../lib/format';
+import { messagesFor, useMessages } from '../../i18n';
+import { count, money, percent } from '../../lib/format';
+import { budgetMessages } from './messages';
 
 type SortKey = 'usage' | 'amount' | 'name';
 const MIN_OFFSET = -11;
@@ -25,24 +27,26 @@ const MIN_OFFSET = -11;
 const FIXED: BudgetLine['categoryId'][] = ['payroll', 'rent', 'software', 'utilities'];
 
 function status(line: BudgetLine) {
+  const m = messagesFor(budgetMessages).status;
   const ratio = line.spentCents / line.limitCents;
   if (ratio > 1)
     return {
       tone: 'negative' as const,
-      label: `Over by ${money(line.spentCents - line.limitCents, { decimals: 0 })}`,
+      label: m.overBy(money(line.spentCents - line.limitCents, { decimals: 0 })),
     };
   if (FIXED.includes(line.categoryId))
-    return { tone: 'neutral' as const, label: ratio >= 0.98 ? 'Paid' : 'Fixed cost' };
-  if (ratio >= 0.9) return { tone: 'warning' as const, label: 'Near limit' };
+    return { tone: 'neutral' as const, label: ratio >= 0.98 ? m.paid : m.fixed };
+  if (ratio >= 0.9) return { tone: 'warning' as const, label: m.nearLimit };
   if (line.spentCents > line.paceCents * 1.1 && line.paceCents < line.limitCents)
-    return { tone: 'warning' as const, label: 'Ahead of pace' };
-  return { tone: 'neutral' as const, label: 'On track' };
+    return { tone: 'warning' as const, label: m.ahead };
+  return { tone: 'neutral' as const, label: m.onTrack };
 }
 
 export function BudgetsPage() {
   const [offset, setOffset] = useState(0);
   const [sort, setSort] = useState<SortKey>('usage');
   const { data, isPending, isError, isPlaceholderData, refetch } = useBudgets(offset);
+  const m = useMessages(budgetMessages).page;
 
   const lines = useMemo(() => {
     if (!data) return [];
@@ -50,25 +54,24 @@ export function BudgetsPage() {
     if (sort === 'usage')
       copy.sort((a, b) => b.spentCents / b.limitCents - a.spentCents / a.limitCents);
     if (sort === 'amount') copy.sort((a, b) => b.spentCents - a.spentCents);
-    if (sort === 'name') copy.sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === 'name')
+      copy.sort((a, b) => a.name.localeCompare(b.name, document.documentElement.lang));
     return copy;
   }, [data, sort]);
 
   return (
     <div className="flex flex-col gap-7">
       <PageHeader
-        eyebrow="Planning"
-        title="Budgets"
+        eyebrow={m.eyebrow}
+        title={m.title}
         description={
-          data
-            ? `Monthly spending limits · ${data.label} ${data.key.slice(0, 4)}`
-            : 'Monthly spending limits'
+          data ? m.descriptionFor(`${data.label} ${data.key.slice(0, 4)}`) : m.description
         }
         actions={
           <>
             <div className="flex items-center gap-1 rounded-control border border-line bg-surface p-1">
               <IconButton
-                label="Previous month"
+                label={m.previous}
                 size="sm"
                 disabled={offset <= MIN_OFFSET}
                 onClick={() => setOffset((o) => o - 1)}
@@ -79,7 +82,7 @@ export function BudgetsPage() {
                 {data ? `${data.label} ${data.key.slice(0, 4)}` : '…'}
               </span>
               <IconButton
-                label="Next month"
+                label={m.next}
                 size="sm"
                 disabled={offset >= 0}
                 onClick={() => setOffset((o) => o + 1)}
@@ -87,11 +90,11 @@ export function BudgetsPage() {
                 <ChevronRight />
               </IconButton>
             </div>
-            <Tooltip content="Changing limits arrives with the budgets API.">
+            <Tooltip content={m.editHint}>
               <span tabIndex={0} className="rounded-control">
                 <Button variant="primary" disabled className="pointer-events-none">
                   <PencilLine />
-                  Edit budgets
+                  {m.edit}
                 </Button>
               </span>
             </Tooltip>
@@ -101,7 +104,7 @@ export function BudgetsPage() {
 
       {isError ? (
         <Panel>
-          <ErrorState title="Could not load budgets" onRetry={() => refetch()} />
+          <ErrorState title={m.loadError} onRetry={() => refetch()} />
         </Panel>
       ) : (
         <div
@@ -116,19 +119,19 @@ export function BudgetsPage() {
               <div className="px-5 pt-5 pb-3 sm:px-6">
                 <PanelHeader
                   id="budget-categories"
-                  title="Categories"
-                  description="The marker on each bar shows where spending would be if spread evenly."
+                  title={m.categories}
+                  description={m.categoriesHint}
                   actions={
                     <Select
-                      label="Sort categories"
+                      label={m.sort}
                       size="sm"
                       value={sort}
                       onChange={setSort}
-                      className="w-[132px]"
+                      className="w-auto min-w-[132px]"
                       options={[
-                        { value: 'usage', label: 'By usage' },
-                        { value: 'amount', label: 'By amount' },
-                        { value: 'name', label: 'A–Z' },
+                        { value: 'usage', label: m.byUsage },
+                        { value: 'amount', label: m.byAmount },
+                        { value: 'name', label: m.byName },
                       ]}
                     />
                   }
@@ -157,6 +160,7 @@ export function BudgetsPage() {
 }
 
 function BudgetSummary({ month }: { month: BudgetMonth | undefined }) {
+  const m = useMessages(budgetMessages).summary;
   if (!month) {
     return (
       <Panel className="p-6">
@@ -173,22 +177,22 @@ function BudgetSummary({ month }: { month: BudgetMonth | undefined }) {
 
   const stats = [
     {
-      label: 'Remaining',
+      label: m.remaining,
       value: money(remaining, { decimals: 0 }),
       tone: remaining < 0 ? 'text-negative' : 'text-ink',
     },
     month.isCurrent
-      ? { label: 'Daily allowance', value: money(daily, { decimals: 0 }), tone: 'text-ink' }
+      ? { label: m.dailyAllowance, value: money(daily, { decimals: 0 }), tone: 'text-ink' }
       : {
-          label: 'Used',
+          label: m.used,
           value: percent(month.totalSpentCents / month.totalLimitCents),
           tone: 'text-ink',
         },
     month.isCurrent
-      ? { label: 'Days left', value: String(month.daysLeft), tone: 'text-ink' }
+      ? { label: m.daysLeft, value: count(month.daysLeft), tone: 'text-ink' }
       : {
-          label: 'Categories over',
-          value: String(month.lines.filter((l) => l.spentCents > l.limitCents).length),
+          label: m.categoriesOver,
+          value: count(month.lines.filter((l) => l.spentCents > l.limitCents).length),
           tone: 'text-ink',
         },
   ];
@@ -196,18 +200,18 @@ function BudgetSummary({ month }: { month: BudgetMonth | undefined }) {
   return (
     <Panel className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-12">
       <div className="min-w-0">
-        <p className="text-[13px] text-muted">{month.isCurrent ? 'Spent so far' : 'Spent'}</p>
+        <p className="text-[13px] text-muted">{month.isCurrent ? m.spentSoFar : m.spent}</p>
         <p className="tabular mt-1 text-[30px] leading-tight font-semibold tracking-[-0.03em] text-ink">
           {money(month.totalSpentCents, { decimals: 0 })}
           <span className="text-[16px] font-normal tracking-normal text-muted">
             {' '}
-            of {money(month.totalLimitCents, { decimals: 0 })}
+            {m.of(money(month.totalLimitCents, { decimals: 0 }))}
           </span>
         </p>
         <div className="mt-5">
           <CapsuleProgress
             size="lg"
-            label="Total budget used"
+            label={m.totalUsed}
             value={month.totalSpentCents}
             max={month.totalLimitCents}
             pace={month.isCurrent ? pace : undefined}
@@ -217,13 +221,13 @@ function BudgetSummary({ month }: { month: BudgetMonth | undefined }) {
           <p className="tabular mt-3 text-[13px] text-muted">
             {ahead > 0 ? (
               <>
-                <span className="text-warning">{money(ahead, { decimals: 0 })} ahead</span> of an
-                even pace for this point in the month
+                <span className="text-warning">{m.ahead(money(ahead, { decimals: 0 }))}</span>{' '}
+                {m.aheadRest}
               </>
             ) : (
               <>
-                <span className="text-positive">{money(-ahead, { decimals: 0 })} below</span> an
-                even pace for this point in the month
+                <span className="text-positive">{m.below(money(-ahead, { decimals: 0 }))}</span>{' '}
+                {m.belowRest}
               </>
             )}
           </p>
@@ -246,6 +250,7 @@ function BudgetSummary({ month }: { month: BudgetMonth | undefined }) {
 function BudgetRow({ line, isCurrent }: { line: BudgetLine; isCurrent: boolean }) {
   const s = status(line);
   const remaining = line.limitCents - line.spentCents;
+  const m = useMessages(budgetMessages).row;
   return (
     <li className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-3 border-t border-line-soft px-5 py-4 sm:px-6 md:grid-cols-[minmax(160px,1.1fr)_minmax(0,2fr)_auto]">
       <div className="flex min-w-0 items-center gap-3">
@@ -262,7 +267,7 @@ function BudgetRow({ line, isCurrent }: { line: BudgetLine; isCurrent: boolean }
       <div className="col-span-2 row-start-2 flex items-center gap-4 md:col-span-1 md:row-start-auto">
         <div className="flex-1">
           <CapsuleProgress
-            label={`${line.name} budget used`}
+            label={m.used(line.name)}
             value={line.spentCents}
             max={line.limitCents}
             pace={isCurrent && !FIXED.includes(line.categoryId) ? line.paceCents : undefined}
@@ -273,7 +278,7 @@ function BudgetRow({ line, isCurrent }: { line: BudgetLine; isCurrent: boolean }
             }
           />
         </div>
-        <Tooltip content="Spending over the last 6 months">
+        <Tooltip content={m.history}>
           <span className="hidden sm:block">
             <Sparkline values={line.history} tone="neutral" width={56} height={22} />
           </span>
@@ -286,8 +291,8 @@ function BudgetRow({ line, isCurrent }: { line: BudgetLine; isCurrent: boolean }
         </p>
         <p className={cn('mt-1 text-[12px]', remaining < 0 ? 'text-negative' : 'text-muted')}>
           {remaining < 0
-            ? `${money(-remaining, { decimals: 0 })} over`
-            : `${money(remaining, { decimals: 0 })} left`}
+            ? m.over(money(-remaining, { decimals: 0 }))
+            : m.left(money(remaining, { decimals: 0 }))}
         </p>
       </div>
     </li>
@@ -296,28 +301,25 @@ function BudgetRow({ line, isCurrent }: { line: BudgetLine; isCurrent: boolean }
 
 function SpendShare({ month }: { month: BudgetMonth | undefined }) {
   const [active, setActive] = useState<string | null>(null);
+  const m = useMessages(budgetMessages).share;
   const items = useMemo(() => {
     if (!month) return [];
     const sorted = [...month.lines].sort((a, b) => b.spentCents - a.spentCents);
     const top = sorted.slice(0, 4);
     const rest = sorted.slice(4).reduce((s, l) => s + l.spentCents, 0);
-    return [...top.map((l) => ({ id: l.name, value: l.spentCents })), { id: 'Other', value: rest }];
-  }, [month]);
+    return [...top.map((l) => ({ id: l.name, value: l.spentCents })), { id: m.other, value: rest }];
+  }, [month, m.other]);
   const total = items.reduce((s, i) => s + i.value, 0);
   const activeItem = items.find((i) => i.id === active);
 
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="spend-share">
-      <PanelHeader
-        id="spend-share"
-        title="Where it went"
-        description="Share of budgeted spending"
-      />
+      <PanelHeader id="spend-share" title={m.title} description={m.description} />
       {month ? (
         <>
           <div className="mt-6 flex justify-center">
             <DonutChart
-              ariaLabel="Share of budgeted spending by category"
+              ariaLabel={m.chart}
               size={176}
               thickness={20}
               active={active}
@@ -333,7 +335,7 @@ function SpendShare({ month }: { month: BudgetMonth | undefined }) {
                   <span className="tabular text-[20px] font-semibold tracking-[-0.02em] text-ink">
                     {money(activeItem?.value ?? total, { decimals: 0 })}
                   </span>
-                  <span className="text-[12px] text-muted">{activeItem?.id ?? 'Spent'}</span>
+                  <span className="text-[12px] text-muted">{activeItem?.id ?? m.spent}</span>
                 </>
               }
             />

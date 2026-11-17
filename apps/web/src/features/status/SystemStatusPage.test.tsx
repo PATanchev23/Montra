@@ -1,7 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useUiStore } from '../../stores/ui';
 import { SystemStatusPage } from './SystemStatusPage';
+
+afterEach(() => useUiStore.setState({ language: 'en' }));
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -42,6 +45,31 @@ describe('SystemStatusPage', () => {
       '/api/v1/health',
       expect.objectContaining({ method: 'GET' }),
     );
+  });
+
+  it('writes times and the build mode in Bulgarian', async () => {
+    useUiStore.setState({ language: 'bg' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          status: 'ok',
+          version: '0.1.0',
+          uptimeSeconds: 3700,
+          timestamp: '2026-10-25T12:00:00.000Z',
+          checks: { database: { status: 'up', latencyMs: 3 } },
+        }),
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('Всички системи работят')).toBeInTheDocument();
+    // Round trip (measured) and database query (3 ms), both in Bulgarian units.
+    expect(screen.getAllByText(/^\d+ мс$/)).toHaveLength(2);
+    expect(screen.queryByText(/\bms\b/)).not.toBeInTheDocument();
+    // Vitest runs in Vite's "test" mode.
+    expect(screen.getByText('Тест')).toBeInTheDocument();
   });
 
   it('reports the API as unreachable when the request fails', async () => {

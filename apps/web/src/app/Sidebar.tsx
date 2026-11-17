@@ -2,6 +2,7 @@ import {
   Activity,
   Check,
   ChevronRight,
+  Languages,
   ChevronsUpDown,
   LogOut,
   Monitor,
@@ -26,6 +27,8 @@ import {
 } from '../components/ui/Menu';
 import { Tooltip } from '../components/ui/Tooltip';
 import { useSignedInUser } from '../features/auth/currentUser';
+import { LANGUAGE_NAMES, LANGUAGES, useLanguage, useMessages } from '../i18n';
+import { common } from '../i18n/common';
 import { cn } from '../lib/cn';
 import { useUiStore, type ThemePreference } from '../stores/ui';
 import { primaryNav, secondaryNav, type NavItem } from './navigation';
@@ -40,6 +43,7 @@ function SidebarLink({
   onNavigate?: () => void;
 }) {
   const Icon = item.icon;
+  const label = useMessages(common).nav[item.label];
   // A plain class string, not NavLink's function form: the collapsed rail wraps the
   // link in a tooltip trigger, which can only merge strings.
   const isActive = useMatch({ path: item.to, end: item.to === '/' }) !== null;
@@ -48,7 +52,7 @@ function SidebarLink({
       to={item.to}
       end={item.to === '/'}
       onClick={onNavigate}
-      aria-label={collapsed ? item.label : undefined}
+      aria-label={collapsed ? label : undefined}
       className={cn(
         'group flex h-11 items-center gap-3.5 rounded-control text-body transition-colors duration-150',
         collapsed ? 'justify-center px-0' : 'px-3.5',
@@ -59,11 +63,11 @@ function SidebarLink({
       )}
     >
       <Icon aria-hidden className="size-[18px] shrink-0" strokeWidth={1.75} />
-      {!collapsed && <span className="truncate">{item.label}</span>}
+      {!collapsed && <span className="truncate">{label}</span>}
     </NavLink>
   );
   return collapsed ? (
-    <Tooltip content={item.label} side="right">
+    <Tooltip content={label} side="right">
       {link}
     </Tooltip>
   ) : (
@@ -71,18 +75,24 @@ function SidebarLink({
   );
 }
 
-const themes: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'system', label: 'System', icon: Monitor },
+const themes: { value: ThemePreference; label: 'light' | 'dark' | 'system'; icon: typeof Sun }[] = [
+  { value: 'light', label: 'light', icon: Sun },
+  { value: 'dark', label: 'dark', icon: Moon },
+  { value: 'system', label: 'system', icon: Monitor },
 ];
 
-const roleLabels: Record<MembershipRole, string> = { OWNER: 'Owner', VIEWER: 'Viewer' };
+const roleLabels = { OWNER: 'owner', VIEWER: 'viewer' } as const satisfies Record<
+  MembershipRole,
+  string
+>;
 
 function AccountMenu({ collapsed }: { collapsed: boolean }) {
   const navigate = useNavigate();
   const theme = useUiStore((s) => s.theme);
   const setTheme = useUiStore((s) => s.setTheme);
+  const language = useLanguage();
+  const setLanguage = useUiStore((s) => s.setLanguage);
+  const m = useMessages(common);
   const { user } = useSignedInUser();
   const logout = useLogout();
 
@@ -93,7 +103,7 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
           'flex w-full cursor-pointer items-center gap-3 rounded-field p-2 text-left transition-colors hover:bg-hover data-[state=open]:bg-hover',
           collapsed && 'justify-center',
         )}
-        aria-label="Account and appearance"
+        aria-label={m.account.menu}
       >
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-hover text-body-sm font-medium text-ink">
           {user.name[0]}
@@ -109,27 +119,36 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
         )}
       </MenuTrigger>
       <MenuContent side="top" align="start" className="w-60">
-        <MenuLabel>Appearance</MenuLabel>
+        <MenuLabel>{m.account.appearance}</MenuLabel>
         {themes.map(({ value, label, icon: Icon }) => (
           <MenuItem key={value} onSelect={() => setTheme(value)}>
             <Icon />
-            {label}
+            {m.account[label]}
             {theme === value && <Check className="ml-auto !text-ink" strokeWidth={2.25} />}
+          </MenuItem>
+        ))}
+        <MenuSeparator />
+        <MenuLabel>{m.account.language}</MenuLabel>
+        {LANGUAGES.map((value) => (
+          <MenuItem key={value} lang={value} onSelect={() => setLanguage(value)}>
+            <Languages />
+            {LANGUAGE_NAMES[value]}
+            {language === value && <Check className="ml-auto !text-ink" strokeWidth={2.25} />}
           </MenuItem>
         ))}
         <MenuSeparator />
         <MenuItem onSelect={() => navigate('/settings')}>
           <Settings />
-          Settings
+          {m.nav.settings}
         </MenuItem>
         <MenuItem onSelect={() => navigate('/status')}>
           <Activity />
-          System status
+          {m.nav.status}
         </MenuItem>
         <MenuSeparator />
         <MenuItem disabled={logout.isPending} onSelect={() => logout.mutate()}>
           <LogOut />
-          Sign out
+          {m.account.signOut}
         </MenuItem>
       </MenuContent>
     </Menu>
@@ -154,6 +173,7 @@ export function Sidebar({
   className?: string;
 }) {
   const [membership] = useSignedInUser().memberships;
+  const m = useMessages(common);
 
   return (
     <div className={cn('flex h-full flex-col px-4 pt-6 pb-4', collapsed && 'px-3.5', className)}>
@@ -166,7 +186,7 @@ export function Sidebar({
         <Logo collapsed={collapsed} />
         {onToggle && (
           <IconButton
-            label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            label={collapsed ? m.nav.expandSidebar : m.nav.collapseSidebar}
             size="sm"
             onClick={onToggle}
           >
@@ -175,13 +195,16 @@ export function Sidebar({
         )}
       </div>
 
-      <nav aria-label="Primary" className="mt-8 flex flex-col gap-1">
+      <nav aria-label={m.nav.primary} className="mt-8 flex flex-col gap-1">
         {primaryNav.map((item) => (
           <SidebarLink key={item.to} item={item} collapsed={collapsed} onNavigate={onNavigate} />
         ))}
       </nav>
 
-      <nav aria-label="Secondary" className="mt-6 flex flex-col gap-1 border-t border-line pt-6">
+      <nav
+        aria-label={m.nav.secondary}
+        className="mt-6 flex flex-col gap-1 border-t border-line pt-6"
+      >
         {secondaryNav.map((item) => (
           <SidebarLink key={item.to} item={item} collapsed={collapsed} onNavigate={onNavigate} />
         ))}
@@ -199,7 +222,7 @@ export function Sidebar({
                 {membership.business.name}
               </span>
               <span className="tabular block truncate text-caption text-muted">
-                {roleLabels[membership.role]} · {membership.business.currency}
+                {m.account[roleLabels[membership.role]]} · {membership.business.currency}
               </span>
             </span>
             <ChevronRight aria-hidden className="size-4 shrink-0 text-muted" strokeWidth={1.75} />

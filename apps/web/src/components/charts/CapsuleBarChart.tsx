@@ -13,6 +13,8 @@ import { cn } from '../../lib/cn';
 import { thousands } from '../../lib/format';
 import { ChartTooltip } from './ChartTooltip';
 import { useElementSize } from './useElementSize';
+import { useMessages } from '../../i18n';
+import { common } from '../../i18n/common';
 
 /*
  * Montra's signature chart: tall capsule bars with fully rounded ends.
@@ -215,6 +217,7 @@ export function CapsuleBarChart({
   }
   const placement = active !== null && renderTooltip ? tooltipPlacement(active) : null;
 
+  const msg = useMessages(common);
   return (
     <div
       ref={ref}
@@ -247,7 +250,7 @@ export function CapsuleBarChart({
           <div
             ref={plot}
             role="group"
-            aria-label={`${ariaLabel}. Use the left and right arrow keys to read each period.`}
+            aria-label={`${ariaLabel}. ${msg.chart.periodKeys}`}
             tabIndex={0}
             onKeyDown={handleKey}
             onPointerDown={() => {
@@ -401,7 +404,7 @@ export function CapsuleBarChart({
 
       {scrolls && (
         <p className="absolute right-0 bottom-0 text-caption leading-4 text-muted" style={{ left }}>
-          Scroll sideways for earlier periods
+          {msg.chart.scrollHint}
         </p>
       )}
 
@@ -415,7 +418,7 @@ export function CapsuleBarChart({
           <caption>{ariaLabel}</caption>
           <thead>
             <tr>
-              <th scope="col">Period</th>
+              <th scope="col">{msg.chart.period}</th>
               {drawn.map((s) => (
                 <th key={s.id} scope="col">
                   {s.label}
@@ -428,7 +431,7 @@ export function CapsuleBarChart({
               <tr key={c.key}>
                 <th scope="row">
                   {c.label}
-                  {c.projected ? ' (projected)' : ''}
+                  {c.projected ? msg.chart.projected : ''}
                 </th>
                 {drawn.map((s) => (
                   <td key={s.id}>{formatValue(s.values[i] ?? 0)}</td>

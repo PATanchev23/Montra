@@ -1,6 +1,5 @@
 import {
   DEFAULT_CURRENCY,
-  formatMoney,
   onboardingStepSchema,
   type Currency,
   type OnboardingDraft,
@@ -24,16 +23,19 @@ import {
   currencyOptions,
   monthName,
   monthOptions,
-  stepCopy,
   timeZoneLabel,
   timeZoneOptions,
 } from './options';
 
+import { useMessages } from '../../i18n';
+import { money } from '../../lib/format';
+import { onboardingMessages } from './messages';
 /** Three capsules, filled up to the current step, with the step names beneath. */
 export function SetupProgress({ step }: { step: OnboardingStep }) {
   const currentIndex = onboardingStepSchema.options.indexOf(step);
+  const m = useMessages(onboardingMessages);
   return (
-    <ol aria-label="Setup progress" className="grid grid-cols-3 gap-2">
+    <ol aria-label={m.progress} className="grid grid-cols-3 gap-2">
       {onboardingStepSchema.options.map((option, index) => {
         const done = index < currentIndex;
         const current = index === currentIndex;
@@ -53,8 +55,8 @@ export function SetupProgress({ step }: { step: OnboardingStep }) {
               )}
             >
               {done && <Check aria-hidden className="size-3 text-accent" strokeWidth={2.5} />}
-              {stepCopy[option].label}
-              {done && <span className="sr-only">(done)</span>}
+              {m.steps[option].label}
+              {done && <span className="sr-only">{m.done}</span>}
             </span>
           </li>
         );
@@ -69,48 +71,49 @@ export function DetailsFields({ form }: { form: SchemaForm<typeof detailsFormSch
   const currencyId = useId();
   const timeZoneId = useId();
   const zones = useMemo(() => timeZoneOptions(form.values.timezone), [form.values.timezone]);
+  const m = useMessages(onboardingMessages).fields;
 
   return (
     <>
       <TextField
-        label="Business name"
+        label={m.businessName}
         autoComplete="organization"
-        placeholder="e.g. TechStore"
-        hint="How your store appears across Montra."
+        placeholder={m.businessNamePlaceholder}
+        hint={m.businessNameHint}
         error={form.errors.name}
         {...form.register('name')}
       />
       <TextField
-        label="Industry (optional)"
-        placeholder="e.g. Consumer electronics"
-        hint="What you sell. Leave blank if you’d rather not say."
+        label={m.industryOptional}
+        placeholder={m.industryPlaceholder}
+        hint={m.industryHint}
         error={form.errors.industry}
         {...form.register('industry')}
       />
       <Field
-        label="Currency"
+        label={m.currency}
         htmlFor={currencyId}
-        hint="Montra records and reports your money in this currency."
+        hint={m.currencyHint}
         error={form.errors.currency}
       >
         <Select
           id={currencyId}
-          label="Currency"
+          label={m.currency}
           value={form.values.currency as Currency}
           onChange={(value) => form.setValue('currency', value)}
-          options={currencyOptions}
+          options={currencyOptions()}
           className={selectClass}
         />
       </Field>
       <Field
-        label="Time zone"
+        label={m.timeZone}
         htmlFor={timeZoneId}
-        hint="Decides when each day starts in your reports."
+        hint={m.timeZoneHint}
         error={form.errors.timezone}
       >
         <Select
           id={timeZoneId}
-          label="Time zone"
+          label={m.timeZone}
           value={form.values.timezone}
           onChange={(value) => form.setValue('timezone', value)}
           options={zones}
@@ -129,37 +132,36 @@ export function PreferencesFields({
   currency: string;
 }) {
   const monthId = useId();
+  const m = useMessages(onboardingMessages).fields;
   return (
     <>
       <Field
-        label="Financial year starts in"
+        label={m.fiscalYear}
         htmlFor={monthId}
-        hint="Yearly figures run from the first day of this month."
+        hint={m.fiscalYearHint}
         error={form.errors.fiscalYearStartMonth}
       >
         <Select
           id={monthId}
-          label="Financial year starts in"
+          label={m.fiscalYear}
           value={form.values.fiscalYearStartMonth}
           onChange={(value) => form.setValue('fiscalYearStartMonth', value)}
-          options={monthOptions}
+          options={monthOptions()}
           className={selectClass}
         />
       </Field>
       <TextField
-        label={`Low-balance threshold in ${currency} (optional)`}
+        label={m.threshold(currency)}
         inputMode="decimal"
         autoComplete="off"
-        placeholder="e.g. 2500"
-        hint="Montra warns you when your projected balance drops below this. Leave blank for no warning."
+        placeholder={m.thresholdPlaceholder}
+        hint={m.thresholdHint}
         error={form.errors.lowBalanceThreshold}
         {...form.register('lowBalanceThreshold')}
       />
     </>
   );
 }
-
-const missing = <span className="text-negative">Missing</span>;
 
 /** The saved answers, which are exactly what Montra will create the business from. */
 export function ReviewSummary({
@@ -174,31 +176,35 @@ export function ReviewSummary({
   const details = draft.businessDetails ?? {};
   const preferences = draft.financialPreferences ?? {};
   const threshold = preferences.lowBalanceThresholdCents;
+  const t = useMessages(onboardingMessages);
+  const f = t.fields;
+  const m = t.review;
+  const missing = <span className="text-negative">{m.missing}</span>;
 
   const sections: { step: OnboardingStep; title: string; rows: [string, ReactNode][] }[] = [
     {
       step: 'BUSINESS_DETAILS',
-      title: 'Business details',
+      title: m.businessDetails,
       rows: [
-        ['Business name', details.name || missing],
-        ['Industry', details.industry || <span className="text-muted">Not provided</span>],
-        ['Currency', details.currency ? currencyLabel(details.currency) : missing],
-        ['Time zone', details.timezone ? timeZoneLabel(details.timezone) : missing],
+        [f.businessName, details.name || missing],
+        [m.industry, details.industry || <span className="text-muted">{m.notProvided}</span>],
+        [f.currency, details.currency ? currencyLabel(details.currency) : missing],
+        [f.timeZone, details.timezone ? timeZoneLabel(details.timezone) : missing],
       ],
     },
     {
       step: 'FINANCIAL_PREFERENCES',
-      title: 'Financial preferences',
+      title: m.financialPreferences,
       rows: [
         [
-          'Financial year starts in',
+          f.fiscalYear,
           monthName(preferences.fiscalYearStartMonth ?? DEFAULT_FISCAL_YEAR_START_MONTH),
         ],
         [
-          'Low-balance threshold',
+          m.threshold,
           threshold == null
-            ? 'No warning'
-            : formatMoney(threshold, { currency: details.currency ?? DEFAULT_CURRENCY }),
+            ? m.noWarning
+            : money(threshold, { currency: details.currency ?? DEFAULT_CURRENCY }),
         ],
       ],
     },
@@ -214,11 +220,11 @@ export function ReviewSummary({
               variant="ghost"
               size="sm"
               disabled={disabled}
-              aria-label={`Edit ${section.title.toLowerCase()}`}
+              aria-label={m.editSection(section.title)}
               onClick={() => onEdit(section.step)}
             >
               <Pencil />
-              Edit
+              {m.edit}
             </Button>
           </div>
           <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[13px]">

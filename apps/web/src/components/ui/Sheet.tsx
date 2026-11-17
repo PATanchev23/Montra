@@ -2,6 +2,8 @@ import { X } from 'lucide-react';
 import { Dialog } from 'radix-ui';
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn';
+import { useMessages } from '../../i18n';
+import { common } from '../../i18n/common';
 
 /** A panel that slides in from the edge — used for details and the mobile navigation. */
 export function Sheet({
@@ -23,6 +25,7 @@ export function Sheet({
   className?: string;
   hideTitle?: boolean;
 }) {
+  const m = useMessages(common);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -51,7 +54,7 @@ export function Sheet({
               )}
             </div>
             <Dialog.Close
-              aria-label="Close"
+              aria-label={m.close}
               className="-mr-2 flex size-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-hover hover:text-ink"
             >
               <X className="size-4" strokeWidth={2} />

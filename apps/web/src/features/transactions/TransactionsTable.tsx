@@ -3,7 +3,9 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Amount } from '../../components/finance/Amount';
 import { cn } from '../../lib/cn';
 import { formatDate, money, relativeDay } from '../../lib/format';
-import { entryType, sourceLabels, typeLabel } from './display';
+import { useMessages } from '../../i18n';
+import { entryType, sourceName, typeLabel } from './display';
+import { transactionMessages } from './messages';
 import { TypeIcon } from './TypeIcon';
 import type { SortKey } from './useTransactionFilters';
 
@@ -39,6 +41,9 @@ function SortButton({
   );
 }
 
+/** "петък" → "Петък": Bulgarian weekdays are lower case except at the start of a heading. */
+const capitalize = (text: string) => text.charAt(0).toLocaleUpperCase() + text.slice(1);
+
 const ariaSort = (sort: SortKey, column: 'date' | 'amount') =>
   sort.startsWith(column) ? (sort.endsWith('desc') ? 'descending' : 'ascending') : 'none';
 
@@ -68,6 +73,8 @@ export function TransactionsTable({
   today?: Date;
 }) {
   const grouped = sort.startsWith('date');
+  const t$ = useMessages(transactionMessages);
+  const m = t$.table;
   const groups: { date: string; items: Transaction[] }[] = [];
   if (grouped) {
     for (const t of items) {
@@ -107,7 +114,7 @@ export function TransactionsTable({
         {t.category}
       </td>
       <td className={cn(cell, 'hidden text-[12px] whitespace-nowrap text-muted lg:table-cell')}>
-        {t.importSource ? sourceLabels[t.importSource] : 'Manual'}
+        {t.importSource ? sourceName(t.importSource) : t$.manual}
       </td>
       <td className={cn(cell, 'text-right text-[14px]')}>
         <Amount cents={t.amountCents} type={entryType(t.type)} currency={currency} />
@@ -122,7 +129,7 @@ export function TransactionsTable({
           {!grouped && (
             <th scope="col" className={headerCell} aria-sort={ariaSort(sort, 'date')}>
               <SortButton column="date" sort={sort} onSort={onSort}>
-                Date
+                {m.date}
               </SortButton>
             </th>
           )}
@@ -133,17 +140,17 @@ export function TransactionsTable({
           >
             {grouped ? (
               <SortButton column="date" sort={sort} onSort={onSort}>
-                Transaction
+                {m.transaction}
               </SortButton>
             ) : (
-              'Transaction'
+              m.transaction
             )}
           </th>
           <th scope="col" className={cn(headerCell, 'hidden md:table-cell')}>
-            Category
+            {m.category}
           </th>
           <th scope="col" className={cn(headerCell, 'hidden lg:table-cell')}>
-            Source
+            {m.source}
           </th>
           <th
             scope="col"
@@ -151,7 +158,7 @@ export function TransactionsTable({
             aria-sort={ariaSort(sort, 'amount')}
           >
             <SortButton column="amount" sort={sort} onSort={onSort} align="right">
-              Amount
+              {m.amount}
             </SortButton>
           </th>
         </tr>
@@ -167,14 +174,14 @@ export function TransactionsTable({
                   colSpan={3}
                   className="px-5 py-2 text-left text-[12px] font-medium text-ink-2 sm:px-6"
                 >
-                  {relativeDay(group.date, today, 'EEEE')}
+                  {capitalize(relativeDay(group.date, today, 'EEEE'))}
                   <span className="font-normal text-muted">
                     {' '}
                     · {formatDate(group.date, 'd MMMM yyyy')}
                   </span>
                 </th>
                 <td className="tabular px-5 py-2 text-right text-[12px] whitespace-nowrap text-muted sm:px-6">
-                  <span className="sr-only">Net for the day on this page: </span>
+                  <span className="sr-only">{m.dayNet}</span>
                   {money(net, { sign: 'always', currency })}
                 </td>
               </tr>

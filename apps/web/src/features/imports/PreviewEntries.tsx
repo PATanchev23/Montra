@@ -5,9 +5,12 @@ import { Amount } from '../../components/finance/Amount';
 import { Badge } from '../../components/ui/Badge';
 import { IconButton } from '../../components/ui/IconButton';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
-import { formatDate } from '../../lib/format';
+import { useMessages } from '../../i18n';
+import { localizeMessage } from '../../i18n/serverMessages';
+import { count, formatDate } from '../../lib/format';
 import { entryType } from '../transactions/display';
-import { entryStatusLabels, fieldLabels } from './labels';
+import { entryStatusLabel, fieldLabel } from './labels';
+import { importMessages } from './messages';
 
 export const PREVIEW_PAGE_SIZE = 50;
 
@@ -27,17 +30,18 @@ function EntryRow({
   onToggle: (included: boolean) => void;
 }) {
   const t = entry.transaction;
-  const status = entryStatusLabels[entry.status];
+  const status = entryStatusLabel(entry.status);
+  const m = useMessages(importMessages).preview;
   return (
     <li className="grid grid-cols-[52px_minmax(0,1fr)_auto] gap-x-3 border-t border-line-soft px-6 py-3">
-      <span className="tabular pt-0.5 text-[12px] text-faint">Row {entry.row}</span>
+      <span className="tabular pt-0.5 text-[12px] text-faint">{m.row(entry.row)}</span>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Badge tone={status.tone}>{status.label}</Badge>
           {t ? (
             <span className="min-w-0 truncate text-[13px] text-ink">{t.description}</span>
           ) : (
-            <span className="text-[13px] text-muted">Could not be read</span>
+            <span className="text-[13px] text-muted">{m.unreadable}</span>
           )}
         </div>
         {t && (
@@ -50,8 +54,8 @@ function EntryRow({
           <ul className="mt-1.5 flex flex-col gap-0.5">
             {entry.issues.map((issue, i) => (
               <li key={i} className="text-[12px] leading-snug text-negative">
-                {issue.field && <span className="font-medium">{fieldLabels[issue.field]}: </span>}
-                {issue.message}
+                {issue.field && <span className="font-medium">{fieldLabel(issue.field)}: </span>}
+                {localizeMessage(issue.message)}
               </li>
             ))}
           </ul>
@@ -60,7 +64,7 @@ function EntryRow({
           <ul className="mt-1.5 flex flex-col gap-0.5">
             {entry.notes.map((note, i) => (
               <li key={i} className="text-[12px] leading-snug text-muted">
-                {note}
+                {localizeMessage(note)}
               </li>
             ))}
           </ul>
@@ -81,7 +85,7 @@ function EntryRow({
               onChange={(e) => onToggle(e.target.checked)}
               className="size-3.5 accent-[var(--accent)]"
             />
-            Import anyway
+            {m.importAnyway}
           </label>
         )}
       </div>
@@ -113,6 +117,7 @@ export function PreviewEntries({
 }) {
   const [filter, setFilter] = useState<Filter>(summary.invalid > 0 ? 'INVALID' : 'all');
   const [page, setPage] = useState(1);
+  const m = useMessages(importMessages).preview;
 
   const shown = filter === 'all' ? entries : entries.filter((entry) => entry.status === filter);
   const pageCount = Math.max(1, Math.ceil(shown.length / PREVIEW_PAGE_SIZE));
@@ -126,23 +131,16 @@ export function PreviewEntries({
     DUPLICATE: summary.duplicates,
     POSSIBLE_DUPLICATE: summary.possibleDuplicates,
   };
-  const options = (
-    [
-      ['all', 'All'],
-      ['VALID', 'Valid'],
-      ['INVALID', 'Invalid'],
-      ['DUPLICATE', 'Duplicates'],
-      ['POSSIBLE_DUPLICATE', 'Possible duplicates'],
-    ] as const
-  )
-    .filter(([value]) => value === 'all' || counts[value] > 0)
-    .map(([value, label]) => ({ value, label: `${label} ${counts[value].toLocaleString('en')}` }));
+  const filters: Filter[] = ['all', 'VALID', 'INVALID', 'DUPLICATE', 'POSSIBLE_DUPLICATE'];
+  const options = filters
+    .filter((value) => value === 'all' || counts[value] > 0)
+    .map((value) => ({ value, label: `${m.filters[value]} ${count(counts[value])}` }));
 
   return (
     <div>
       <div className="overflow-x-auto px-6 pb-3">
         <SegmentedControl<Filter>
-          label="Show records"
+          label={m.show}
           size="sm"
           value={options.some((o) => o.value === filter) ? filter : 'all'}
           onChange={(next) => {
@@ -152,7 +150,7 @@ export function PreviewEntries({
           options={options}
         />
       </div>
-      <ul aria-label="Records in the file">
+      <ul aria-label={m.records}>
         {slice.map((entry) => (
           <EntryRow
             key={entry.index}
@@ -167,13 +165,15 @@ export function PreviewEntries({
       {shown.length > PREVIEW_PAGE_SIZE && (
         <div className="flex items-center justify-between gap-3 border-t border-line-soft px-6 py-2.5">
           <span className="tabular text-[12px] text-muted">
-            {((current - 1) * PREVIEW_PAGE_SIZE + 1).toLocaleString('en')}–
-            {Math.min(shown.length, current * PREVIEW_PAGE_SIZE).toLocaleString('en')} of{' '}
-            {shown.length.toLocaleString('en')}
+            {m.range(
+              count((current - 1) * PREVIEW_PAGE_SIZE + 1),
+              count(Math.min(shown.length, current * PREVIEW_PAGE_SIZE)),
+              count(shown.length),
+            )}
           </span>
           <div className="flex gap-1">
             <IconButton
-              label="Previous records"
+              label={m.previous}
               size="sm"
               bordered
               disabled={current <= 1}
@@ -182,7 +182,7 @@ export function PreviewEntries({
               <ChevronLeft />
             </IconButton>
             <IconButton
-              label="Next records"
+              label={m.next}
               size="sm"
               bordered
               disabled={current >= pageCount}

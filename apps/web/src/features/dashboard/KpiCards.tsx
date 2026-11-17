@@ -5,20 +5,21 @@ import { Panel } from '../../components/ui/Panel';
 import { Skeleton } from '../../components/ui/States';
 import { money } from '../../lib/format';
 
+import { useMessages } from '../../i18n';
+import { dashboardMessages } from './messages';
 type Key = 'net' | 'income' | 'expenses';
 
 interface KpiDefinition {
   key: Key;
-  label: string;
   goodWhen: 'up' | 'down';
   /** The trend values its line adds up, bucket by bucket. */
   series: 'netCents' | 'incomeCents' | 'expenseCents';
 }
 
 const definitions: KpiDefinition[] = [
-  { key: 'net', label: 'Net cash flow', goodWhen: 'up', series: 'netCents' },
-  { key: 'income', label: 'Income', goodWhen: 'up', series: 'incomeCents' },
-  { key: 'expenses', label: 'Expenses', goodWhen: 'down', series: 'expenseCents' },
+  { key: 'net', goodWhen: 'up', series: 'netCents' },
+  { key: 'income', goodWhen: 'up', series: 'incomeCents' },
+  { key: 'expenses', goodWhen: 'down', series: 'expenseCents' },
 ];
 
 /** Running total across the period, so each line ends on the figure above it. */
@@ -39,9 +40,11 @@ export function KpiCards({
   data: DashboardResponse | undefined;
   comparisonLabel: string;
 }) {
+  const labels = useMessages(dashboardMessages).kpi;
   return (
     <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
-      {definitions.map(({ key, label, goodWhen, series }) => {
+      {definitions.map(({ key, goodWhen, series }) => {
+        const label = labels[key];
         const amount = data?.overview[key];
         const currency = data?.currency;
         return (

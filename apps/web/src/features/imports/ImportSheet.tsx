@@ -14,11 +14,14 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Sheet } from '../../components/ui/Sheet';
 import { ErrorState, Skeleton } from '../../components/ui/States';
 import { cn } from '../../lib/cn';
-import { formatDate } from '../../lib/format';
+import { useMessages } from '../../i18n';
+import { localizeMessage } from '../../i18n/serverMessages';
+import { count, formatDate } from '../../lib/format';
 import { showToast } from '../../stores/toasts';
 import { FormNotice } from '../auth/AuthFields';
-import { sourceLabels } from '../transactions/display';
-import { isPending, plural, requirementMessages, statusLabels } from './labels';
+import { sourceName } from '../transactions/display';
+import { isPending, records, requirementMessage, statusLabel, transactions } from './labels';
+import { importMessages } from './messages';
 import { draftFrom, draftProblem, isDirty, mappingFrom } from './mapping';
 import { MappingEditor } from './MappingEditor';
 import { PreviewEntries } from './PreviewEntries';
@@ -46,7 +49,7 @@ function Stat({
               : 'text-ink',
         )}
       >
-        {value.toLocaleString('en')}
+        {count(value)}
       </p>
     </div>
   );
@@ -58,18 +61,17 @@ function SectionTitle({ children }: { children: string }) {
 
 function FileLine({ detail }: { detail: ImportDetail }) {
   const { batch } = detail;
-  const status = statusLabels[batch.status];
+  const status = statusLabel(batch.status);
+  const m = useMessages(importMessages).sheet;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-6 pt-5">
       <Badge tone={status.tone} dot>
         {status.label}
       </Badge>
       <span className="text-[12px] text-muted">
-        {sourceLabels[batch.source]} · {batch.fileFormat} · uploaded{' '}
+        {sourceName(batch.source)} · {batch.fileFormat} · {m.uploaded}{' '}
         {formatDate(batch.createdAt, 'd MMM yyyy, HH:mm')}
-        {batch.expiresAt && (
-          <> · kept for review until {formatDate(batch.expiresAt, 'd MMM, HH:mm')}</>
-        )}
+        {batch.expiresAt && <> · {m.keptUntil(formatDate(batch.expiresAt, 'd MMM, HH:mm'))}</>}
       </span>
     </div>
   );
@@ -93,6 +95,7 @@ function ReviewStep({
   const updateMapping = useUpdateImportMapping(businessId);
   const confirm = useConfirmImport(businessId);
   const cancel = useCancelImport(businessId);
+  const m = useMessages(importMessages).sheet;
 
   // The draft follows the API's mapping whenever that changes (adjusted during render).
   const savedKey = JSON.stringify(detail.mapping);
@@ -139,7 +142,7 @@ function ReviewStep({
       });
       showToast({
         tone: 'positive',
-        title: `Imported ${plural(result.batch.importedRecords, 'transaction')}`,
+        title: m.importedToast(transactions(result.batch.importedRecords)),
         body: result.batch.fileName,
       });
     } catch {
@@ -152,7 +155,7 @@ function ReviewStep({
     try {
       await cancel.mutateAsync(importId);
       setConfirmingCancel(false);
-      showToast({ tone: 'neutral', title: 'Import cancelled', body: 'Nothing was imported.' });
+      showToast({ tone: 'neutral', title: m.cancelled, body: m.nothingImported });
       onClose();
     } catch {
       // The dialog shows the error.
@@ -164,18 +167,13 @@ function ReviewStep({
       <FileLine detail={detail} />
 
       <div className="flex flex-col gap-2.5 px-6 pt-4">
-        {detail.previousImportId && (
-          <FormNotice tone="warning">
-            This exact file was imported before. Records it already brought in show as duplicates
-            and will be skipped.
-          </FormNotice>
-        )}
+        {detail.previousImportId && <FormNotice tone="warning">{m.seenBefore}</FormNotice>}
         {detail.missing.length > 0 && (
           <FormNotice tone="warning">
-            <p className="font-medium">Map the columns to see a preview.</p>
+            <p className="font-medium">{m.mapToPreview}</p>
             <ul className="mt-1 list-disc pl-4">
               {detail.missing.map((requirement) => (
-                <li key={requirement}>{requirementMessages[requirement]}</li>
+                <li key={requirement}>{requirementMessage(requirement)}</li>
               ))}
             </ul>
           </FormNotice>
@@ -184,7 +182,7 @@ function ReviewStep({
           <FormNotice tone="neutral">
             <ul className="flex flex-col gap-0.5">
               {detail.notices.map((notice) => (
-                <li key={notice}>{notice}</li>
+                <li key={notice}>{localizeMessage(notice)}</li>
               ))}
             </ul>
           </FormNotice>
@@ -194,7 +192,7 @@ function ReviewStep({
       <section aria-labelledby={`${importId}-columns`} className="mt-6">
         <div className="flex items-center justify-between gap-3 px-6 pb-1">
           <h3 id={`${importId}-columns`} className="text-[14px] font-semibold text-ink">
-            Columns
+            {m.columns}
           </h3>
           <Button
             variant="ghost"
@@ -202,13 +200,13 @@ function ReviewStep({
             aria-expanded={mappingOpen}
             onClick={() => setMappingOpen((open) => !open)}
           >
-            {mappingOpen ? 'Hide' : canEdit ? 'Review mapping' : 'Show mapping'}
+            {mappingOpen ? m.hide : canEdit ? m.reviewMapping : m.showMapping}
             <ChevronDown className={cn('transition-transform', mappingOpen && 'rotate-180')} />
           </Button>
         </div>
         {!mappingOpen ? (
           <p className="px-6 text-[12px] text-muted">
-            {isTemplate ? 'Read as the Montra template.' : 'Columns matched by their headers.'}
+            {isTemplate ? m.readAsTemplate : m.matchedByHeaders}
           </p>
         ) : (
           <div className="px-6">
@@ -225,9 +223,7 @@ function ReviewStep({
               <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line-soft pt-3">
                 {problem && <p className="mr-auto text-[12px] text-negative">{problem}</p>}
                 {dirty && !problem && (
-                  <p className="mr-auto text-[12px] text-muted">
-                    Update the preview to see the effect.
-                  </p>
+                  <p className="mr-auto text-[12px] text-muted">{m.updateToSee}</p>
                 )}
                 <Button
                   size="sm"
@@ -235,14 +231,14 @@ function ReviewStep({
                   disabled={!dirty || busy}
                   onClick={() => setDraft(draftFrom(detail.mapping))}
                 >
-                  Undo changes
+                  {m.undo}
                 </Button>
                 <Button
                   size="sm"
                   disabled={!dirty || Boolean(problem) || busy}
                   onClick={() => void applyMapping()}
                 >
-                  {updateMapping.isPending ? 'Updating…' : 'Update preview'}
+                  {updateMapping.isPending ? m.updating : m.update}
                 </Button>
               </div>
             )}
@@ -251,13 +247,13 @@ function ReviewStep({
       </section>
 
       {preview && (
-        <section aria-label="Preview" className={cn('mt-7', dirty && 'opacity-60')}>
-          <SectionTitle>Preview</SectionTitle>
+        <section aria-label={m.preview} className={cn('mt-7', dirty && 'opacity-60')}>
+          <SectionTitle>{m.preview}</SectionTitle>
           <div className="mx-6 mb-4 grid grid-cols-3 divide-x divide-line rounded-control border border-line bg-sunken">
-            <Stat label="To import" value={toImport} tone="positive" />
-            <Stat label="To skip" value={skipped} tone="muted" />
+            <Stat label={m.toImport} value={toImport} tone="positive" />
+            <Stat label={m.toSkip} value={skipped} tone="muted" />
             <Stat
-              label="Invalid"
+              label={m.invalid}
               value={preview.summary.invalid}
               tone={preview.summary.invalid ? 'negative' : 'muted'}
             />
@@ -265,8 +261,7 @@ function ReviewStep({
           {preview.summary.possibleDuplicates > 0 && (
             <p className="flex items-start gap-2 px-6 pb-3 text-[12px] text-muted">
               <Info className="mt-px size-3.5 shrink-0" strokeWidth={2} />
-              Possible duplicates match an existing transaction’s date, type, amount and
-              description. They are skipped unless {canEdit ? 'you tick' : 'the owner ticks'} them.
+              {m.possibleDuplicates(canEdit)}
             </p>
           )}
           <PreviewEntries
@@ -292,9 +287,7 @@ function ReviewStep({
       <div className="sticky bottom-0 mt-auto border-t border-line bg-surface px-6 py-4">
         {actionError && (
           <div className="mb-3">
-            <FormNotice tone="negative">
-              {errorMessage(actionError, 'The import could not be updated. Try again.')}
-            </FormNotice>
+            <FormNotice tone="negative">{errorMessage(actionError, m.updateFailed)}</FormNotice>
           </div>
         )}
         {canEdit ? (
@@ -308,11 +301,11 @@ function ReviewStep({
                 setConfirmingCancel(true);
               }}
             >
-              Cancel import
+              {m.cancelImport}
             </Button>
             <div className="flex items-center gap-3">
               {preview && toImport === 0 && (
-                <span className="text-[12px] text-muted">No records to import.</span>
+                <span className="text-[12px] text-muted">{m.noRecords}</span>
               )}
               <Button
                 variant="primary"
@@ -321,29 +314,25 @@ function ReviewStep({
                 }
                 onClick={() => void confirmImport()}
               >
-                {confirm.isPending ? 'Importing…' : `Import ${plural(toImport, 'transaction')}`}
+                {confirm.isPending ? m.importing : m.importN(transactions(toImport))}
               </Button>
             </div>
           </div>
         ) : (
-          <p className="text-[12px] text-muted">
-            View only. The business owner reviews and confirms imports.
-          </p>
+          <p className="text-[12px] text-muted">{m.viewOnly}</p>
         )}
       </div>
 
       <ConfirmDialog
         open={confirmingCancel}
         onOpenChange={setConfirmingCancel}
-        title="Cancel this import?"
-        description="The uploaded data is discarded and nothing is imported. You can upload the file again later."
-        confirmLabel="Cancel import"
-        cancelLabel="Keep reviewing"
-        busyLabel="Cancelling…"
+        title={m.cancelTitle}
+        description={m.cancelBody}
+        confirmLabel={m.cancelImport}
+        cancelLabel={m.keepReviewing}
+        busyLabel={m.cancelling}
         busy={cancel.isPending}
-        error={
-          cancel.isError ? errorMessage(cancel.error, 'The import could not be cancelled.') : null
-        }
+        error={cancel.isError ? errorMessage(cancel.error, m.cancelFailed) : null}
         onConfirm={() => void cancelImport()}
       />
     </div>
@@ -354,47 +343,44 @@ function ReviewStep({
 function ResultView({ detail, onClose }: { detail: ImportDetail; onClose: () => void }) {
   const { batch } = detail;
   const finished = batch.status === 'COMPLETED' || batch.status === 'FAILED';
+  const m = useMessages(importMessages).sheet;
   return (
     <div className="flex flex-col gap-5 pb-8">
       <FileLine detail={detail} />
       {finished ? (
         <>
           <div className="mx-6 grid grid-cols-3 divide-x divide-line rounded-control border border-line bg-sunken">
-            <Stat label="Imported" value={batch.importedRecords} tone="positive" />
-            <Stat label="Skipped" value={batch.skippedRecords} tone="muted" />
+            <Stat label={m.imported} value={batch.importedRecords} tone="positive" />
+            <Stat label={m.skipped} value={batch.skippedRecords} tone="muted" />
             <Stat
-              label="Invalid"
+              label={m.invalid}
               value={batch.failedRecords}
               tone={batch.failedRecords ? 'negative' : 'muted'}
             />
           </div>
           <p className="px-6 text-[13px] leading-relaxed text-ink-2">
             {batch.status === 'FAILED'
-              ? 'No record could be imported: every record in the file was invalid. Correct the file and upload it again.'
-              : `${plural(batch.importedRecords, 'transaction')} added to your history${
-                  batch.completedAt
-                    ? ` on ${formatDate(batch.completedAt, 'd MMM yyyy, HH:mm')}`
-                    : ''
-                }.`}
+              ? m.allInvalid
+              : m.added(
+                  transactions(batch.importedRecords),
+                  batch.importedRecords,
+                  batch.completedAt ? formatDate(batch.completedAt, 'd MMM yyyy, HH:mm') : null,
+                )}
             {batch.skippedRecords > 0 &&
-              ` ${plural(batch.skippedRecords, 'record')} matched transactions already recorded and ${
-                batch.skippedRecords === 1 ? 'was' : 'were'
-              } skipped.`}
+              m.skippedLine(records(batch.skippedRecords), batch.skippedRecords)}
             {batch.status === 'COMPLETED' &&
               batch.failedRecords > 0 &&
-              ` ${plural(batch.failedRecords, 'invalid record')} ${batch.failedRecords === 1 ? 'was' : 'were'} left out.`}
+              m.invalidLine(count(batch.failedRecords), batch.failedRecords)}
           </p>
         </>
       ) : (
         <p className="px-6 text-[13px] leading-relaxed text-ink-2">
-          {batch.status === 'EXPIRED'
-            ? 'This import was not confirmed within 24 hours, so its data was discarded. Nothing was imported.'
-            : 'This import was cancelled before confirmation. Nothing was imported.'}
+          {batch.status === 'EXPIRED' ? m.expired : m.cancelledBefore}
         </p>
       )}
       <div className="flex justify-end px-6">
         <Button variant="primary" onClick={onClose}>
-          Done
+          {m.done}
         </Button>
       </div>
     </div>
@@ -435,18 +421,15 @@ export function ImportSheet({
 }) {
   const detail = useImportDetail(businessId, open ? importId : null);
   const data = detail.data;
+  const m = useMessages(importMessages).sheet;
 
   return (
     <Sheet
       open={open}
       onOpenChange={(next) => !next && onClose()}
-      title={importId && data ? data.batch.fileName : 'Import transactions'}
+      title={importId && data ? data.batch.fileName : m.title}
       description={
-        importId
-          ? data && isPending(data.batch.status)
-            ? 'Check how the file is read. Nothing is saved until the import is confirmed.'
-            : undefined
-          : 'Bring in transactions from a spreadsheet or bank statement.'
+        importId ? (data && isPending(data.batch.status) ? m.reviewHint : undefined) : m.uploadHint
       }
       className="max-w-3xl"
     >
@@ -459,7 +442,7 @@ export function ImportSheet({
           />
         )
       ) : detail.isError ? (
-        <ErrorState title="Could not load this import" onRetry={() => detail.refetch()} />
+        <ErrorState title={m.loadError} onRetry={() => detail.refetch()} />
       ) : !data ? (
         <DetailLoading />
       ) : isPending(data.batch.status) ? (

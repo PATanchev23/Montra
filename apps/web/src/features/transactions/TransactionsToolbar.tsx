@@ -17,6 +17,8 @@ import {
 } from '../../components/ui/Menu';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Select } from '../../components/ui/Select';
+import { useMessages } from '../../i18n';
+import { transactionMessages } from './messages';
 import { DATE_RANGES, type DateRange, type useTransactionFilters } from './useTransactionFilters';
 
 type Filters = ReturnType<typeof useTransactionFilters>;
@@ -41,13 +43,14 @@ function CategoryFilter({
       ? [{ name: selected, incomeCount: 0, expenseCount: 0 }, ...categories]
       : categories;
   const value = known?.name ?? selected;
+  const m = useMessages(transactionMessages).toolbar;
 
   return (
     <Menu>
       <MenuTrigger asChild>
         <Button size="md" className={selected ? 'border-accent-line text-ink' : ''}>
           <Tags className="text-muted" strokeWidth={1.75} />
-          <span className="max-w-40 truncate">{selected ? value : 'All categories'}</span>
+          <span className="max-w-40 truncate">{selected ? value : m.allCategories}</span>
           <ChevronDown className="text-muted" strokeWidth={1.75} />
         </Button>
       </MenuTrigger>
@@ -59,14 +62,10 @@ function CategoryFilter({
           value={value || ALL}
           onValueChange={(next) => onChange(next === ALL ? '' : next)}
         >
-          <MenuRadioItem value={ALL}>All categories</MenuRadioItem>
+          <MenuRadioItem value={ALL}>{m.allCategories}</MenuRadioItem>
           <MenuSeparator />
           <MenuLabel>
-            {loading
-              ? 'Loading categories…'
-              : options.length
-                ? 'Categories in use'
-                : 'No categories yet'}
+            {loading ? m.loadingCategories : options.length ? m.categoriesInUse : m.noCategories}
           </MenuLabel>
           {options.map((c) => (
             <MenuRadioItem
@@ -74,14 +73,8 @@ function CategoryFilter({
               value={c.name}
               hint={
                 c.incomeCount + c.expenseCount > 0
-                  ? [
-                      c.incomeCount && `${c.incomeCount} income`,
-                      c.expenseCount &&
-                        `${c.expenseCount} expense${c.expenseCount === 1 ? '' : 's'}`,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')
-                  : 'Not used yet'
+                  ? m.categoryCounts(c.incomeCount, c.expenseCount)
+                  : m.notUsed
               }
             >
               {c.name}
@@ -106,17 +99,19 @@ export function TransactionsToolbar({
   categoriesLoading: boolean;
   rangeError: string | null;
 }) {
+  const m = useMessages(transactionMessages);
+  const t = m.toolbar;
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2.5">
         <SegmentedControl
-          label="Type"
+          label={t.type}
           value={filters.type}
           onChange={(type) => update({ type })}
           options={[
-            { value: 'all', label: 'All' },
-            { value: 'income', label: 'Income' },
-            { value: 'expense', label: 'Expenses' },
+            { value: 'all', label: t.all },
+            { value: 'income', label: t.income },
+            { value: 'expense', label: t.expenses },
           ]}
         />
         <CategoryFilter
@@ -126,17 +121,17 @@ export function TransactionsToolbar({
           onChange={(category) => update({ category })}
         />
         <Select<DateRange>
-          label="Date range"
+          label={t.dateRange}
           value={filters.range}
           onChange={(range) => update({ range })}
-          options={DATE_RANGES}
-          className="w-[148px]"
+          options={DATE_RANGES.map((value) => ({ value, label: m.ranges[value] }))}
+          className="w-auto min-w-[148px]"
         />
         {filters.range === 'custom' && (
           <div className="flex items-center gap-2">
             <Input
               type="date"
-              aria-label="From date"
+              aria-label={t.fromDate}
               aria-invalid={rangeError ? true : undefined}
               min={TRANSACTION_DATE_MIN}
               max={TRANSACTION_DATE_MAX}
@@ -144,10 +139,10 @@ export function TransactionsToolbar({
               onChange={(e) => update({ from: e.target.value })}
               className="w-[150px]"
             />
-            <span className="text-[13px] text-muted">to</span>
+            <span className="text-[13px] text-muted">{t.to}</span>
             <Input
               type="date"
-              aria-label="To date"
+              aria-label={t.toDate}
               aria-invalid={rangeError ? true : undefined}
               min={TRANSACTION_DATE_MIN}
               max={TRANSACTION_DATE_MAX}
@@ -160,7 +155,7 @@ export function TransactionsToolbar({
         {activeCount > 0 && (
           <Button variant="ghost" onClick={reset}>
             <RotateCcw />
-            Reset
+            {t.reset}
           </Button>
         )}
       </div>

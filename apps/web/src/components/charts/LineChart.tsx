@@ -1,6 +1,6 @@
 import { scaleLinear, scaleTime } from 'd3-scale';
 import { area, curveMonotoneX, line } from 'd3-shape';
-import { eachMonthOfInterval, format, parseISO } from 'date-fns';
+import { eachMonthOfInterval, parseISO } from 'date-fns';
 import { motion } from 'motion/react';
 import {
   useId,
@@ -11,9 +11,11 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from '../../lib/cn';
-import { thousands } from '../../lib/format';
 import { ChartTooltip } from './ChartTooltip';
 import { useElementSize } from './useElementSize';
+import { useMessages } from '../../i18n';
+import { common } from '../../i18n/common';
+import { formatDay, thousands } from '../../lib/format';
 
 /*
  * Time-series line chart for balances and projections. Shares the capsule
@@ -67,6 +69,7 @@ export function LineChart({
   const [ref, { width }] = useElementSize<HTMLDivElement>();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const gradientId = useId();
+  const msg = useMessages(common);
 
   const dates = useMemo(
     () => [...new Set(series.flatMap((s) => s.points.map((p) => p.date)))].sort(),
@@ -149,7 +152,7 @@ export function LineChart({
           height={height}
           role="group"
           tabIndex={0}
-          aria-label={`${ariaLabel}. Use the arrow keys to move through dates; hold Shift to jump a week.`}
+          aria-label={`${ariaLabel}. ${msg.chart.keyboardHint}`}
           onPointerMove={handlePointer}
           onPointerLeave={() => setActiveIndex(null)}
           onKeyDown={handleKey}
@@ -193,7 +196,7 @@ export function LineChart({
               textAnchor="middle"
               className="fill-muted text-[12px]"
             >
-              {format(m, 'MMM')}
+              {formatDay(m, 'MMM')}
             </text>
           ))}
 

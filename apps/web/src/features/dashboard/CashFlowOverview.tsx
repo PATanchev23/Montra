@@ -6,12 +6,12 @@ import { Panel, PanelHeader } from '../../components/ui/Panel';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Skeleton } from '../../components/ui/States';
 import { money } from '../../lib/format';
-import { axisFormatter, bucketNoun } from './axis';
+import { useMessages } from '../../i18n';
+import { axisFormatter } from './axis';
+import { dashboardMessages } from './messages';
 import { bucketLabels } from './period';
 
 type Measure = 'income' | 'expenses';
-
-const per = { day: 'daily', week: 'weekly', month: 'monthly' } as const;
 
 /**
  * The hero of the dashboard. Ink capsules show the chosen measure for each
@@ -30,7 +30,8 @@ export function CashFlowOverview({
   const points = data?.trend.points ?? [];
   const interval = data?.trend.interval ?? 'day';
   const currency = data?.currency;
-  const noun = measure === 'income' ? 'Income' : 'Expenses';
+  const m = useMessages(dashboardMessages).overview;
+  const noun = measure === 'income' ? m.income : m.expenses;
 
   const values = points.map((p) => (measure === 'income' ? p.incomeCents : p.expenseCents));
   const total = measure === 'income' ? data?.overview.income.cents : data?.overview.expenses.cents;
@@ -43,26 +44,25 @@ export function CashFlowOverview({
     <Panel className="flex flex-col p-5 sm:p-6" aria-labelledby="cash-flow-overview">
       <PanelHeader
         id="cash-flow-overview"
-        title="Cash flow overview"
+        title={m.title}
         description={
           data ? (
             <span className="tabular">
-              {formatValue(total ?? 0)} {measure === 'income' ? 'earned' : 'spent'} ·{' '}
-              {formatValue(average)} {per[interval]} average
+              {m.summary(formatValue(total ?? 0), measure, formatValue(average), interval)}
             </span>
           ) : (
-            'Income and expenses over the period'
+            m.fallback
           )
         }
         actions={
           <SegmentedControl
-            label="Measure"
+            label={m.measure}
             size="sm"
             value={measure}
             onChange={setMeasure}
             options={[
-              { value: 'income', label: 'Income' },
-              { value: 'expenses', label: 'Expenses' },
+              { value: 'income', label: m.income },
+              { value: 'expenses', label: m.expenses },
             ]}
           />
         }
@@ -77,7 +77,7 @@ export function CashFlowOverview({
             <CapsuleBarChart
               // A new range starts with nothing pinned; switching the measure keeps the pin.
               key={`${data.period.from}/${data.period.to}/${interval}`}
-              ariaLabel={`${noun} by ${bucketNoun[interval]}, ${periodLabel}`}
+              ariaLabel={m.chartLabel(noun, interval, periodLabel)}
               height="fill"
               formatTick={axisFormatter(Math.max(0, ...values))}
               formatValue={formatValue}
@@ -85,9 +85,12 @@ export function CashFlowOverview({
               series={[{ id: 'measure', label: noun, values, tone: 'primary' }]}
               describe={(i) => {
                 const p = points[i]!;
-                return `${labels[i]!.title}: income ${formatValue(p.incomeCents)}, expenses ${formatValue(
-                  p.expenseCents,
-                )}, net ${money(p.netCents, { currency, sign: 'always' })}.`;
+                return m.describe(
+                  labels[i]!.title,
+                  formatValue(p.incomeCents),
+                  formatValue(p.expenseCents),
+                  money(p.netCents, { currency, sign: 'always' }),
+                );
               }}
               renderTooltip={(i) => {
                 const p = points[i]!;
@@ -96,17 +99,17 @@ export function CashFlowOverview({
                     <TooltipTitle>{labels[i]!.title}</TooltipTitle>
                     <TooltipRow
                       swatch={measure === 'income' ? 'bg-chart-1' : 'bg-chart-4'}
-                      label="Income"
+                      label={m.income}
                       value={formatValue(p.incomeCents)}
                     />
                     <TooltipRow
                       swatch={measure === 'expenses' ? 'bg-chart-1' : 'bg-chart-4'}
-                      label="Expenses"
+                      label={m.expenses}
                       value={formatValue(p.expenseCents)}
                     />
                     <div className="mt-1.5 border-t border-line pt-1.5">
                       <TooltipRow
-                        label="Net"
+                        label={m.net}
                         value={money(p.netCents, { currency, sign: 'always' })}
                         emphasis
                       />
@@ -117,7 +120,7 @@ export function CashFlowOverview({
             />
             {empty && (
               <p className="pointer-events-none absolute inset-x-0 top-[38%] text-center text-body-sm text-muted">
-                No transactions in this period.
+                {m.noTransactions}
               </p>
             )}
           </div>

@@ -5,7 +5,10 @@ import { ApiError, errorMessage } from '../../api/client';
 import { templateUrl, useUploadImport } from '../../api/imports';
 import { Button } from '../../components/ui/Button';
 import { cn } from '../../lib/cn';
+import { useMessages } from '../../i18n';
+import { count } from '../../lib/format';
 import { FormNotice } from '../auth/AuthFields';
+import { importMessages } from './messages';
 import { fileProblem, MAX_MB, sourceFor, type Kind } from './upload';
 
 const fileSize = (bytes: number) =>
@@ -70,6 +73,7 @@ export function UploadStep({
   const [dragging, setDragging] = useState(false);
   const kindName = useId();
   const inputId = useId();
+  const m = useMessages(importMessages).upload;
 
   function choose(next: File | undefined) {
     upload.reset();
@@ -93,39 +97,34 @@ export function UploadStep({
     }
   }
 
-  const uploadError =
-    upload.error &&
-    errorMessage(
-      upload.error,
-      'The file could not be uploaded. Check your connection and try again.',
-    );
+  const uploadError = upload.error && errorMessage(upload.error, m.uploadFailed);
   const notTemplate =
     upload.error instanceof ApiError && upload.error.code === IMPORT_ERROR_CODES.COLUMNS_MISSING;
 
   return (
     <div className="flex flex-col gap-6 px-6 pt-6 pb-8">
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-[13px] font-medium text-ink-2">What are you importing?</legend>
+        <legend className="mb-2 text-[13px] font-medium text-ink-2">{m.what}</legend>
         <div className="grid gap-2 sm:grid-cols-2">
           <KindOption
             name={kindName}
             value="generic"
             checked={kind === 'generic'}
             onChange={setKind}
-            title="A CSV or Excel file"
-            body="A bank statement or any spreadsheet. You check how its columns are read."
+            title={m.genericTitle}
+            body={m.genericBody}
           />
           <KindOption
             name={kindName}
             value="template"
             checked={kind === 'template'}
             onChange={setKind}
-            title="The Montra template"
-            body="Columns are already in Montra’s format."
+            title={m.templateTitle}
+            body={m.templateBody}
           />
         </div>
         <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
-          <span>Download the template:</span>
+          <span>{m.download}</span>
           <a
             className="inline-flex items-center gap-1 text-accent hover:underline"
             href={templateUrl('xlsx')}
@@ -168,17 +167,15 @@ export function UploadStep({
                 {file.name}
               </span>
               <span className="mt-0.5 text-[12px] text-muted">
-                {fileSize(file.size)} · Choose another file
+                {fileSize(file.size)} · {m.another}
               </span>
             </>
           ) : (
             <>
               <UploadCloud className="size-6 text-muted" strokeWidth={1.6} />
-              <span className="mt-3 text-[14px] font-medium text-ink">
-                Choose a file or drop it here
-              </span>
+              <span className="mt-3 text-[14px] font-medium text-ink">{m.choose}</span>
               <span className="mt-0.5 text-[12px] text-muted">
-                .csv or .xlsx · up to {MAX_MB} MB and {IMPORT_MAX_ROWS.toLocaleString('en')} rows
+                {m.limits(MAX_MB, count(IMPORT_MAX_ROWS))}
               </span>
             </>
           )}
@@ -187,7 +184,7 @@ export function UploadStep({
           id={inputId}
           type="file"
           accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          aria-label="File to import"
+          aria-label={m.fileLabel}
           className="sr-only"
           onChange={(e) => {
             choose(e.target.files?.[0]);
@@ -202,25 +199,23 @@ export function UploadStep({
         <FormNotice tone="negative">
           {uploadError}
           {notTemplate && kind === 'template' && (
-            <span className="mt-1 block text-ink-2">
-              To import it anyway, choose “A CSV or Excel file” and map its columns.
-            </span>
+            <span className="mt-1 block text-ink-2">{m.notTemplateHint}</span>
           )}
         </FormNotice>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft pt-5">
-        <p className="text-[12px] text-muted">Nothing is imported until you review and confirm.</p>
+        <p className="text-[12px] text-muted">{m.nothingYet}</p>
         <div className="flex gap-2">
           <Button onClick={onCancel} disabled={upload.isPending}>
-            Cancel
+            {m.cancel}
           </Button>
           <Button
             variant="primary"
             disabled={!file || Boolean(problem) || upload.isPending}
             onClick={() => void submit()}
           >
-            {upload.isPending ? 'Uploading…' : 'Upload and preview'}
+            {upload.isPending ? m.uploading : m.submit}
           </Button>
         </div>
       </div>

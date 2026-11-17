@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MotionConfig } from 'motion/react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { ApiError } from '../api/client';
 import { onUserChange } from '../api/session';
 import { Toaster } from '../components/ui/Toaster';
 import { TooltipProvider } from '../components/ui/Tooltip';
+import { useApplyLanguage } from './useApplyLanguage';
 import { useApplyTheme } from './useApplyTheme';
 
 function createQueryClient() {
@@ -24,6 +25,7 @@ function createQueryClient() {
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient);
   useApplyTheme();
+  const language = useApplyLanguage();
   // Nothing cached for one user may be shown to the next.
   useEffect(() => onUserChange(() => queryClient.clear()), [queryClient]);
 
@@ -31,7 +33,9 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <MotionConfig reducedMotion="user">
         <TooltipProvider delayDuration={250}>
-          {children}
+          {/* A new language re-mounts the pages, so every formatted figure and date follows it.
+              Cached server data survives: the query client sits above. */}
+          <Fragment key={language}>{children}</Fragment>
           <Toaster />
         </TooltipProvider>
       </MotionConfig>

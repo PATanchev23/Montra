@@ -1,6 +1,8 @@
 import { AlertTriangle, RotateCw } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
+import { useMessages } from '../../i18n';
+import { common } from '../../i18n/common';
 import { cn } from '../../lib/cn';
 import { Button } from './Button';
 
@@ -36,7 +38,7 @@ export function EmptyState({
 }
 
 export function ErrorState({
-  title = 'Could not load this section',
+  title,
   onRetry,
   className,
 }: {
@@ -44,6 +46,7 @@ export function ErrorState({
   onRetry?: () => void;
   className?: string;
 }) {
+  const m = useMessages(common);
   return (
     <div
       role="alert"
@@ -52,12 +55,12 @@ export function ErrorState({
       <span className="flex size-11 items-center justify-center rounded-full bg-negative-soft text-negative">
         <AlertTriangle className="size-5" strokeWidth={1.75} />
       </span>
-      <p className="mt-4 font-medium text-ink">{title}</p>
-      <p className="mt-1 text-[13px] text-muted">Check your connection and try again.</p>
+      <p className="mt-4 font-medium text-ink">{title ?? m.loadError}</p>
+      <p className="mt-1 text-[13px] text-muted">{m.loadErrorHint}</p>
       {onRetry && (
         <Button size="sm" className="mt-5" onClick={onRetry}>
           <RotateCw />
-          Try again
+          {m.tryAgain}
         </Button>
       )}
     </div>

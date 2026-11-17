@@ -1,6 +1,8 @@
 import { ApiError } from '../../api/client';
 import type { HealthSnapshot } from '../../api/health';
 import type { Status } from '../../components/ui/StatusDot';
+import { messagesFor } from '../../i18n';
+import { statusMessages } from './messages';
 
 export type Overall = 'checking' | 'operational' | 'degraded' | 'offline';
 
@@ -13,11 +15,12 @@ export interface SystemStatus {
 
 /** Maps the latest health query result to what each tier of the stack is doing. */
 export function deriveStatus(data: HealthSnapshot | undefined, error: unknown): SystemStatus {
+  const m = messagesFor(statusMessages).headline;
   if (error) {
     const unreachable = !(error instanceof ApiError) || error.status === 0;
     return {
       overall: 'offline',
-      headline: unreachable ? 'The API is unreachable' : 'The API is returning errors',
+      headline: unreachable ? m.unreachable : m.erroring,
       api: 'down',
       database: 'unknown',
     };
@@ -25,7 +28,7 @@ export function deriveStatus(data: HealthSnapshot | undefined, error: unknown): 
   if (!data) {
     return {
       overall: 'checking',
-      headline: 'Checking connections…',
+      headline: m.checking,
       api: 'unknown',
       database: 'unknown',
     };
@@ -33,20 +36,21 @@ export function deriveStatus(data: HealthSnapshot | undefined, error: unknown): 
   if (data.checks.database.status === 'down') {
     return {
       overall: 'degraded',
-      headline: 'The database is unreachable',
+      headline: m.databaseDown,
       api: 'up',
       database: 'down',
     };
   }
-  return { overall: 'operational', headline: 'All systems operational', api: 'up', database: 'up' };
+  return { overall: 'operational', headline: m.operational, api: 'up', database: 'up' };
 }
 
 export function formatUptime(seconds: number): string {
   const d = Math.floor(seconds / 86_400);
   const h = Math.floor((seconds % 86_400) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m`;
-  return `${seconds}s`;
+  const u = messagesFor(statusMessages).uptime;
+  if (d > 0) return u.days(d, h);
+  if (h > 0) return u.hours(h, m);
+  if (m > 0) return u.minutes(m);
+  return u.seconds(seconds);
 }

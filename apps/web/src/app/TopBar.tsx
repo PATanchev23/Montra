@@ -9,6 +9,8 @@ import { SearchField } from '../components/ui/Input';
 import { Menu, MenuContent, MenuLabel, MenuTrigger } from '../components/ui/Menu';
 import { Tooltip } from '../components/ui/Tooltip';
 import { PeriodPicker } from '../features/dashboard/PeriodPicker';
+import { useMessages } from '../i18n';
+import { common } from '../i18n/common';
 import { cn } from '../lib/cn';
 
 function GlobalSearch() {
@@ -16,6 +18,7 @@ function GlobalSearch() {
   const location = useLocation();
   const [value, setValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const m = useMessages(common).topBar;
 
   // "/" focuses search from anywhere, like most finance and dev tools.
   useEffect(() => {
@@ -54,8 +57,8 @@ function GlobalSearch() {
         fieldSize="lg"
         value={value}
         onValueChange={setValue}
-        placeholder="Search transactions, suppliers, categories…"
-        aria-label="Search transactions"
+        placeholder={m.searchPlaceholder}
+        aria-label={m.searchLabel}
         trailing={
           <kbd className="hidden h-6 min-w-6 items-center justify-center rounded-md border border-line-strong px-1.5 font-mono text-caption text-muted sm:flex">
             /
@@ -71,11 +74,12 @@ const toneDot = { neutral: 'bg-ink-2', warning: 'bg-warning', negative: 'bg-nega
 function Notifications() {
   const navigate = useNavigate();
   const { data = [] } = useNotifications();
+  const m = useMessages(common).topBar;
 
   return (
     <Menu>
       <MenuTrigger asChild>
-        <IconButton label="Notifications" size="lg" bordered>
+        <IconButton label={m.notifications} size="lg" bordered>
           <Bell strokeWidth={1.6} />
           {data.length > 0 && (
             <span className="absolute top-2.5 right-2.5 size-2 rounded-full border-2 border-raised bg-ink" />
@@ -83,7 +87,7 @@ function Notifications() {
         </IconButton>
       </MenuTrigger>
       <MenuContent className="w-80">
-        <MenuLabel>Notifications</MenuLabel>
+        <MenuLabel>{m.notifications}</MenuLabel>
         {data.map((n) => (
           <DropdownMenu.Item
             key={n.id}
@@ -106,23 +110,21 @@ function Notifications() {
 /** Pages whose figures come from the API; the sample-data marker stays off them. */
 const LIVE_DATA_PATHS = ['/', '/transactions', '/status'];
 
-const SAMPLE_NOTE =
-  'Figures on this page are deterministic TechStore sample data. Live data arrives with the financial API.';
-
 /**
  * Marks pages that still show sample data, at every width: a labelled badge
  * from 1280px, the same mark as an icon below it.
  */
 function SampleDataMarker() {
+  const m = useMessages(common).topBar;
   return (
-    <Tooltip content={SAMPLE_NOTE}>
+    <Tooltip content={m.sampleNote}>
       <span
         tabIndex={0}
-        aria-label={`Sample data. ${SAMPLE_NOTE}`}
+        aria-label={`${m.sampleData}. ${m.sampleNote}`}
         className="inline-flex h-8 items-center gap-1.5 rounded-full bg-hover px-2.5 text-caption font-medium text-ink-2 xl:px-3"
       >
         <FlaskConical aria-hidden className="size-3.5" strokeWidth={2} />
-        <span className="hidden xl:inline">Sample data</span>
+        <span className="hidden xl:inline">{m.sampleData}</span>
       </span>
     </Tooltip>
   );
@@ -136,10 +138,11 @@ function SampleDataMarker() {
 export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const m = useMessages(common);
   return (
     <div className="flex h-[72px] items-center gap-3 sm:gap-4">
       <IconButton
-        label="Open navigation"
+        label={m.nav.openNavigation}
         className="hidden sm:inline-flex lg:hidden"
         onClick={onOpenNavigation}
       >
@@ -155,7 +158,7 @@ export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
         {!LIVE_DATA_PATHS.includes(location.pathname) && <SampleDataMarker />}
         {location.pathname === '/' && <PeriodPicker />}
         <IconButton
-          label="Search transactions"
+          label={m.topBar.searchLabel}
           size="lg"
           bordered
           className="sm:hidden"

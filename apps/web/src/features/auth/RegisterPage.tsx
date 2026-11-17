@@ -6,18 +6,22 @@ import {
 } from '@montra/shared';
 import { Loader2 } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
-import { ApiError } from '../../api/client';
+import { ApiError, errorMessage } from '../../api/client';
 import { useRegister } from '../../api/auth';
 import { Button } from '../../components/ui/Button';
+import { useMessages } from '../../i18n';
 import { showToast } from '../../stores/toasts';
 import { firstName } from './access';
 import { FormNotice, PasswordField, TextField } from './AuthFields';
 import { AuthHeading } from './AuthLayout';
+import { authMessages } from './messages';
 import { useSchemaForm } from './useSchemaForm';
 
 export function RegisterPage() {
   const location = useLocation();
   const register = useRegister();
+  const t = useMessages(authMessages);
+  const m = t.register;
   const form = useSchemaForm(registerRequestSchema, { name: '', email: '', password: '' });
 
   // "Email taken" belongs to the email field, and only while it still holds that address.
@@ -25,7 +29,7 @@ export function RegisterPage() {
     register.error instanceof ApiError &&
     register.error.code === AUTH_ERROR_CODES.EMAIL_TAKEN &&
     register.variables?.email === emailSchema.safeParse(form.values.email).data;
-  const formError = register.error && !emailTaken ? register.error.message : null;
+  const formError = register.error && !emailTaken ? errorMessage(register.error) : null;
 
   const submit = form.handleSubmit((account) => {
     // GuestOnly moves on to business setup once the session and profile are loaded.
@@ -34,8 +38,8 @@ export function RegisterPage() {
       .then((me) =>
         showToast({
           tone: 'positive',
-          title: 'Account created',
-          body: `Welcome to Montra, ${firstName(me.user.name)}.`,
+          title: m.created,
+          body: m.welcome(firstName(me.user.name)),
         }),
       )
       .catch(() => {
@@ -47,10 +51,7 @@ export function RegisterPage() {
 
   return (
     <>
-      <AuthHeading
-        title="Create your account"
-        description="Start with your sign-in details. You’ll set up your business next."
-      />
+      <AuthHeading title={m.title} description={m.description} />
 
       <form
         noValidate
@@ -61,33 +62,30 @@ export function RegisterPage() {
         {formError && <FormNotice tone="negative">{formError}</FormNotice>}
 
         <TextField
-          label="Full name"
+          label={m.fullName}
           autoComplete="name"
-          placeholder="Ana Petrova"
+          placeholder={m.namePlaceholder}
           error={form.errors.name}
           {...form.register('name')}
         />
         <TextField
-          label="Email"
+          label={t.email}
           type="email"
           autoComplete="email"
           inputMode="email"
           autoCapitalize="none"
           spellCheck={false}
-          placeholder="you@yourstore.com"
-          error={
-            form.errors.email ??
-            (emailTaken ? 'An account with this email already exists.' : undefined)
-          }
+          placeholder={t.emailPlaceholder}
+          error={form.errors.email ?? (emailTaken ? m.emailTaken : undefined)}
           {...form.register('email')}
         />
         <PasswordField
-          label="Password"
+          label={t.password}
           autoComplete="new-password"
           hint={
             remaining > 0 && remaining < PASSWORD_MIN_LENGTH
-              ? `${remaining} more character${remaining === 1 ? '' : 's'} to go.`
-              : `At least ${PASSWORD_MIN_LENGTH} characters. A short phrase works well.`
+              ? m.remaining(remaining)
+              : m.passwordHint(PASSWORD_MIN_LENGTH)
           }
           error={form.errors.password}
           {...form.register('password')}
@@ -101,18 +99,18 @@ export function RegisterPage() {
           className="mt-1 w-full"
         >
           {register.isPending && <Loader2 className="animate-spin" />}
-          {register.isPending ? 'Creating account…' : 'Create account'}
+          {register.isPending ? m.submitting : m.submit}
         </Button>
       </form>
 
       <p className="mt-7 text-center text-[13px] text-muted">
-        Already have an account?{' '}
+        {m.haveAccount}{' '}
         <Link
           to="/login"
           state={location.state}
           className="font-medium text-accent underline-offset-4 hover:underline"
         >
-          Sign in
+          {m.signIn}
         </Link>
       </p>
     </>

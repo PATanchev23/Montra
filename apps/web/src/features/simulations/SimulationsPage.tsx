@@ -11,26 +11,29 @@ import { ErrorState, Skeleton } from '../../components/ui/States';
 import { Tooltip } from '../../components/ui/Tooltip';
 import type { ScenarioResult, ScenarioSummary } from '../../demo/types';
 import { cn } from '../../lib/cn';
+import { useMessages } from '../../i18n';
 import { formatDate, money } from '../../lib/format';
+import { simulationMessages } from './messages';
 
 export function SimulationsPage() {
   const [params, setParams] = useSearchParams();
   const scenarios = useScenarios();
   const selectedId = params.get('scenario') ?? scenarios.data?.[0]?.id;
   const result = useScenarioResult(selectedId);
+  const m = useMessages(simulationMessages).page;
 
   return (
     <div className="flex flex-col gap-7">
       <PageHeader
-        eyebrow="Planning"
-        title="Simulations"
-        description="Test a decision before you make it. Each scenario is compared with your current plan over the next 90 days."
+        eyebrow={m.eyebrow}
+        title={m.title}
+        description={m.description}
         actions={
-          <Tooltip content="Building custom scenarios arrives with the simulations API.">
+          <Tooltip content={m.newHint}>
             <span tabIndex={0} className="rounded-control">
               <Button variant="primary" disabled className="pointer-events-none">
                 <Plus />
-                New scenario
+                {m.new}
               </Button>
             </span>
           </Tooltip>
@@ -39,7 +42,7 @@ export function SimulationsPage() {
 
       {scenarios.isError ? (
         <Panel>
-          <ErrorState title="Could not load scenarios" onRetry={() => scenarios.refetch()} />
+          <ErrorState title={m.loadError} onRetry={() => scenarios.refetch()} />
         </Panel>
       ) : (
         <div className="grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
@@ -50,7 +53,7 @@ export function SimulationsPage() {
           />
           {result.isError ? (
             <Panel>
-              <ErrorState title="Could not run this scenario" onRetry={() => result.refetch()} />
+              <ErrorState title={m.runError} onRetry={() => result.refetch()} />
             </Panel>
           ) : (
             <ScenarioDetail result={result.data} stale={result.isPlaceholderData} />
@@ -70,11 +73,12 @@ function ScenarioList({
   selectedId: string | undefined;
   onSelect: (id: string) => void;
 }) {
+  const m = useMessages(simulationMessages).list;
   return (
-    <Panel className="p-2" aria-label="Scenarios">
-      <p className="eyebrow px-3 pt-3 pb-2">Scenarios</p>
+    <Panel className="p-2" aria-label={m.title}>
+      <p className="eyebrow px-3 pt-3 pb-2">{m.title}</p>
       {scenarios ? (
-        <ul role="radiogroup" aria-label="Choose a scenario" className="flex flex-col gap-1">
+        <ul role="radiogroup" aria-label={m.choose} className="flex flex-col gap-1">
           {scenarios.map((s) => {
             const active = s.id === selectedId;
             return (
@@ -124,6 +128,8 @@ function ScenarioList({
 }
 
 function ScenarioDetail({ result, stale }: { result: ScenarioResult | undefined; stale: boolean }) {
+  const t = useMessages(simulationMessages);
+  const s$ = t.stats;
   if (!result) {
     return (
       <Panel className="p-6">
@@ -138,25 +144,25 @@ function ScenarioDetail({ result, stale }: { result: ScenarioResult | undefined;
   const projection = new Map(result.projection.map((p) => [p.date, p.balanceCents]));
   const stats = [
     {
-      label: 'Current plan',
-      hint: 'Balance in 90 days',
+      label: s$.currentPlan,
+      hint: s$.balanceIn90,
       value: money(result.baselineEndCents, { decimals: 0 }),
       className: 'text-ink',
     },
     {
-      label: 'With scenario',
-      hint: 'Balance in 90 days',
+      label: s$.withScenario,
+      hint: s$.balanceIn90,
       value: money(result.scenarioEndCents, { decimals: 0 }),
       className: 'text-chart-1',
     },
     {
-      label: 'Difference',
-      hint: delta < 0 ? 'Less cash than planned' : 'More cash than planned',
+      label: s$.difference,
+      hint: delta < 0 ? s$.less : s$.more,
       value: money(delta, { decimals: 0, sign: 'always' }),
       className: delta < 0 ? 'text-negative' : 'text-positive',
     },
     {
-      label: 'Lowest point',
+      label: s$.lowest,
       hint: formatDate(result.scenarioLowDate, 'd MMM yyyy'),
       value: money(result.scenarioLowCents, { decimals: 0 }),
       className: 'text-ink',
@@ -199,13 +205,13 @@ function ScenarioDetail({ result, stale }: { result: ScenarioResult | undefined;
       <Panel className="p-5 sm:p-6" aria-labelledby="scenario-chart">
         <PanelHeader
           id="scenario-chart"
-          title="Projected balance"
-          description="Next 90 days"
+          title={t.chart.title}
+          description={t.chart.description}
           actions={
             <Legend
               items={[
-                { label: 'Current plan', swatch: 'bg-chart-2' },
-                { label: 'Scenario', swatch: 'bg-chart-1' },
+                { label: s$.currentPlan, swatch: 'bg-chart-2' },
+                { label: t.chart.scenario, swatch: 'bg-chart-1' },
               ]}
             />
           }
@@ -213,17 +219,17 @@ function ScenarioDetail({ result, stale }: { result: ScenarioResult | undefined;
         <div className="mt-6">
           <LineChart
             height={300}
-            ariaLabel={`Projected balance: current plan versus ${result.scenario.name}`}
+            ariaLabel={t.chart.label(result.scenario.name)}
             series={[
               {
                 id: 'baseline',
-                label: 'Current plan',
+                label: s$.currentPlan,
                 tone: 'secondary',
                 points: result.baseline.map((p) => ({ date: p.date, value: p.balanceCents })),
               },
               {
                 id: 'scenario',
-                label: 'Scenario',
+                label: t.chart.scenario,
                 tone: 'primary',
                 area: true,
                 points: result.projection.map((p) => ({ date: p.date, value: p.balanceCents })),
@@ -237,17 +243,17 @@ function ScenarioDetail({ result, stale }: { result: ScenarioResult | undefined;
                   <TooltipTitle>{formatDate(date, 'EEE, d MMM yyyy')}</TooltipTitle>
                   <TooltipRow
                     swatch="bg-chart-2"
-                    label="Current plan"
+                    label={s$.currentPlan}
                     value={money(base, { decimals: 0 })}
                   />
                   <TooltipRow
                     swatch="bg-chart-1"
-                    label="Scenario"
+                    label={t.chart.scenario}
                     value={money(scenario, { decimals: 0 })}
                   />
                   <div className="mt-1.5 border-t border-line pt-1.5">
                     <TooltipRow
-                      label="Difference"
+                      label={s$.difference}
                       value={money(scenario - base, { decimals: 0, sign: 'always' })}
                       emphasis
                     />
@@ -263,24 +269,24 @@ function ScenarioDetail({ result, stale }: { result: ScenarioResult | undefined;
         <div className="px-5 pt-5 pb-4 sm:px-6">
           <PanelHeader
             id="scenario-months"
-            title="Month by month"
-            description="Net cash flow for each projected month"
+            title={t.months.title}
+            description={t.months.description}
           />
         </div>
         <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr className="border-t border-line text-[11px] tracking-[0.08em] text-muted uppercase">
               <th scope="col" className="h-10 pr-3 pl-5 text-left font-medium sm:pl-6">
-                Month
+                {t.months.month}
               </th>
               <th scope="col" className="px-3 text-right font-medium">
-                Current plan
+                {s$.currentPlan}
               </th>
               <th scope="col" className="px-3 text-right font-medium">
-                Scenario
+                {t.chart.scenario}
               </th>
               <th scope="col" className="pr-5 pl-3 text-right font-medium sm:pr-6">
-                Difference
+                {s$.difference}
               </th>
             </tr>
           </thead>

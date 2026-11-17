@@ -2,17 +2,20 @@ import { Compass } from 'lucide-react';
 import { Link } from 'react-router';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/States';
+import { useMessages } from '../i18n';
+import { common } from '../i18n/common';
 
 export function NotFoundPage() {
+  const m = useMessages(common).notFound;
   return (
     <EmptyState
       icon={Compass}
-      title="Page not found"
-      body="The page you’re looking for doesn’t exist or has moved."
+      title={m.title}
+      body={m.body}
       className="py-32"
       action={
         <Button asChild variant="primary">
-          <Link to="/">Back to dashboard</Link>
+          <Link to="/">{m.back}</Link>
         </Button>
       }
     />

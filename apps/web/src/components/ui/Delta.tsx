@@ -1,4 +1,6 @@
 import { ArrowDown, ArrowUp } from 'lucide-react';
+import { useMessages } from '../../i18n';
+import { common } from '../../i18n/common';
 import { cn } from '../../lib/cn';
 import { percent } from '../../lib/format';
 
@@ -15,6 +17,7 @@ export function Delta({
   goodWhen?: 'up' | 'down';
   className?: string;
 }) {
+  const m = useMessages(common).delta;
   if (ratio === null || !Number.isFinite(ratio)) {
     return <span className={cn('text-[13px] text-faint', className)}>—</span>;
   }
@@ -31,9 +34,9 @@ export function Delta({
       )}
     >
       {!flat && <Icon className="size-3.5" strokeWidth={2.25} aria-hidden />}
-      <span className="sr-only">{up ? 'Up' : 'Down'} </span>
+      <span className="sr-only">{up ? m.up : m.down} </span>
       {percent(Math.abs(ratio))}
-      {good !== null && <span className="sr-only">, {good ? 'favourable' : 'unfavourable'}</span>}
+      {good !== null && <span className="sr-only">, {good ? m.good : m.bad}</span>}
     </span>
   );
 }

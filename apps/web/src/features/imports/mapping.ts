@@ -7,6 +7,9 @@ import {
   type ImportField,
 } from '@montra/shared';
 
+import { messagesFor } from '../../i18n';
+import { localizeMessage } from '../../i18n/serverMessages';
+import { importMessages } from './messages';
 /** A column mapping as edited: every setting present, "auto" for detect. */
 export interface MappingDraft {
   columns: Partial<Record<ImportField, number>>;
@@ -55,7 +58,10 @@ export function draftProblem(draft: MappingDraft): string | null {
   const parsed = columnMappingSchema.safeParse(mappingFrom(draft));
   if (parsed.success) return null;
   const issue = parsed.error.issues[0]!;
-  return issue.path[0] === 'defaultCategory' ? `Default category: ${issue.message}` : issue.message;
+  const message = localizeMessage(issue.message);
+  return issue.path[0] === 'defaultCategory'
+    ? messagesFor(importMessages).mapping.defaultCategoryProblem(message)
+    : message;
 }
 
 /** Maps `field` to `index` (or nothing), freeing any other field that used that column. */
@@ -83,7 +89,8 @@ const clip = (text: string) =>
 export function columnOptions(columns: string[], sampleRows: string[][]) {
   return columns.map((header, index) => {
     const sample = sampleRows.map((row) => row[index] ?? '').find((value) => value !== '');
-    const name = header.trim() || `Column ${index + 1}`;
-    return { value: String(index), label: sample ? `${name} — e.g. ${clip(sample)}` : name };
+    const m = messagesFor(importMessages).mapping;
+    const name = header.trim() || m.columnN(index + 1);
+    return { value: String(index), label: sample ? m.example(name, clip(sample)) : name };
   });
 }

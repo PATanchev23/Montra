@@ -17,18 +17,21 @@ import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import type { TransactionListParams } from '../../api/transactions';
 
+import { messagesFor } from '../../i18n';
+import { transactionMessages } from './messages';
 export type SortKey = TransactionSort;
 export type TypeFilter = 'all' | 'income' | 'expense';
 export type DateRange = 'all' | '30d' | '90d' | 'month' | 'last-month' | 'year' | 'custom';
 
-export const DATE_RANGES: { value: DateRange; label: string }[] = [
-  { value: 'all', label: 'All time' },
-  { value: 'month', label: 'This month' },
-  { value: 'last-month', label: 'Last month' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-  { value: 'year', label: 'This year' },
-  { value: 'custom', label: 'Custom range' },
+/** The date-range choices, in menu order; transactionMessages.ranges names them. */
+export const DATE_RANGES: DateRange[] = [
+  'all',
+  'month',
+  'last-month',
+  '30d',
+  '90d',
+  'year',
+  'custom',
 ];
 
 export const PAGE_SIZE = 25;
@@ -91,7 +94,7 @@ export function filtersFromParams(params: URLSearchParams): TransactionFilters {
     range:
       from || to || range === 'custom'
         ? 'custom'
-        : range && DATE_RANGES.some((r) => r.value === range)
+        : range && DATE_RANGES.includes(range)
           ? range
           : 'all',
     from,
@@ -122,7 +125,7 @@ export function listParamsFrom(
       : presetBounds(filters.range, today);
   const rangeError =
     bounds.from && bounds.to && bounds.from > bounds.to
-      ? 'The start date is after the end date.'
+      ? messagesFor(transactionMessages).rangeReversed
       : null;
   return {
     params: {

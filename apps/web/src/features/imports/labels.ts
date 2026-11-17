@@ -8,98 +8,84 @@ import type {
   ImportStatus,
 } from '@montra/shared';
 import type { Tone } from '../../components/ui/Badge';
+import { messagesFor } from '../../i18n';
+import { count } from '../../lib/format';
+import { importMessages } from './messages';
 
-export const fieldLabels: Record<ImportField, string> = {
-  date: 'Date',
-  description: 'Description',
-  amount: 'Amount',
-  type: 'Type',
-  category: 'Category',
-  currency: 'Currency',
-  externalId: 'External ID',
-};
+/*
+ * Labels for the import flow, in the interface language. They are read when
+ * called, so a language switch (which re-mounts the page) picks them up.
+ */
+
+const m = () => messagesFor(importMessages);
+
+export const fieldLabel = (field: ImportField) => m().fields[field];
 
 /** What each field is for, shown beside its column picker. */
 export function fieldHint(field: ImportField, typeRequired: boolean): string {
-  switch (field) {
-    case 'date':
-      return 'When the money moved.';
-    case 'description':
-      return 'What the payment was for.';
-    case 'amount':
-      return 'The value of each record.';
-    case 'type':
-      return typeRequired
-        ? 'Says Income or Expense.'
-        : 'Optional. Without it, negative amounts are expenses and others income.';
-    case 'category':
-      return 'Optional when a default category is set below.';
-    case 'currency':
-      return 'Optional. Records in another currency are refused, never converted.';
-    case 'externalId':
-      return 'Optional. A reference that stops the same record being imported twice.';
-  }
+  const hints = m().fieldHints;
+  if (field === 'type') return typeRequired ? hints.typeRequired : hints.typeOptional;
+  return hints[field];
 }
 
-export const requirementMessages: Record<ImportRequirement, string> = {
-  date: 'Choose the column with the dates.',
-  description: 'Choose the column with the descriptions.',
-  amount: 'Choose the column with the amounts.',
-  type: 'Choose the column that says Income or Expense.',
-  category: 'Choose a category column, or set a default category.',
-  currency: 'Choose the currency column.',
-  externalId: 'Choose the external ID column.',
-  dateFormat: 'Choose how dates are written: some could be read either way.',
+export const requirementMessage = (requirement: ImportRequirement) => m().requirements[requirement];
+
+const DATE_FORMATS: (DateFormat | 'auto')[] = ['auto', 'YMD', 'DMY', 'MDY'];
+const DECIMALS: (DecimalSeparator | 'auto')[] = ['auto', '.', ','];
+
+export const dateFormatOptions = () =>
+  DATE_FORMATS.map((value) => ({ value, label: m().dateFormats[value] }));
+
+export const decimalOptions = () =>
+  DECIMALS.map((value) => ({ value, label: m().decimals[value] }));
+
+const statusTones: Record<ImportStatus, Tone> = {
+  AWAITING_MAPPING: 'warning',
+  READY: 'accent',
+  COMPLETED: 'positive',
+  FAILED: 'negative',
+  CANCELLED: 'neutral',
+  EXPIRED: 'neutral',
 };
 
-export const dateFormatOptions: { value: DateFormat | 'auto'; label: string }[] = [
-  { value: 'auto', label: 'Detect from the file' },
-  { value: 'YMD', label: 'Year first · 2026-10-05' },
-  { value: 'DMY', label: 'Day first · 05.10.2026' },
-  { value: 'MDY', label: 'Month first · 10/05/2026' },
-];
+export const statusLabel = (status: ImportStatus) => ({
+  label: m().status[status],
+  tone: statusTones[status],
+});
 
-export const decimalOptions: { value: DecimalSeparator | 'auto'; label: string }[] = [
-  { value: 'auto', label: 'Detect from the file' },
-  { value: '.', label: 'Point · 1250.50' },
-  { value: ',', label: 'Comma · 1250,50' },
-];
-
-export const statusLabels: Record<ImportStatus, { label: string; tone: Tone }> = {
-  AWAITING_MAPPING: { label: 'Needs mapping', tone: 'warning' },
-  READY: { label: 'Ready to review', tone: 'accent' },
-  COMPLETED: { label: 'Imported', tone: 'positive' },
-  FAILED: { label: 'Failed', tone: 'negative' },
-  CANCELLED: { label: 'Cancelled', tone: 'neutral' },
-  EXPIRED: { label: 'Expired', tone: 'neutral' },
+const entryTones: Record<ImportEntryStatus, Tone> = {
+  VALID: 'positive',
+  INVALID: 'negative',
+  DUPLICATE: 'neutral',
+  POSSIBLE_DUPLICATE: 'warning',
 };
 
-export const entryStatusLabels: Record<ImportEntryStatus, { label: string; tone: Tone }> = {
-  VALID: { label: 'Valid', tone: 'positive' },
-  INVALID: { label: 'Invalid', tone: 'negative' },
-  DUPLICATE: { label: 'Duplicate', tone: 'neutral' },
-  POSSIBLE_DUPLICATE: { label: 'Possible duplicate', tone: 'warning' },
-};
+export const entryStatusLabel = (status: ImportEntryStatus) => ({
+  label: m().entryStatus[status],
+  tone: entryTones[status],
+});
 
 export const isPending = (status: ImportStatus) =>
   status === 'AWAITING_MAPPING' || status === 'READY';
 
-const plural = (count: number, one: string, many = `${one}s`) =>
-  `${count.toLocaleString('en')} ${count === 1 ? one : many}`;
+/** "1 record", "24 records" (Bulgarian "24 записа"). */
+export const records = (n: number) => m().records(count(n), n);
+
+/** "1 transaction", "24 transactions". */
+export const transactions = (n: number) => m().transactions(count(n), n);
 
 /** A finished import's outcome in one line, e.g. "24 imported · 2 skipped · 1 invalid". */
 export function outcomeLine(batch: ImportBatch): string {
+  const o = m().outcome;
   if (isPending(batch.status)) {
-    return batch.status === 'READY' ? plural(batch.totalRecords, 'record') : 'Columns to map';
+    return batch.status === 'READY' ? records(batch.totalRecords) : o.columnsToMap;
   }
-  if (batch.status === 'CANCELLED' || batch.status === 'EXPIRED') return 'Nothing imported';
+  if (batch.status === 'CANCELLED' || batch.status === 'EXPIRED') return o.nothing;
   return [
-    `${batch.importedRecords.toLocaleString('en')} imported`,
-    batch.skippedRecords > 0 && `${batch.skippedRecords.toLocaleString('en')} skipped`,
-    batch.failedRecords > 0 && `${batch.failedRecords.toLocaleString('en')} invalid`,
+    o.imported(count(batch.importedRecords)),
+    batch.skippedRecords > 0 && o.skipped(count(batch.skippedRecords)),
+    batch.failedRecords > 0 && o.invalid(count(batch.failedRecords)),
   ]
     .filter(Boolean)
     .join(' · ');
 }
-
-export { plural };

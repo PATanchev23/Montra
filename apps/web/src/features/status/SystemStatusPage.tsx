@@ -7,16 +7,9 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Panel } from '../../components/ui/Panel';
 import { StatusDot, type Status } from '../../components/ui/StatusDot';
 import { cn } from '../../lib/cn';
+import { currentIntlLocale, useMessages } from '../../i18n';
 import { deriveStatus, formatUptime } from './deriveStatus';
-
-const timeFormat = new Intl.DateTimeFormat('en-GB', { timeStyle: 'medium' });
-
-const statusLabel: Record<Status, string> = {
-  up: 'Connected',
-  degraded: 'Degraded',
-  down: 'Unreachable',
-  unknown: 'Unknown',
-};
+import { statusMessages } from './messages';
 
 interface Tier {
   name: string;
@@ -31,36 +24,42 @@ export function SystemStatusPage() {
   const status = deriveStatus(data, error);
   const checkedAt = Math.max(dataUpdatedAt, errorUpdatedAt);
   const live = error ? undefined : data;
+  const t = useMessages(statusMessages);
+  const m = t.page;
+  // en-GB keeps English times in 24-hour form, as before languages existed.
+  const timeFormat = new Intl.DateTimeFormat(currentIntlLocale() === 'bg-BG' ? 'bg-BG' : 'en-GB', {
+    timeStyle: 'medium',
+  });
 
   const tiers: Tier[] = [
     {
-      name: 'Web client',
+      name: m.web,
       role: 'React · Vite',
       icon: Globe,
       status: 'up',
-      facts: [{ label: 'Mode', value: import.meta.env.MODE }],
+      facts: [{ label: m.mode, value: m.modeName(import.meta.env.MODE) }],
     },
     {
-      name: 'API server',
+      name: m.api,
       role: 'Fastify · REST',
       icon: Server,
       status: status.api,
       facts: live
         ? [
-            { label: 'Round trip', value: `${live.roundTripMs} ms` },
-            { label: 'Version', value: live.version },
-            { label: 'Uptime', value: formatUptime(live.uptimeSeconds) },
+            { label: m.roundTrip, value: m.milliseconds(live.roundTripMs) },
+            { label: m.version, value: live.version },
+            { label: m.uptime, value: formatUptime(live.uptimeSeconds) },
           ]
         : [],
     },
     {
-      name: 'Database',
+      name: m.database,
       role: 'PostgreSQL · Prisma',
       icon: Database,
       status: status.database,
       facts:
         live?.checks.database.latencyMs != null
-          ? [{ label: 'Query', value: `${live.checks.database.latencyMs} ms` }]
+          ? [{ label: m.query, value: m.milliseconds(live.checks.database.latencyMs) }]
           : [],
     },
   ];
@@ -68,13 +67,13 @@ export function SystemStatusPage() {
   return (
     <div className="flex flex-col gap-7">
       <PageHeader
-        eyebrow="System"
-        title="System status"
-        description="Montra runs as three separate tiers. This page checks every link in the chain."
+        eyebrow={m.eyebrow}
+        title={m.title}
+        description={m.description}
         actions={
           <Button onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={cn(isFetching && 'animate-spin')} />
-            Check now
+            {m.checkNow}
           </Button>
         }
       />
@@ -100,14 +99,12 @@ export function SystemStatusPage() {
             </motion.p>
           </AnimatePresence>
           <p className="tabular mt-2 text-muted">
-            {checkedAt > 0
-              ? `Last checked ${timeFormat.format(checkedAt)}`
-              : 'Waiting for first check'}
-            <span className="text-faint"> · refreshes every 15 s</span>
+            {checkedAt > 0 ? m.lastChecked(timeFormat.format(checkedAt)) : m.waiting}
+            <span className="text-faint">{m.refreshes}</span>
           </p>
         </section>
 
-        <ol className="grid border-t border-line md:grid-cols-3" aria-label="Request path">
+        <ol className="grid border-t border-line md:grid-cols-3" aria-label={m.path}>
           {tiers.map((tier, index) => (
             <TierColumn
               key={tier.name}
@@ -120,16 +117,15 @@ export function SystemStatusPage() {
       </Panel>
 
       <p className="text-[13px] text-muted">
-        The browser calls{' '}
-        <code className="font-mono text-[12px] text-ink">{API_PREFIX}/health</code>, and the API
-        runs a query against PostgreSQL before it answers.{' '}
+        {m.browserCalls} <code className="font-mono text-[12px] text-ink">{API_PREFIX}/health</code>
+        {m.apiQueries}{' '}
         <a
           href="/api/docs"
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-0.5 font-medium text-accent hover:underline"
         >
-          API reference
+          {m.reference}
           <ArrowUpRight className="size-3.5" strokeWidth={2} />
         </a>
       </p>
@@ -147,6 +143,7 @@ function TierColumn({
   linkStatus?: Status;
 }) {
   const Icon = tier.icon;
+  const statusLabel = useMessages(statusMessages).tier;
   return (
     <li
       className={cn(

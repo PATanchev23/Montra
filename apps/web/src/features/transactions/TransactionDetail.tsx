@@ -10,7 +10,9 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Sheet } from '../../components/ui/Sheet';
 import { formatDate, money } from '../../lib/format';
 import { showToast } from '../../stores/toasts';
+import { useMessages } from '../../i18n';
 import { entryType, sourceLabel, typeLabel } from './display';
+import { transactionMessages } from './messages';
 import { TypeIcon } from './TypeIcon';
 import { TransactionForm } from './TransactionForm';
 
@@ -45,6 +47,7 @@ function Details({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const m = useMessages(transactionMessages).detail;
   return (
     <div className="px-6 pt-6 pb-8">
       <div className="flex items-center gap-3.5">
@@ -64,33 +67,33 @@ function Details({
       )}
 
       <dl className="mt-8">
-        <Row label="Date">{formatDate(t.date, 'EEEE, d MMMM yyyy')}</Row>
-        <Row label="Type">{typeLabel(t.type)}</Row>
-        <Row label="Category">{t.category}</Row>
-        <Row label="Source">{sourceLabel(t.importSource)}</Row>
+        <Row label={m.date}>{formatDate(t.date, 'EEEE, d MMMM yyyy')}</Row>
+        <Row label={m.type}>{typeLabel(t.type)}</Row>
+        <Row label={m.category}>{t.category}</Row>
+        <Row label={m.source}>{sourceLabel(t.importSource)}</Row>
         {t.externalId && (
-          <Row label="External ID">
+          <Row label={m.externalId}>
             <span className="font-mono text-[12px] text-ink-2">{t.externalId}</span>
           </Row>
         )}
-        <Row label="Recorded">{timestamp(t.createdAt)}</Row>
-        {t.updatedAt !== t.createdAt && <Row label="Last changed">{timestamp(t.updatedAt)}</Row>}
+        <Row label={m.recorded}>{timestamp(t.createdAt)}</Row>
+        {t.updatedAt !== t.createdAt && <Row label={m.lastChanged}>{timestamp(t.updatedAt)}</Row>}
       </dl>
 
       {canEdit ? (
         <div className="mt-8 flex gap-2">
           <Button onClick={onEdit}>
             <Pencil />
-            Edit
+            {m.edit}
           </Button>
           <Button variant="ghost" className="text-negative hover:text-negative" onClick={onDelete}>
             <Trash2 />
-            Delete
+            {m.delete}
           </Button>
         </div>
       ) : (
         <p className="mt-8 rounded-control bg-sunken px-4 py-3 text-[12px] leading-relaxed text-muted">
-          You have view-only access. Only the business owner can change or delete transactions.
+          {m.viewOnly}
         </p>
       )}
     </div>
@@ -120,20 +123,17 @@ export function TransactionSheet({
   const remove = useDeleteTransaction(businessId);
   const [confirming, setConfirming] = useState(false);
   const close = () => onStateChange(null);
+  const m = useMessages(transactionMessages).detail;
 
   const title =
-    state?.mode === 'create'
-      ? 'New transaction'
-      : state?.mode === 'edit'
-        ? 'Edit transaction'
-        : 'Transaction details';
+    state?.mode === 'create' ? m.newTitle : state?.mode === 'edit' ? m.editTitle : m.detailsTitle;
 
   async function confirmDelete(transaction: Transaction) {
     try {
       await remove.mutateAsync(transaction.id);
       setConfirming(false);
       close();
-      showToast({ tone: 'neutral', title: 'Transaction deleted', body: transaction.description });
+      showToast({ tone: 'neutral', title: m.deleted, body: transaction.description });
     } catch {
       // The dialog shows the error and stays open for another try.
     }
@@ -145,11 +145,7 @@ export function TransactionSheet({
         open={state !== null}
         onOpenChange={(open) => !open && close()}
         title={title}
-        description={
-          state?.mode === 'create'
-            ? `Record money coming in or going out, in ${currency}.`
-            : undefined
-        }
+        description={state?.mode === 'create' ? m.newDescription(currency) : undefined}
       >
         {state?.mode === 'view' && (
           <Details
@@ -191,23 +187,18 @@ export function TransactionSheet({
         <ConfirmDialog
           open={confirming}
           onOpenChange={setConfirming}
-          title="Delete this transaction?"
+          title={m.confirmTitle}
           description={
             <>
               <span className="text-ink-2">{state.transaction.description}</span> (
               {money(state.transaction.amountCents, { currency })},{' '}
-              {formatDate(state.transaction.date, 'd MMM yyyy')}) will be removed from your history.
-              This cannot be undone.
+              {formatDate(state.transaction.date, 'd MMM yyyy')}) {m.confirmBody}
             </>
           }
-          confirmLabel="Delete transaction"
-          busyLabel="Deleting…"
+          confirmLabel={m.confirm}
+          busyLabel={m.deleting}
           busy={remove.isPending}
-          error={
-            remove.isError
-              ? errorMessage(remove.error, 'The transaction could not be deleted. Try again.')
-              : null
-          }
+          error={remove.isError ? errorMessage(remove.error, m.deleteFailed) : null}
           onConfirm={() => void confirmDelete(state.transaction)}
         />
       )}

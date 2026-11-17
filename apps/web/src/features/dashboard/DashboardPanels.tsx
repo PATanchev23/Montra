@@ -1,5 +1,5 @@
 import type { DashboardResponse } from '@montra/shared';
-import { format, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
 import { ArrowRight, FlaskConical, Play } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -20,19 +20,22 @@ import { Panel, PanelHeader } from '../../components/ui/Panel';
 import { ErrorState, Skeleton } from '../../components/ui/States';
 import { Tooltip } from '../../components/ui/Tooltip';
 import { cn } from '../../lib/cn';
-import { formatDate, money, relativeDay } from '../../lib/format';
+import { useMessages } from '../../i18n';
+import { formatDate, formatDay, money, relativeDay } from '../../lib/format';
 import { entryType } from '../transactions/display';
 import { TypeIcon } from '../transactions/TypeIcon';
+import { dashboardMessages } from './messages';
 import { shareLabel } from './period';
 
 function ViewAll({ to, label }: { to: string; label: string }) {
+  const m = useMessages(dashboardMessages).panels;
   return (
     <Link
       to={to}
       aria-label={label}
       className="group inline-flex items-center gap-1.5 rounded-md text-body-sm font-medium whitespace-nowrap text-ink hover:underline"
     >
-      View all
+      {m.viewAll}
       <ArrowRight
         aria-hidden
         className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5"
@@ -50,35 +53,29 @@ function PanelNote({ children }: { children: ReactNode }) {
   );
 }
 
-const SAMPLE_NOTE =
-  'Deterministic TechStore sample data, not this business’s own figures. Live data arrives with the financial API.';
-
-/** The day the sample layer treats as today; its dates are measured from it, not from the real date. */
-const SAMPLE_AS_OF = format(DEMO_TODAY, 'd MMM');
-
 /**
  * Marks a panel whose figures come from the sample layer rather than the
  * API, and names the date that data is anchored to. It sits on the header's
  * description line, so sample and live panels share one header height.
  */
 function SampleDataLabel() {
+  const m = useMessages(dashboardMessages).panels;
+  // The day the sample layer treats as today; its dates are measured from it, not from the real date.
   return (
-    <Tooltip content={SAMPLE_NOTE}>
+    <Tooltip content={m.sampleNote}>
       <span
         tabIndex={0}
-        aria-label={`Sample data as of ${format(DEMO_TODAY, 'd MMMM yyyy')}. ${SAMPLE_NOTE}`}
+        aria-label={m.sampleAsOfLong(formatDay(DEMO_TODAY, 'd MMMM yyyy'), m.sampleNote)}
         className="inline-flex h-5 items-center gap-1.5 rounded-sm align-top font-medium text-ink-2"
       >
         <FlaskConical aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
-        {`Sample data · as of ${SAMPLE_AS_OF}`}
+        {m.sampleAsOf(formatDay(DEMO_TODAY, 'd MMM'))}
       </span>
     </Tooltip>
   );
 }
 
 // ── Expense breakdown ────────────────────────────────────────────────────
-
-const OTHER = 'Other categories';
 
 /** Transactions for one expense category over exactly the period on screen. */
 function categoryHref(category: string, from: string, to: string) {
@@ -99,11 +96,12 @@ export function ExpenseBreakdownPanel({
   periodLabel: string;
 }) {
   const [active, setActive] = useState<string | null>(null);
+  const m = useMessages(dashboardMessages).panels;
   const breakdown = data?.expenseBreakdown;
   const currency = data?.currency;
   const items = (breakdown?.items ?? []).map((item) => ({
     ...item,
-    name: item.category ?? OTHER,
+    name: item.category ?? m.otherCategories,
   }));
   const activeItem = items.find((item) => item.name === active);
 
@@ -111,7 +109,7 @@ export function ExpenseBreakdownPanel({
     <Panel className="@container p-5 sm:p-6" aria-labelledby="breakdown-title">
       <PanelHeader
         id="breakdown-title"
-        title="Expense breakdown"
+        title={m.breakdown}
         actions={periodLabel && <span className="text-body-sm text-muted">{periodLabel}</span>}
       />
       {!breakdown || !data ? (
@@ -124,11 +122,11 @@ export function ExpenseBreakdownPanel({
           </div>
         </div>
       ) : items.length === 0 ? (
-        <PanelNote>No expenses in this period.</PanelNote>
+        <PanelNote>{m.noExpenses}</PanelNote>
       ) : (
         <div className="mt-5 flex flex-col items-center gap-x-8 gap-y-5 @md:flex-row">
           <DonutChart
-            ariaLabel="Expenses by category"
+            ariaLabel={m.expensesByCategory}
             size={156}
             thickness={25}
             active={active}
@@ -145,14 +143,14 @@ export function ExpenseBreakdownPanel({
                   {money(activeItem?.cents ?? breakdown.totalCents, { currency })}
                 </span>
                 <span className="max-w-[104px] truncate text-caption text-muted">
-                  {activeItem?.name ?? 'Total'}
+                  {activeItem?.name ?? m.total}
                 </span>
               </>
             }
           />
           <ul
             className="w-full min-w-0 flex-1 divide-y divide-line"
-            aria-label="Expense categories"
+            aria-label={m.expenseCategories}
           >
             {items.map((item, i) => (
               <li
@@ -208,22 +206,23 @@ export function ExpenseBreakdownPanel({
 /** The business's latest entries, newest first, whatever the period. */
 export function RecentTransactionsPanel({ data }: { data: DashboardResponse | undefined }) {
   const today = data ? parseISO(data.today) : new Date();
+  const m = useMessages(dashboardMessages).panels;
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="recent-title">
       <PanelHeader
         id="recent-title"
         className="items-start"
-        title="Recent transactions"
-        description="Newest first, whatever the period"
-        actions={<ViewAll to="/transactions" label="View all transactions" />}
+        title={m.recent}
+        description={m.recentHint}
+        actions={<ViewAll to="/transactions" label={m.viewAllTransactions} />}
       />
       <div className="mt-2">
         {!data ? (
           <LedgerSkeleton />
         ) : data.recent.length === 0 ? (
-          <PanelNote>No transactions recorded yet.</PanelNote>
+          <PanelNote>{m.noneRecorded}</PanelNote>
         ) : (
-          <ul aria-label="Latest transactions" className="divide-y divide-line">
+          <ul aria-label={m.latest} className="divide-y divide-line">
             {data.recent.map((t) => (
               <LedgerRow
                 key={t.id}
@@ -251,24 +250,25 @@ export function RecentTransactionsPanel({ data }: { data: DashboardResponse | un
  */
 export function UpcomingPaymentsPanel({ className }: { className?: string }) {
   const { data, isError, refetch } = useUpcomingPayments();
+  const m = useMessages(dashboardMessages).panels;
   return (
     <Panel className={cn('p-5 sm:p-6', className)} aria-labelledby="upcoming-title">
       <PanelHeader
         id="upcoming-title"
         className="items-start"
-        title="Upcoming payments"
+        title={m.upcoming}
         description={<SampleDataLabel />}
-        actions={<ViewAll to="/cash-flow#upcoming" label="View all upcoming payments" />}
+        actions={<ViewAll to="/cash-flow#upcoming" label={m.viewAllUpcoming} />}
       />
       <div className="mt-2">
         {isError ? (
-          <ErrorState title="Could not load upcoming payments" onRetry={() => refetch()} />
+          <ErrorState title={m.upcomingError} onRetry={() => refetch()} />
         ) : !data ? (
           <LedgerSkeleton />
         ) : data.length === 0 ? (
-          <PanelNote>Nothing is due in the next 30 days.</PanelNote>
+          <PanelNote>{m.nothingDue}</PanelNote>
         ) : (
-          <ul aria-label="Upcoming payments" className="divide-y divide-line">
+          <ul aria-label={m.upcoming} className="divide-y divide-line">
             {data.map((u) => {
               return (
                 <LedgerRow
@@ -286,7 +286,7 @@ export function UpcomingPaymentsPanel({ className }: { className?: string }) {
                   // Plain dates: the sample layer's "today" is not the real one.
                   meta={
                     <>
-                      {u.certainty === 'estimated' && 'est. · '}
+                      {u.certainty === 'estimated' && m.estimated}
                       {formatDate(u.dueDate)}
                     </>
                   }
@@ -314,20 +314,21 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
   const preview = result.data;
   const failed = scenarios.isError || result.isError;
   const delta = preview ? preview.scenarioEndCents - preview.baselineEndCents : 0;
-  const horizon = `Balance in ${FORECAST_DAYS} days`;
+  const m = useMessages(dashboardMessages).panels;
+  const horizon = m.balanceIn(FORECAST_DAYS);
 
   return (
     <Panel className={cn('flex flex-col p-5 sm:p-6', className)} aria-labelledby="scenario-title">
       <PanelHeader
         id="scenario-title"
         className="items-start"
-        title="Scenario preview"
+        title={m.scenario}
         description={<SampleDataLabel />}
-        actions={<ViewAll to="/simulations" label="View all scenarios" />}
+        actions={<ViewAll to="/simulations" label={m.viewAllScenarios} />}
       />
       {failed ? (
         <ErrorState
-          title="Could not load the scenario"
+          title={m.scenarioError}
           onRetry={() => (scenarios.isError ? scenarios.refetch() : result.refetch())}
         />
       ) : !preview ? (
@@ -340,8 +341,8 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
         <>
           <p className="mt-4 text-body-sm text-ink-2">{preview.scenario.description}</p>
           <div className="mt-4 grid grid-cols-2 divide-x divide-line rounded-field bg-sunken">
-            <div className="min-w-0 p-4" role="group" aria-label="Current plan">
-              <p className="min-h-10 text-body-sm text-ink-2">Current plan</p>
+            <div className="min-w-0 p-4" role="group" aria-label={m.currentPlan}>
+              <p className="min-h-10 text-body-sm text-ink-2">{m.currentPlan}</p>
               <p className="tabular mt-1 text-figure-sm text-ink">
                 {money(preview.baselineEndCents, { decimals: 0 })}
               </p>
@@ -373,7 +374,7 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
                 >
                   {money(delta, { decimals: 0, sign: 'always' })}
                 </span>{' '}
-                vs. plan
+                {m.vsPlan}
               </p>
               <Sparkline
                 values={preview.projection.map((p) => p.balanceCents)}
@@ -385,7 +386,7 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
               />
             </div>
           </div>
-          <ul aria-label="Assumptions" className="mt-3 mb-5 divide-y divide-line">
+          <ul aria-label={m.assumptions} className="mt-3 mb-5 divide-y divide-line">
             {preview.scenario.assumptions.map((assumption) => (
               <li key={assumption} className="py-2.5 text-body-sm text-ink-2">
                 {assumption}
@@ -395,7 +396,7 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
           <Button asChild variant="primary" size="lg" className="mt-auto w-full">
             <Link to={`/simulations?scenario=${preview.scenario.id}`}>
               <Play className="fill-current" />
-              Run simulation
+              {m.run}
             </Link>
           </Button>
         </>

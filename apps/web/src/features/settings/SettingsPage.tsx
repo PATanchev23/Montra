@@ -14,15 +14,19 @@ import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
 import { useUiStore, type NotificationPrefs, type ThemePreference } from '../../stores/ui';
 import { useSignedInUser } from '../auth/currentUser';
+import { LanguageSwitch } from '../../components/LanguageSwitch';
+import { useMessages } from '../../i18n';
 import { deriveStatus } from '../status/deriveStatus';
+import { settingsMessages } from './messages';
 
-const sections = [
-  { id: 'profile', label: 'Profile' },
-  { id: 'business', label: 'Business' },
-  { id: 'appearance', label: 'Appearance' },
-  { id: 'notifications', label: 'Notifications' },
-  { id: 'system', label: 'System' },
-];
+const SECTIONS = [
+  'profile',
+  'business',
+  'appearance',
+  'language',
+  'notifications',
+  'system',
+] as const;
 
 function Section({
   id,
@@ -53,49 +57,32 @@ function Section({
 }
 
 function PendingFooter({ note }: { note: string }) {
+  const m = useMessages(settingsMessages);
   return (
     <>
       <p className="text-[12px] text-muted">{note}</p>
       <Button size="sm" variant="primary" disabled>
-        Save changes
+        {m.saveChanges}
       </Button>
     </>
   );
 }
 
-const themeOptions: { value: ThemePreference; label: string; icon: typeof Sun; preview: string }[] =
-  [
-    { value: 'dark', label: 'Dark', icon: Moon, preview: 'bg-[#071216]' },
-    { value: 'light', label: 'Light', icon: Sun, preview: 'bg-[#f4f6f7]' },
-    {
-      value: 'system',
-      label: 'System',
-      icon: Monitor,
-      preview: 'bg-[linear-gradient(90deg,#071216_50%,#f4f6f7_50%)]',
-    },
-  ];
+const themeOptions: { value: ThemePreference; icon: typeof Sun; preview: string }[] = [
+  { value: 'dark', icon: Moon, preview: 'bg-[#071216]' },
+  { value: 'light', icon: Sun, preview: 'bg-[#f4f6f7]' },
+  {
+    value: 'system',
+    icon: Monitor,
+    preview: 'bg-[linear-gradient(90deg,#071216_50%,#f4f6f7_50%)]',
+  },
+];
 
-const notificationRows: { key: keyof NotificationPrefs; title: string; body: string }[] = [
-  {
-    key: 'dueReminders',
-    title: 'Payment reminders',
-    body: 'Two days before a supplier invoice or recurring payment is due.',
-  },
-  {
-    key: 'budgetAlerts',
-    title: 'Budget alerts',
-    body: 'When a category reaches 90% of its monthly limit.',
-  },
-  {
-    key: 'lowBalance',
-    title: 'Low balance warnings',
-    body: 'When the projected balance drops below your safety buffer.',
-  },
-  {
-    key: 'weeklySummary',
-    title: 'Weekly summary',
-    body: 'A Monday email with last week’s cash flow and what’s coming up.',
-  },
+const NOTIFICATIONS: (keyof NotificationPrefs)[] = [
+  'dueReminders',
+  'budgetAlerts',
+  'lowBalance',
+  'weeklySummary',
 ];
 
 export function SettingsPage() {
@@ -108,6 +95,7 @@ export function SettingsPage() {
   const status = deriveStatus(health.data, health.error);
   const { user, memberships } = useSignedInUser();
   const membership = memberships[0];
+  const m = useMessages(settingsMessages);
 
   useEffect(() => {
     if (location.hash)
@@ -116,27 +104,23 @@ export function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-7">
-      <PageHeader
-        eyebrow="Settings"
-        title="Settings"
-        description="Your profile, business details and how Montra looks and notifies you."
-      />
+      <PageHeader eyebrow={m.page.eyebrow} title={m.page.title} description={m.page.description} />
 
       <div className="grid items-start gap-8 lg:grid-cols-[200px_minmax(0,760px)]">
-        <nav aria-label="Settings sections" className="sticky top-6 hidden lg:block">
+        <nav aria-label={m.sectionsLabel} className="sticky top-6 hidden lg:block">
           <ul className="flex flex-col gap-0.5 border-l border-line">
-            {sections.map((s) => (
-              <li key={s.id}>
+            {SECTIONS.map((id) => (
+              <li key={id}>
                 <a
-                  href={`#${s.id}`}
+                  href={`#${id}`}
                   className={cn(
                     '-ml-px block border-l-2 py-1.5 pl-4 text-[13px] transition-colors',
-                    location.hash === `#${s.id}`
+                    location.hash === `#${id}`
                       ? 'border-accent text-ink'
                       : 'border-transparent text-muted hover:text-ink',
                   )}
                 >
-                  {s.label}
+                  {m.sections[id]}
                 </a>
               </li>
             ))}
@@ -146,9 +130,9 @@ export function SettingsPage() {
         <div className="flex min-w-0 flex-col gap-6">
           <Section
             id="profile"
-            title="Profile"
-            description="How you appear across Montra."
-            footer={<PendingFooter note="Editing your profile arrives in a later release." />}
+            title={m.sections.profile}
+            description={m.profile.description}
+            footer={<PendingFooter note={m.profile.pending} />}
           >
             <div className="flex items-center gap-4">
               <span className="flex size-14 items-center justify-center rounded-full border border-line-strong bg-raised text-[20px] font-medium text-ink-2">
@@ -158,16 +142,17 @@ export function SettingsPage() {
                 <p className="font-medium text-ink">{user.name}</p>
                 {membership && (
                   <p className="text-[13px] text-muted">
-                    {membership.role === 'OWNER' ? 'Owner' : 'Viewer'} · {membership.business.name}
+                    {membership.role === 'OWNER' ? m.profile.owner : m.profile.viewer} ·{' '}
+                    {membership.business.name}
                   </p>
                 )}
               </div>
             </div>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <Field label="Full name" htmlFor="name">
+              <Field label={m.profile.fullName} htmlFor="name">
                 <Input id="name" defaultValue={user.name} />
               </Field>
-              <Field label="Email" htmlFor="email">
+              <Field label={m.profile.email} htmlFor="email">
                 <Input id="email" type="email" defaultValue={user.email} />
               </Field>
             </div>
@@ -175,37 +160,31 @@ export function SettingsPage() {
 
           <Section
             id="business"
-            title="Business"
-            description="Used for reports, exports and currency formatting."
-            footer={
-              <PendingFooter note="Business details are stored once accounts are connected." />
-            }
+            title={m.sections.business}
+            description={m.business.description}
+            footer={<PendingFooter note={m.business.pending} />}
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Business name" htmlFor="business-name">
+              <Field label={m.business.name} htmlFor="business-name">
                 <Input id="business-name" defaultValue={business.name} />
               </Field>
-              <Field label="Business type" htmlFor="business-type">
+              <Field label={m.business.type} htmlFor="business-type">
                 <Input id="business-type" defaultValue={business.kind} />
               </Field>
-              <Field
-                label="Currency"
-                htmlFor="currency"
-                hint="Bulgaria uses the euro since 1 January 2026."
-              >
+              <Field label={m.business.currency} htmlFor="currency" hint={m.business.currencyHint}>
                 <Select
                   id="currency"
-                  label="Currency"
+                  label={m.business.currency}
                   value="EUR"
                   onChange={() => {}}
-                  options={[{ value: 'EUR', label: 'Euro (€)' }]}
+                  options={[{ value: 'EUR', label: m.business.euro }]}
                   className="w-full"
                 />
               </Field>
-              <Field label="Time zone" htmlFor="timezone">
+              <Field label={m.business.timeZone} htmlFor="timezone">
                 <Select
                   id="timezone"
-                  label="Time zone"
+                  label={m.business.timeZone}
                   value="Europe/Sofia"
                   onChange={() => {}}
                   options={[{ value: 'Europe/Sofia', label: 'Europe/Sofia (EET)' }]}
@@ -217,11 +196,15 @@ export function SettingsPage() {
 
           <Section
             id="appearance"
-            title="Appearance"
-            description="Dark is Montra’s signature theme; light suits bright rooms and printing."
+            title={m.sections.appearance}
+            description={m.appearance.description}
           >
-            <div role="radiogroup" aria-label="Theme" className="grid gap-3 sm:grid-cols-3">
-              {themeOptions.map(({ value, label, icon: Icon, preview }) => {
+            <div
+              role="radiogroup"
+              aria-label={m.appearance.theme}
+              className="grid gap-3 sm:grid-cols-3"
+            >
+              {themeOptions.map(({ value, icon: Icon, preview }) => {
                 const active = theme === value;
                 return (
                   <button
@@ -253,7 +236,7 @@ export function SettingsPage() {
                     </span>
                     <span className="flex items-center gap-2 px-3 py-2.5 text-[13px] text-ink">
                       <Icon className="size-4 text-muted" strokeWidth={1.75} />
-                      {label}
+                      {m.appearance[value]}
                       {active && (
                         <Check className="ml-auto size-4 text-accent" strokeWidth={2.25} />
                       )}
@@ -264,36 +247,38 @@ export function SettingsPage() {
             </div>
           </Section>
 
+          <Section id="language" title={m.sections.language} description={m.language.description}>
+            <LanguageSwitch size="md" />
+          </Section>
+
           <Section
             id="notifications"
-            title="Notifications"
-            description="Choose what Montra tells you about. Saved on this device."
+            title={m.sections.notifications}
+            description={m.notifications.description}
           >
             <ul className="-my-2 divide-y divide-line-soft">
-              {notificationRows.map((row) => (
-                <li key={row.key} className="flex items-center justify-between gap-6 py-3.5">
-                  <label htmlFor={`notify-${row.key}`} className="min-w-0 cursor-pointer">
-                    <span className="block text-[14px] text-ink">{row.title}</span>
-                    <span className="block text-[13px] text-muted">{row.body}</span>
+              {NOTIFICATIONS.map((key) => (
+                <li key={key} className="flex items-center justify-between gap-6 py-3.5">
+                  <label htmlFor={`notify-${key}`} className="min-w-0 cursor-pointer">
+                    <span className="block text-[14px] text-ink">{m.notifications[key].title}</span>
+                    <span className="block text-[13px] text-muted">
+                      {m.notifications[key].body}
+                    </span>
                   </label>
                   <Switch
-                    id={`notify-${row.key}`}
-                    checked={notifications[row.key]}
-                    onCheckedChange={(v) => setNotification(row.key, v)}
+                    id={`notify-${key}`}
+                    checked={notifications[key]}
+                    onCheckedChange={(v) => setNotification(key, v)}
                   />
                 </li>
               ))}
             </ul>
           </Section>
 
-          <Section
-            id="system"
-            title="System"
-            description="Connection between this app, the API and the database."
-          >
+          <Section id="system" title={m.sections.system} description={m.system.description}>
             <dl className="divide-y divide-line-soft text-[13px]">
               <div className="flex items-center justify-between gap-4 pb-3">
-                <dt className="text-muted">Status</dt>
+                <dt className="text-muted">{m.system.status}</dt>
                 <dd className="flex items-center gap-2 text-ink">
                   <StatusDot
                     status={
@@ -308,21 +293,21 @@ export function SettingsPage() {
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-4 py-3">
-                <dt className="text-muted">API version</dt>
+                <dt className="text-muted">{m.system.apiVersion}</dt>
                 <dd className="tabular font-mono text-[12px] text-ink">
                   {health.data?.version ?? '—'}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-4 py-3">
-                <dt className="text-muted">Financial data</dt>
+                <dt className="text-muted">{m.system.financialData}</dt>
                 <dd>
-                  <Badge tone="analytic">TechStore sample data</Badge>
+                  <Badge tone="analytic">{m.system.sampleData}</Badge>
                 </dd>
               </div>
             </dl>
             <Button asChild size="sm" className="mt-3">
               <Link to="/status">
-                Open system status
+                {m.system.open}
                 <ArrowUpRight />
               </Link>
             </Button>

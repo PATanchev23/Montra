@@ -1,5 +1,8 @@
 import { apiErrorSchema } from '@montra/shared';
 import type { z } from 'zod';
+import { messagesFor } from '../i18n';
+import { common } from '../i18n/common';
+import { localizeMessage } from '../i18n/serverMessages';
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 
@@ -85,7 +88,12 @@ export async function apiRequest<S extends z.ZodType>(
   return parsed.data;
 }
 
-/** A message for the user. The API's messages are written for them; anything else is not. */
-export function errorMessage(err: unknown, fallback = 'Something went wrong. Try again.'): string {
-  return err instanceof ApiError ? err.message : fallback;
+/**
+ * A message for the user, in the interface language. The API's messages are
+ * written for them; anything else is not.
+ */
+export function errorMessage(err: unknown, fallback?: string): string {
+  return err instanceof ApiError
+    ? localizeMessage(err.message, err.code)
+    : (fallback ?? messagesFor(common).genericError);
 }

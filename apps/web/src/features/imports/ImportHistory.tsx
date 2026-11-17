@@ -7,8 +7,10 @@ import { Button } from '../../components/ui/Button';
 import { Panel, PanelHeader } from '../../components/ui/Panel';
 import { ErrorState } from '../../components/ui/States';
 import { formatDate } from '../../lib/format';
-import { sourceLabels } from '../transactions/display';
-import { isPending, outcomeLine, statusLabels } from './labels';
+import { sourceName } from '../transactions/display';
+import { useMessages } from '../../i18n';
+import { isPending, outcomeLine, statusLabel } from './labels';
+import { importMessages } from './messages';
 
 const COLLAPSED = 4;
 
@@ -21,8 +23,9 @@ function ImportRow({
   canEdit: boolean;
   onOpen: () => void;
 }) {
-  const status = statusLabels[batch.status];
+  const status = statusLabel(batch.status);
   const pending = isPending(batch.status);
+  const m = useMessages(importMessages).history;
   return (
     <li className="flex items-center gap-3 border-t border-line-soft px-5 py-3 sm:px-6">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-hover text-ink-2">
@@ -31,7 +34,7 @@ function ImportRow({
       <div className="min-w-0 flex-1 leading-tight">
         <p className="truncate text-[14px] text-ink">{batch.fileName}</p>
         <p className="mt-1 truncate text-[12px] text-muted">
-          {sourceLabels[batch.source]} · {formatDate(batch.createdAt, 'd MMM yyyy')} ·{' '}
+          {sourceName(batch.source)} · {formatDate(batch.createdAt, 'd MMM yyyy')} ·{' '}
           {outcomeLine(batch)}
         </p>
       </div>
@@ -39,7 +42,7 @@ function ImportRow({
         {status.label}
       </Badge>
       <Button size="sm" variant={pending && canEdit ? 'primary' : 'secondary'} onClick={onOpen}>
-        {pending && canEdit ? 'Review' : 'View'}
+        {pending && canEdit ? m.review : m.view}
         <span className="sr-only"> {batch.fileName}</span>
       </Button>
     </li>
@@ -58,12 +61,13 @@ export function ImportHistory({
 }) {
   const imports = useImportList(businessId);
   const [expanded, setExpanded] = useState(false);
+  const m = useMessages(importMessages).history;
 
   if (imports.isPending) return null;
   if (imports.isError) {
     return (
       <Panel>
-        <ErrorState title="Could not load imports" onRetry={() => imports.refetch()} />
+        <ErrorState title={m.loadError} onRetry={() => imports.refetch()} />
       </Panel>
     );
   }
@@ -77,12 +81,8 @@ export function ImportHistory({
     <Panel aria-labelledby="imports-heading" className="overflow-hidden">
       <PanelHeader
         id="imports-heading"
-        title="Imports"
-        description={
-          pendingCount > 0
-            ? `${pendingCount} waiting for review. Nothing is saved until ${canEdit ? 'you confirm' : 'the owner confirms'}.`
-            : 'Files brought in from spreadsheets and bank statements.'
-        }
+        title={m.title}
+        description={pendingCount > 0 ? m.waiting(pendingCount, canEdit) : m.intro}
         className="px-5 py-4 sm:px-6"
       />
       <ul>
@@ -98,7 +98,7 @@ export function ImportHistory({
       {items.length > COLLAPSED && (
         <div className="border-t border-line-soft px-5 py-2.5 sm:px-6">
           <Button variant="ghost" size="sm" onClick={() => setExpanded((open) => !open)}>
-            {expanded ? 'Show fewer' : `Show all ${items.length} imports`}
+            {expanded ? m.showFewer : m.showAll(items.length)}
           </Button>
         </div>
       )}

@@ -11,7 +11,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Navigate } from 'react-router';
 import { z } from 'zod';
 import { authKeys, useCurrentUser, useLogout } from '../../api/auth';
-import { ApiError } from '../../api/client';
+import { ApiError, errorMessage } from '../../api/client';
 import {
   onboardingKeys,
   onboardingProgressQuery,
@@ -36,9 +36,11 @@ import {
   toDraft,
   type MissingAnswer,
 } from './draft';
-import { stepCopy } from './options';
 import { DetailsFields, PreferencesFields, ReviewSummary, SetupProgress } from './OnboardingSteps';
 
+import { messagesFor, useMessages } from '../../i18n';
+import { common } from '../../i18n/common';
+import { onboardingMessages } from './messages';
 const steps = onboardingStepSchema.options;
 
 type Notice =
@@ -54,9 +56,9 @@ function issuePaths(details: unknown): string[] {
 
 function failureBody(err: unknown): string {
   if (err instanceof ApiError && err.status === 0) {
-    return 'Montra could not be reached. Check your connection and try again; your answers are still here.';
+    return messagesFor(onboardingMessages).page.offline;
   }
-  return err instanceof Error ? err.message : 'Something went wrong. Try again.';
+  return errorMessage(err);
 }
 
 /**
@@ -68,6 +70,7 @@ export function OnboardingPage() {
   const me = useSignedInUser();
   const hasAccess = hasBusinessAccess(me);
   const progress = useOnboardingProgress({ enabled: !hasAccess });
+  const m = useMessages(onboardingMessages).page;
 
   // Owners who finished setup, and viewers (who never onboard), belong in the app.
   if (hasAccess) return <Navigate to="/" replace />;
@@ -78,13 +81,9 @@ export function OnboardingPage() {
   return (
     <AuthLayout>
       {progress.isError ? (
-        <ErrorState title="Could not load your business setup" onRetry={() => progress.refetch()} />
+        <ErrorState title={m.loadError} onRetry={() => progress.refetch()} />
       ) : (
-        <div
-          role="status"
-          aria-label="Loading your business setup"
-          className="flex justify-center py-16"
-        >
+        <div role="status" aria-label={m.loading} className="flex justify-center py-16">
           <Loader2 className="size-6 animate-spin text-muted" strokeWidth={1.75} />
         </div>
       )}
@@ -96,6 +95,8 @@ export function OnboardingPage() {
 function SetupFinished() {
   const { refetch, isFetching } = useCurrentUser();
   const logout = useLogout();
+  const m = useMessages(onboardingMessages).page;
+  const c = useMessages(common);
 
   useEffect(() => {
     void refetch();
@@ -103,14 +104,11 @@ function SetupFinished() {
 
   return (
     <AuthLayout>
-      <AuthHeading
-        title="Your business is set up"
-        description="Montra is opening it for you. If it doesn’t open in a moment, check again."
-      />
+      <AuthHeading title={m.finishedTitle} description={m.finishedBody} />
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="primary" size="lg" disabled={isFetching} onClick={() => refetch()}>
           {isFetching ? <Loader2 className="animate-spin" /> : <RotateCw />}
-          Check again
+          {m.checkAgain}
         </Button>
         <Button
           variant="ghost"
@@ -119,7 +117,7 @@ function SetupFinished() {
           onClick={() => logout.mutate()}
         >
           <LogOut />
-          Sign out
+          {c.account.signOut}
         </Button>
       </div>
     </AuthLayout>
@@ -132,6 +130,9 @@ function OnboardingWizard({ saved }: { saved: OnboardingProgress }) {
   const save = useSaveOnboarding();
   const complete = useCompleteOnboarding();
   const logout = useLogout();
+  const t = useMessages(onboardingMessages);
+  const m = t.page;
+  const c = useMessages(common);
 
   const [initial] = useState(() => formValuesFrom(saved.draft));
   const details = useSchemaForm(detailsFormSchema, initial.details);
@@ -186,7 +187,7 @@ function OnboardingWizard({ saved }: { saved: OnboardingProgress }) {
     switch (err.code) {
       case ONBOARDING_ERROR_CODES.ALREADY_COMPLETED:
         // Finished in another tab: the refreshed profile opens the app.
-        showToast({ tone: 'neutral', title: 'Your business is already set up' });
+        showToast({ tone: 'neutral', title: m.alreadySetUp });
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: authKeys.me }),
           queryClient.invalidateQueries({ queryKey: onboardingKeys.progress }),
@@ -200,7 +201,7 @@ function OnboardingWizard({ saved }: { saved: OnboardingProgress }) {
           setNotice({
             kind: 'problem',
             tone: 'negative',
-            title: 'Your saved answers could not be reloaded.',
+            title: m.reloadFailed,
             body: failureBody(reloadErr),
           });
           return;
@@ -209,14 +210,14 @@ function OnboardingWizard({ saved }: { saved: OnboardingProgress }) {
           err.code === ONBOARDING_ERROR_CODES.INCOMPLETE
             ? {
                 kind: 'incomplete',
-                title: err.message,
+                title: errorMessage(err),
                 answers: missingAnswersFrom(issuePaths(err.details)),
               }
             : {
                 kind: 'problem',
                 tone: 'warning',
-                title: err.message,
-                body: 'The answers below are the latest saved ones.',
+                title: errorMessage(err),
+                body: m.latestSaved,
               },
         );
         return;
@@ -224,8 +225,7 @@ function OnboardingWizard({ saved }: { saved: OnboardingProgress }) {
         setNotice({
           kind: 'problem',
           tone: 'negative',
-          title:
-            action === 'save' ? 'Your progress wasn’t saved.' : 'Your business wasn’t created.',
+          title: action === 'save' ? m.notSaved : m.notCreated,
           body: failureBody(err),
         });
     }
@@ -268,7 +268,7 @@ function OnboardingWizard({ saved }: { saved: OnboardingProgress }) {
       if (!submission.success) {
         setNotice({
           kind: 'incomplete',
-          title: 'Some required business details are still missing.',
+          title: m.incomplete,
           answers: missingAnswersFrom(submission.error.issues.map((issue) => issue.path.join('.'))),
         });
         return;
@@ -277,8 +277,8 @@ function OnboardingWizard({ saved }: { saved: OnboardingProgress }) {
         const { membership } = await complete.mutateAsync();
         showToast({
           tone: 'positive',
-          title: 'Your business is ready',
-          body: `${membership.business.name} is set up. Welcome to Montra.`,
+          title: m.ready,
+          body: m.readyBody(membership.business.name),
         });
         // The profile now includes the membership, so OnboardingPage redirects to the dashboard.
       } catch (err) {
@@ -295,15 +295,13 @@ function OnboardingWizard({ saved }: { saved: OnboardingProgress }) {
     });
 
   const stepIndex = steps.indexOf(step);
-  const copy = stepCopy[step];
-  const savingLabel = save.isPending ? 'Saving…' : 'Continue';
+  const copy = t.steps[step];
+  const savingLabel = save.isPending ? m.saving : m.continue;
 
   return (
     <AuthLayout>
       <header className="mb-7">
-        <p className="eyebrow mb-3">
-          Business setup · Step {stepIndex + 1} of {steps.length}
-        </p>
+        <p className="eyebrow mb-3">{t.stepOf(stepIndex + 1, steps.length)}</p>
         <SetupProgress step={step} />
         <h1
           ref={headingRef}
@@ -314,7 +312,7 @@ function OnboardingWizard({ saved }: { saved: OnboardingProgress }) {
         </h1>
         <p className="mt-2 text-[14px] text-muted">
           {step === 'BUSINESS_DETAILS' && saved.status === 'NOT_STARTED'
-            ? `Welcome, ${firstName(me.user.name)}. ${copy.description}`
+            ? t.welcome(firstName(me.user.name), copy.description)
             : copy.description}
         </p>
       </header>
@@ -354,10 +352,7 @@ function OnboardingWizard({ saved }: { saved: OnboardingProgress }) {
           onSubmit={createBusiness}
           onBack={goBack}
           actions={
-            <ContinueButton
-              busy={busy}
-              label={complete.isPending ? 'Creating business…' : 'Create business'}
-            />
+            <ContinueButton busy={busy} label={complete.isPending ? m.creating : m.create} />
           }
         >
           <ReviewSummary draft={saved.draft} onEdit={setStep} disabled={busy} />
@@ -374,7 +369,7 @@ function OnboardingWizard({ saved }: { saved: OnboardingProgress }) {
           <span className="max-w-[180px] truncate">{me.user.email}</span>
           <Button variant="ghost" size="sm" disabled={busy} onClick={signOut}>
             <LogOut />
-            Sign out
+            {c.account.signOut}
           </Button>
         </span>
       </footer>
@@ -395,6 +390,7 @@ function StepForm({
   actions: ReactNode;
   children: ReactNode;
 }) {
+  const m = useMessages(onboardingMessages).page;
   return (
     <form noValidate onSubmit={onSubmit} aria-busy={busy} className="flex flex-col gap-5">
       {children}
@@ -402,7 +398,7 @@ function StepForm({
         {onBack ? (
           <Button variant="ghost" size="lg" disabled={busy} onClick={onBack}>
             <ArrowLeft />
-            Back
+            {m.back}
           </Button>
         ) : (
           <span />
@@ -468,27 +464,28 @@ function SaveStatus({
   dirty: boolean;
   everSaved: boolean;
 }) {
+  const m = useMessages(onboardingMessages).page;
   let content: ReactNode;
   if (saving) {
     content = (
       <>
-        <Loader2 className="size-3.5 animate-spin" /> Saving your progress…
+        <Loader2 className="size-3.5 animate-spin" /> {m.savingProgress}
       </>
     );
   } else if (dirty) {
     content = (
       <>
-        <span className="size-1.5 rounded-full bg-warning" /> Unsaved changes
+        <span className="size-1.5 rounded-full bg-warning" /> {m.unsaved}
       </>
     );
   } else if (everSaved) {
     content = (
       <>
-        <Check className="size-3.5 text-positive" strokeWidth={2.5} /> Progress saved
+        <Check className="size-3.5 text-positive" strokeWidth={2.5} /> {m.saved}
       </>
     );
   } else {
-    content = 'Your answers are saved each time you continue.';
+    content = m.savedEachTime;
   }
   return (
     <p role="status" className="flex items-center gap-1.5 text-muted">

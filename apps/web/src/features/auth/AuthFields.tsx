@@ -2,7 +2,9 @@ import { AlertTriangle, Eye, EyeOff, Info } from 'lucide-react';
 import { useId, useState, type InputHTMLAttributes, type ReactNode } from 'react';
 import { fieldErrorId, fieldHintId } from '../../components/ui/fieldIds';
 import { Field, Input } from '../../components/ui/Input';
+import { useMessages } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { authMessages } from './messages';
 
 type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> & {
   label: string;
@@ -34,6 +36,7 @@ export function PasswordField({ label, hint, error, className, ...props }: TextF
   const id = useId();
   const [visible, setVisible] = useState(false);
   const Icon = visible ? EyeOff : Eye;
+  const m = useMessages(authMessages);
 
   return (
     <Field label={label} hint={hint} error={error} htmlFor={id}>
@@ -51,7 +54,7 @@ export function PasswordField({ label, hint, error, className, ...props }: TextF
         />
         <button
           type="button"
-          aria-label="Show password"
+          aria-label={m.showPassword}
           aria-pressed={visible}
           aria-controls={id}
           onClick={() => setVisible((v) => !v)}

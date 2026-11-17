@@ -91,7 +91,7 @@ const entries: ImportEntry[] = [
   }),
   entry(3, {
     status: 'DUPLICATE',
-    notes: ['Already imported with external ID TX-1004.'],
+    notes: ['Already imported (id TX-1004).'],
     duplicateOf: 't9',
   }),
   entry(4, {
@@ -104,7 +104,7 @@ const entries: ImportEntry[] = [
       date: '2026-10-14',
       externalId: null,
     },
-    notes: ['Same date, type, amount and description as a transaction already recorded.'],
+    notes: ['A transaction with the same date, type, amount and description already exists.'],
     duplicateOf: 't2',
   }),
 ];
@@ -200,9 +200,7 @@ describe('importing a file', () => {
     expect(within(preview).getByText('Facebook Ads')).toBeInTheDocument();
     expect(within(preview).getByText('+€1,250.00')).toBeInTheDocument();
     await u.click(within(preview).getByRole('radio', { name: 'Duplicates 1' }));
-    expect(
-      within(preview).getByText('Already imported with external ID TX-1004.'),
-    ).toBeInTheDocument();
+    expect(within(preview).getByText('Already imported (id TX-1004).')).toBeInTheDocument();
 
     await u.click(within(preview).getByRole('radio', { name: 'Possible duplicates 1' }));
     await u.click(within(preview).getByRole('checkbox', { name: 'Import anyway' }));

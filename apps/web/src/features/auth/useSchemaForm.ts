@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import type { z } from 'zod';
+import { localizeMessage } from '../../i18n/serverMessages';
 
 type FieldName<S extends z.ZodObject> = keyof z.input<S> & string;
 
@@ -22,7 +23,7 @@ export function useSchemaForm<S extends z.ZodObject>(
   if (!result.success) {
     for (const issue of result.error.issues) {
       const name = issue.path[0] as Name;
-      allErrors[name] ??= issue.message;
+      allErrors[name] ??= localizeMessage(issue.message);
     }
   }
 

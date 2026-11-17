@@ -1,5 +1,7 @@
 import { Ellipsis } from 'lucide-react';
 import { NavLink } from 'react-router';
+import { useMessages } from '../i18n';
+import { common } from '../i18n/common';
 import { cn } from '../lib/cn';
 import { tabBarNav, type NavItem } from './navigation';
 
@@ -7,6 +9,7 @@ const tabClass =
   'relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] leading-none font-medium transition-colors';
 
 function Tab({ item }: { item: NavItem }) {
+  const m = useMessages(common);
   const Icon = item.icon;
   return (
     <NavLink
@@ -22,7 +25,7 @@ function Tab({ item }: { item: NavItem }) {
             <span aria-hidden className="absolute top-0 h-0.5 w-6 rounded-full bg-accent" />
           )}
           <Icon aria-hidden className="size-5" strokeWidth={isActive ? 2 : 1.75} />
-          {item.label}
+          {m.nav[item.tabLabel ?? item.label]}
         </>
       )}
     </NavLink>
@@ -35,9 +38,10 @@ function Tab({ item }: { item: NavItem }) {
  * at least 64px tall and the bar clears the home indicator.
  */
 export function MobileTabBar({ onOpenMore }: { onOpenMore: () => void }) {
+  const m = useMessages(common);
   return (
     <nav
-      aria-label="Primary"
+      aria-label={m.nav.primary}
       className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] sm:hidden"
     >
       <div className="grid grid-cols-5">
@@ -50,7 +54,7 @@ export function MobileTabBar({ onOpenMore }: { onOpenMore: () => void }) {
           className={cn(tabClass, 'cursor-pointer text-muted hover:text-ink-2')}
         >
           <Ellipsis aria-hidden className="size-5" strokeWidth={1.75} />
-          More
+          {m.nav.more}
         </button>
       </div>
     </nav>

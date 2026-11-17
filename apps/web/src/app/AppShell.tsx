@@ -2,6 +2,8 @@ import { motion } from 'motion/react';
 import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { Sheet } from '../components/ui/Sheet';
+import { useMessages } from '../i18n';
+import { common } from '../i18n/common';
 import { cn } from '../lib/cn';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { useUiStore } from '../stores/ui';
@@ -24,6 +26,7 @@ export function AppShell() {
   const wide = useMediaQuery('(min-width: 1280px)');
   const collapsed = wide ? preferCollapsed : true;
   const [navOpen, setNavOpen] = useState(false);
+  const m = useMessages(common);
 
   return (
     <div className="flex min-h-dvh">
@@ -31,7 +34,7 @@ export function AppShell() {
         href="#main"
         className="sr-only z-50 rounded-control bg-accent px-3 py-2 text-accent-ink focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
       >
-        Skip to content
+        {m.nav.skipToContent}
       </a>
 
       <aside
@@ -48,7 +51,7 @@ export function AppShell() {
       <Sheet
         open={navOpen}
         onOpenChange={setNavOpen}
-        title="Navigation"
+        title={m.nav.navigation}
         side="left"
         hideTitle
         className="bg-sidebar"

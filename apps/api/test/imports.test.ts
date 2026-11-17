@@ -546,6 +546,10 @@ describe('imports API', () => {
         'VALID',
       ]);
       expect(detail.preview!.entries[1]!.duplicateOf).toBe(manual.id);
+      // The web client translates this exact wording (apps/web/src/i18n/serverMessages.ts).
+      expect(detail.preview!.entries[1]!.notes).toContain(
+        'A transaction with the same date, type, amount and description already exists.',
+      );
     });
 
     it('treats a repeated id within one file as a duplicate', async () => {

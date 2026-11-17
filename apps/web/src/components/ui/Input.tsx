@@ -1,5 +1,7 @@
 import { Search, X } from 'lucide-react';
 import { forwardRef, type InputHTMLAttributes, type ReactNode } from 'react';
+import { useMessages } from '../../i18n';
+import { common } from '../../i18n/common';
 import { cn } from '../../lib/cn';
 import { fieldErrorId, fieldHintId } from './fieldIds';
 
@@ -31,6 +33,7 @@ export const SearchField = forwardRef<
   ref,
 ) {
   const large = fieldSize === 'lg';
+  const m = useMessages(common);
   return (
     <div className={cn('relative min-w-0', className)}>
       <Search
@@ -56,7 +59,7 @@ export const SearchField = forwardRef<
       {value ? (
         <button
           type="button"
-          aria-label="Clear search"
+          aria-label={m.clearSearch}
           onClick={() => onValueChange('')}
           className={cn(
             'absolute top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-hover hover:text-ink',
