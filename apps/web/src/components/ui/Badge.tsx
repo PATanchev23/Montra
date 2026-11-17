@@ -9,7 +9,8 @@ const tones: Record<Tone, string> = {
   negative: 'bg-negative-soft text-negative',
   warning: 'bg-warning-soft text-warning',
   accent: 'bg-accent-soft text-accent',
-  analytic: 'bg-chart-1-soft text-chart-1',
+  /** Kept for pages not yet moved; reads in the accent, since chart colours are graphics only. */
+  analytic: 'bg-accent-soft text-accent',
 };
 
 export function Badge({

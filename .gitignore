@@ -20,3 +20,9 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Claude Code: personal permissions, not shared
+.claude/settings.local.json
+
+# Impeccable: per-machine detector cache (mocks/, questions/ and review/ ignore themselves)
+**/.impeccable/hook.cache.json

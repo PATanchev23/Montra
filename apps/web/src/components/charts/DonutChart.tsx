@@ -33,7 +33,7 @@ export function DonutChart({
   const slices = pie<DonutItem>()
     .sort(null)
     .value((d) => d.value)
-    .padAngle(0.035)(items);
+    .padAngle(0.03)(items);
   const shape = arc<PieArcDatum<DonutItem>>().cornerRadius(4);
 
   return (
@@ -59,7 +59,7 @@ export function DonutChart({
                 key={slice.data.id}
                 d={d}
                 initial={{ opacity: 0, scale: 0.94 }}
-                animate={{ opacity: active && !isActive ? 0.4 : 1, scale: 1 }}
+                animate={{ opacity: active && !isActive ? 0.32 : 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] }}
                 className={cn(slice.data.fill, 'cursor-pointer')}
                 onMouseEnter={() => onActiveChange?.(slice.data.id)}

@@ -1,9 +1,4 @@
-import {
-  TRANSACTION_DATE_MAX,
-  TRANSACTION_DATE_MIN,
-  todayIn,
-  type DashboardPeriod,
-} from '@montra/shared';
+import { TRANSACTION_DATE_MAX, TRANSACTION_DATE_MIN, type DashboardPeriod } from '@montra/shared';
 import { CalendarRange, Plus, ReceiptText } from 'lucide-react';
 import { Link } from 'react-router';
 import { errorMessage } from '../../api/client';
@@ -12,7 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Panel } from '../../components/ui/Panel';
-import { Select } from '../../components/ui/Select';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { EmptyState, ErrorState } from '../../components/ui/States';
 import { cn } from '../../lib/cn';
 import { greeting } from '../../lib/format';
@@ -20,13 +15,31 @@ import { useUiStore } from '../../stores/ui';
 import { firstName } from '../auth/access';
 import { useCurrentMembership, useSignedInUser } from '../auth/currentUser';
 import { CashFlowOverview } from './CashFlowOverview';
-import { ExpenseBreakdownPanel, RecentTransactionsPanel } from './DashboardPanels';
+import {
+  ExpenseBreakdownPanel,
+  RecentTransactionsPanel,
+  ScenarioPreviewPanel,
+  UpcomingPaymentsPanel,
+} from './DashboardPanels';
 import { KpiCards } from './KpiCards';
-import { customRangeProblem, describePeriod, periodOptions, previewRange } from './period';
+import { customRangeProblem, describePeriod, rangeLabel } from './period';
 
 const plural = (n: number, word: string) =>
   `${n.toLocaleString('en')} ${word}${n === 1 ? '' : 's'}`;
 
+/** The rolling periods one tap away; the date-range menu in the top bar holds the rest. */
+const quickRanges: { value: DashboardPeriod; label: string }[] = [
+  { value: '7d', label: '7 days' },
+  { value: '30d', label: '30 days' },
+  { value: '90d', label: '90 days' },
+];
+
+/**
+ * The dashboard: the period's net cash flow, income and expenses; how the
+ * period ran, bar by bar; where the money went; the latest entries; and what
+ * comes next. Everything is live from the API except the two forward-looking
+ * panels, which are labelled as sample data.
+ */
 export function DashboardPage() {
   const { user } = useSignedInUser();
   const { business, role } = useCurrentMembership();
@@ -42,27 +55,21 @@ export function DashboardPage() {
   const shown = rangeProblem ? undefined : data;
   const text = shown && describePeriod(shown.period.period, shown.period);
 
-  function choosePeriod(period: DashboardPeriod) {
-    if (period !== 'custom') return setPeriod({ period });
-    // A custom range starts from the dates on screen, ready to adjust.
-    const current = previewRange(params, todayIn(business.timezone));
-    setPeriod({ period, from: current?.from, to: current?.to });
-  }
-
   const noTransactions = shown !== undefined && shown.recent.length === 0;
 
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col gap-6 lg:gap-7">
       <PageHeader
-        eyebrow="Dashboard"
         title={`${greeting()}, ${firstName(user.name)}`}
         description={
           text ? (
             <>
-              Here’s how {business.name} performed {text.phrase}
-              <span className="text-muted">
-                {' '}
-                · {plural(shown.overview.transactionCount, 'transaction')}
+              <span className="block">
+                Here’s how {business.name} performed {text.phrase}.
+              </span>
+              <span className="tabular mt-1 block text-body-sm text-muted">
+                {rangeLabel(shown.period.from, shown.period.to)} ·{' '}
+                {plural(shown.overview.transactionCount, 'transaction')}
               </span>
             </>
           ) : (
@@ -70,9 +77,9 @@ export function DashboardPage() {
           )
         }
         actions={
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto">
             {params.period === 'custom' && (
-              <div className="flex items-center gap-2">
+              <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:flex sm:w-auto">
                 <Input
                   type="date"
                   aria-label="From date"
@@ -81,9 +88,9 @@ export function DashboardPage() {
                   max={TRANSACTION_DATE_MAX}
                   value={params.from ?? ''}
                   onChange={(e) => setPeriod({ ...params, from: e.target.value || undefined })}
-                  className="w-[150px]"
+                  className="sm:w-[150px]"
                 />
-                <span className="text-[13px] text-muted">to</span>
+                <span className="text-body-sm text-muted">to</span>
                 <Input
                   type="date"
                   aria-label="To date"
@@ -92,16 +99,16 @@ export function DashboardPage() {
                   max={TRANSACTION_DATE_MAX}
                   value={params.to ?? ''}
                   onChange={(e) => setPeriod({ ...params, to: e.target.value || undefined })}
-                  className="w-[150px]"
+                  className="sm:w-[150px]"
                 />
               </div>
             )}
-            <Select<DashboardPeriod>
-              label="Reporting period"
+            <SegmentedControl<DashboardPeriod>
+              label="Quick period"
               value={params.period}
-              onChange={choosePeriod}
-              options={periodOptions}
-              className="w-[156px]"
+              onChange={(period) => setPeriod({ period })}
+              options={quickRanges}
+              className="flex w-full sm:inline-flex sm:w-auto"
             />
           </div>
         }
@@ -144,17 +151,21 @@ export function DashboardPage() {
         <div
           aria-busy={isPlaceholderData}
           className={cn(
-            'grid items-start gap-6 transition-opacity duration-200 xl:grid-cols-[minmax(0,1fr)_minmax(300px,348px)]',
+            'flex flex-col gap-4 transition-opacity duration-200 sm:gap-6',
             isPlaceholderData && 'opacity-60',
           )}
         >
-          <div className="flex min-w-0 flex-col gap-6">
-            <KpiCards data={shown} comparisonLabel={text?.comparison ?? ''} />
+          <KpiCards data={shown} comparisonLabel={text?.comparison ?? ''} />
+
+          <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,352px)]">
             <CashFlowOverview data={shown} periodLabel={text?.label ?? ''} />
-          </div>
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
             <ExpenseBreakdownPanel data={shown} periodLabel={text?.label ?? ''} />
+          </div>
+
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2 wide:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(320px,352px)]">
             <RecentTransactionsPanel data={shown} />
+            <UpcomingPaymentsPanel />
+            <ScenarioPreviewPanel className="md:col-span-2 wide:col-span-1" />
           </div>
         </div>
       )}

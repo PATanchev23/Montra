@@ -21,7 +21,7 @@ export function Toaster() {
           <Toast.Root
             key={id}
             onOpenChange={(open) => !open && dismiss(id)}
-            className="flex items-start gap-3 rounded-xl border border-line bg-raised p-3.5 shadow-pop data-[state=open]:animate-[pop-in_180ms_var(--ease-out-soft)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)]"
+            className="flex items-start gap-3 rounded-panel border border-line-strong bg-raised p-3.5 shadow-pop data-[state=open]:animate-[pop-in_180ms_var(--ease-out-soft)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)]"
           >
             <span
               className={cn(
@@ -50,7 +50,7 @@ export function Toaster() {
           </Toast.Root>
         );
       })}
-      <Toast.Viewport className="fixed right-4 bottom-4 z-[100] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2 outline-none" />
+      <Toast.Viewport className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[100] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2 outline-none sm:bottom-4" />
     </Toast.Provider>
   );
 }

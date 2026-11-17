@@ -17,6 +17,7 @@ export const financeKeys = {
   scenario: (id: string) => ['scenarios', id] as const,
   report: (year: number) => ['report', year] as const,
   notifications: ['notifications'] as const,
+  upcoming: (limit: number) => ['upcoming', limit] as const,
 };
 
 export function useCashFlow() {
@@ -52,9 +53,17 @@ export function useReport(year: number) {
   });
 }
 
+/** The next scheduled payments and expected payouts, soonest first. */
+export function useUpcomingPayments(limit = 5) {
+  return useQuery({
+    queryKey: financeKeys.upcoming(limit),
+    queryFn: async () => sample.upcomingItems(30).slice(0, limit),
+  });
+}
+
 export function useNotifications() {
   return useQuery({ queryKey: financeKeys.notifications, queryFn: sample.getNotifications });
 }
 
 export { exportTransactions } from '../demo/api';
-export { accounts, business, categories, DEMO_TODAY } from '../demo/api';
+export { accounts, business, categories, DEMO_TODAY, FORECAST_DAYS } from '../demo/api';

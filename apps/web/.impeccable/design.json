@@ -1,0 +1,576 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-17T08:32:36.394Z",
+  "title": "Design System: Montra",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Paper Canvas",
+        "canonical": "#f7f7f5",
+        "dark": "#0f0f0f",
+        "tonalRamp": [
+          "#171717",
+          "#333331",
+          "#454543",
+          "#6b6b68",
+          "#8c8c88",
+          "#a3a3a0",
+          "#d6d6d2",
+          "#f7f7f5"
+        ]
+      },
+      "sidebar": {
+        "role": "neutral",
+        "displayName": "Sidebar Paper",
+        "canonical": "#f2f2ef",
+        "dark": "#0b0b0b"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Panel White",
+        "canonical": "#ffffff",
+        "dark": "#171717"
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised White",
+        "canonical": "#ffffff",
+        "dark": "#1e1e1e"
+      },
+      "sunken": {
+        "role": "neutral",
+        "displayName": "Sunken Band",
+        "canonical": "#f3f3f0",
+        "dark": "#131313"
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Hover Grey",
+        "canonical": "#eeeeeb",
+        "dark": "#242424"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#e8e8e5",
+        "dark": "#262626"
+      },
+      "line-soft": {
+        "role": "neutral",
+        "displayName": "Soft Hairline",
+        "canonical": "#f0f0ed",
+        "dark": "#1f1f1f"
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Strong Hairline",
+        "canonical": "#d6d6d2",
+        "dark": "#363636"
+      },
+      "panel-line": {
+        "role": "neutral",
+        "displayName": "Panel Edge",
+        "canonical": "#e8e8e5",
+        "dark": "#262626"
+      },
+      "control": {
+        "role": "neutral",
+        "displayName": "Control Grey",
+        "canonical": "#8c8c88",
+        "dark": "#757575"
+      },
+      "grid": {
+        "role": "neutral",
+        "displayName": "Grid Grey",
+        "canonical": "#eeeeeb",
+        "dark": "#222222"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ledger Ink",
+        "canonical": "#171717",
+        "dark": "#f5f5f3",
+        "tonalRamp": [
+          "#171717",
+          "#333331",
+          "#454543",
+          "#6b6b68",
+          "#8c8c88",
+          "#a3a3a0",
+          "#d6d6d2",
+          "#f7f7f5"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Secondary Ink",
+        "canonical": "#454543",
+        "dark": "#c7c7c4"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted Grey",
+        "canonical": "#6b6b68",
+        "dark": "#9a9a97"
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Faint Grey (decorative only)",
+        "canonical": "#a3a3a0",
+        "dark": "#5e5e5c"
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Ledger Ink",
+        "canonical": "#171717",
+        "dark": "#f5f5f3",
+        "tonalRamp": [
+          "#171717",
+          "#333331",
+          "#454543",
+          "#6b6b68",
+          "#8c8c88",
+          "#a3a3a0",
+          "#d6d6d2",
+          "#f7f7f5"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Graphite",
+        "canonical": "#333331",
+        "dark": "#ffffff"
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Ink on Ink",
+        "canonical": "#ffffff",
+        "dark": "#171717"
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Hover Grey",
+        "canonical": "#eeeeeb",
+        "dark": "#262626"
+      },
+      "accent-line": {
+        "role": "primary",
+        "displayName": "Accent Hairline",
+        "canonical": "#cfcfcb",
+        "dark": "#404040"
+      },
+      "positive": {
+        "role": "secondary",
+        "displayName": "Ledger Green",
+        "canonical": "#17794b",
+        "dark": "#5cc08b",
+        "tonalRamp": [
+          "#0b3a24",
+          "#105a37",
+          "#17794b",
+          "#2e9464",
+          "#5cc08b",
+          "#93d6b2",
+          "#c6ead6",
+          "#e8f3ec"
+        ]
+      },
+      "positive-soft": {
+        "role": "secondary",
+        "displayName": "Green Wash",
+        "canonical": "#e8f3ec",
+        "dark": "#16261d"
+      },
+      "negative": {
+        "role": "secondary",
+        "displayName": "Ledger Red",
+        "canonical": "#c2352b",
+        "dark": "#f08a7e",
+        "tonalRamp": [
+          "#4a1410",
+          "#7a2019",
+          "#a52c23",
+          "#c2352b",
+          "#dd5e53",
+          "#f08a7e",
+          "#f6c3bc",
+          "#fbecea"
+        ]
+      },
+      "negative-soft": {
+        "role": "secondary",
+        "displayName": "Red Wash",
+        "canonical": "#fbecea",
+        "dark": "#2b1917"
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Amber Notice",
+        "canonical": "#8a5a00",
+        "dark": "#d9a94e",
+        "tonalRamp": [
+          "#3a2600",
+          "#5c3c00",
+          "#8a5a00",
+          "#ad7a1c",
+          "#d9a94e",
+          "#e8c78a",
+          "#f2e1bf",
+          "#f6eedc"
+        ]
+      },
+      "warning-soft": {
+        "role": "tertiary",
+        "displayName": "Amber Wash",
+        "canonical": "#f6eedc",
+        "dark": "#2a2416"
+      },
+      "chart-1": {
+        "role": "neutral",
+        "displayName": "Pressed Ink",
+        "canonical": "#252525",
+        "dark": "#ededea",
+        "tonalRamp": [
+          "#252525",
+          "#555555",
+          "#858585",
+          "#a3a3a0",
+          "#c2c2be",
+          "#d9d9d5",
+          "#e6e6e3",
+          "#f7f7f5"
+        ]
+      },
+      "chart-track": {
+        "role": "neutral",
+        "displayName": "Capsule Track",
+        "canonical": "#e6e6e3",
+        "dark": "#2a2a2a"
+      },
+      "chart-2": {
+        "role": "neutral",
+        "displayName": "Second Voice",
+        "canonical": "#858585",
+        "dark": "#8f8f8c"
+      },
+      "chart-3": {
+        "role": "neutral",
+        "displayName": "Share Grey 2",
+        "canonical": "#555555",
+        "dark": "#bdbdba"
+      },
+      "chart-4": {
+        "role": "neutral",
+        "displayName": "Share Grey 4",
+        "canonical": "#a3a3a0",
+        "dark": "#6a6a68"
+      },
+      "chart-5": {
+        "role": "neutral",
+        "displayName": "Share Grey 5",
+        "canonical": "#c2c2be",
+        "dark": "#4f4f4d"
+      },
+      "chart-6": {
+        "role": "neutral",
+        "displayName": "Share Grey 6",
+        "canonical": "#d9d9d5",
+        "dark": "#3b3b3a"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page title (the dashboard greeting); 1.625rem / 2rem under 640px."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "The three summary figures, tabular."
+      },
+      "figure-sm": {
+        "displayName": "Figure small",
+        "purpose": "Secondary figures inside panels, tabular."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Every panel heading."
+      },
+      "body-lg": {
+        "displayName": "Body large",
+        "purpose": "The page description sentence under the title."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Base text: navigation, tile labels, ledger row titles."
+      },
+      "body-sm": {
+        "displayName": "Body small",
+        "purpose": "Panel descriptions, buttons, inputs, metadata, segments."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Small segments, tooltip titles, chart captions; 12px axis and tooltip rows match it."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Keyboard hints only (the / key cap)."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-panel",
+        "value": "0 1px 2px rgb(23 23 23 / 0.04)",
+        "dark": "0 1px 2px rgb(0 0 0 / 0.3)",
+        "purpose": "Whisper under every resting panel."
+      },
+      {
+        "name": "shadow-pop",
+        "value": "0 12px 32px -12px rgb(23 23 23 / 0.16), 0 2px 6px -2px rgb(23 23 23 / 0.06)",
+        "dark": "0 16px 40px -16px rgb(0 0 0 / 0.7), 0 2px 8px -2px rgb(0 0 0 / 0.45)",
+        "purpose": "Floating layers only: menus, chart tooltips, popovers."
+      },
+      {
+        "name": "overlay",
+        "value": "rgb(23 23 23 / 0.32)",
+        "dark": "rgb(0 0 0 / 0.64)",
+        "purpose": "Scrim behind sheets."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-soft",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Default easing: sidebar width, capsule growth and step-back, menus, page fade."
+      },
+      {
+        "name": "capsule-grow",
+        "value": "550ms ease-out-soft, 12ms stagger per period capped at 300ms",
+        "purpose": "Capsules rise from the baseline and glide to new heights when the measure changes."
+      },
+      {
+        "name": "capsule-step-back",
+        "value": "opacity 1 to 0.32 over 200ms",
+        "purpose": "Non-active capsules recede while a period is read."
+      },
+      {
+        "name": "segment-indicator",
+        "value": "spring stiffness 520, damping 42",
+        "purpose": "The ink pill gliding between segments."
+      },
+      {
+        "name": "control-state",
+        "value": "150ms",
+        "purpose": "Hover and state colour changes on buttons, nav items, fields."
+      },
+      {
+        "name": "pop-in",
+        "value": "140ms ease-out-soft from translateY(-4px) scale(0.98)",
+        "purpose": "Menus opening."
+      },
+      {
+        "name": "page-fade",
+        "value": "200ms opacity",
+        "purpose": "Route change."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation and transition durations 1ms",
+        "purpose": "prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px",
+        "purpose": "Bottom tab bar below; 24px gutters above."
+      },
+      {
+        "name": "md",
+        "value": "768px",
+        "purpose": "Summary tiles three-up; lower row pairs up."
+      },
+      {
+        "name": "lg",
+        "value": "1024px",
+        "purpose": "76px icon rail; 32px gutters."
+      },
+      {
+        "name": "xl",
+        "value": "1280px",
+        "purpose": "248px sidebar; chart beside the breakdown rail."
+      },
+      {
+        "name": "wide",
+        "value": "90rem",
+        "purpose": "Lower dashboard row three-up."
+      },
+      {
+        "name": "chart-scroll",
+        "value": "480px",
+        "purpose": "Chart width below which capsules keep a 12px floor and the plot scrolls sideways."
+      }
+    ],
+    "themes": {
+      "default": "light",
+      "dark": "Neutral grey mirror of every role via the .dark class; 'system' follows prefers-color-scheme.",
+      "migration": "A 'dark' saved before montra-ui store version 1 moves to light once; 'light' and 'system' are kept. Applied in src/stores/ui.ts and the pre-paint script in index.html."
+    },
+    "definedButUnused": [
+      "info",
+      "info-soft",
+      "selected",
+      "selected-line",
+      "text-figure-xl"
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one ink action in a group.",
+      "html": "<button class=\"ds-btn-primary\">Add transaction</button>",
+      "css": ".ds-btn-primary{font-family:'Geist Variable',ui-sans-serif,system-ui,sans-serif;display:inline-flex;align-items:center;height:36px;padding:0 14px;border:0;border-radius:var(--radius-control,10px);background:var(--accent,#171717);color:var(--accent-ink,#fff);font-size:13px;line-height:20px;font-weight:500;cursor:pointer;transition:background-color .15s}.ds-btn-primary:hover{background:var(--accent-hover,#333331)}.ds-btn-primary:focus-visible{outline:2px solid var(--accent,#171717);outline-offset:2px}.ds-btn-primary:disabled{opacity:.45;cursor:not-allowed}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Default button: raised white with a strong hairline.",
+      "html": "<button class=\"ds-btn-secondary\">Export</button>",
+      "css": ".ds-btn-secondary{font-family:'Geist Variable',ui-sans-serif,system-ui,sans-serif;display:inline-flex;align-items:center;height:36px;padding:0 14px;border:1px solid var(--line-strong,#d6d6d2);border-radius:var(--radius-control,10px);background:var(--raised,#fff);color:var(--ink,#171717);font-size:13px;line-height:20px;font-weight:500;cursor:pointer;transition:background-color .15s,border-color .15s}.ds-btn-secondary:hover{background:var(--hover,#eeeeeb);border-color:var(--control,#8c8c88)}.ds-btn-secondary:focus-visible{outline:2px solid var(--accent,#171717);outline-offset:2px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Quiet tertiary action.",
+      "html": "<button class=\"ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost{font-family:'Geist Variable',ui-sans-serif,system-ui,sans-serif;display:inline-flex;align-items:center;height:36px;padding:0 14px;border:0;border-radius:var(--radius-control,10px);background:transparent;color:var(--muted,#6b6b68);font-size:13px;font-weight:500;cursor:pointer;transition:background-color .15s,color .15s}.ds-btn-ghost:hover{background:var(--hover,#eeeeeb);color:var(--ink,#171717)}.ds-btn-ghost:focus-visible{outline:2px solid var(--accent,#171717);outline-offset:2px}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "36px field with a 3:1 control border.",
+      "html": "<input class=\"ds-input\" placeholder=\"Supplier name\" />",
+      "css": ".ds-input{font-family:'Geist Variable',ui-sans-serif,system-ui,sans-serif;height:36px;width:240px;padding:0 12px;border:1px solid var(--control,#8c8c88);border-radius:var(--radius-control,10px);background:var(--raised,#fff);color:var(--ink,#171717);font-size:13px;transition:border-color .15s}.ds-input::placeholder{color:var(--muted,#6b6b68)}.ds-input:hover{border-color:var(--ink-2,#454543)}.ds-input:focus-visible{outline:2px solid var(--accent,#171717);outline-offset:1px;border-color:var(--accent,#171717)}.ds-input[aria-invalid=true]{border-color:var(--negative,#c2352b)}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "chip",
+      "refersTo": "segmented-track",
+      "description": "Pill track with a gliding ink pill; the capsule as a control.",
+      "html": "<div class=\"ds-seg\" role=\"group\"><button class=\"ds-seg-item\">7 days</button><button class=\"ds-seg-item is-active\">30 days</button><button class=\"ds-seg-item\">90 days</button></div>",
+      "css": ".ds-seg{font-family:'Geist Variable',ui-sans-serif,system-ui,sans-serif;display:inline-flex;padding:4px;border-radius:9999px;background:var(--hover,#eeeeeb)}.ds-seg-item{height:32px;padding:0 16px;border:0;border-radius:9999px;background:transparent;color:var(--ink-2,#454543);font:500 13px/20px 'Geist Variable',ui-sans-serif,sans-serif;cursor:pointer;transition:color .15s,background-color .15s}.ds-seg-item:hover{color:var(--ink,#171717)}.ds-seg-item.is-active{background:var(--accent,#171717);color:var(--accent-ink,#fff)}.ds-seg-item:focus-visible{outline:2px solid var(--accent,#171717);outline-offset:2px}"
+    },
+    {
+      "name": "Sidebar Navigation",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Flat list; the current page is the one ink pill.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item is-active\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"9\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"5\" rx=\"1\"/><rect x=\"14\" y=\"12\" width=\"7\" height=\"9\" rx=\"1\"/><rect x=\"3\" y=\"16\" width=\"7\" height=\"5\" rx=\"1\"/></svg>Dashboard</a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"><path d=\"M7 17 17 7M7 7h10v10\"/></svg>Transactions</a></nav>",
+      "css": ".ds-nav{font-family:'Geist Variable',ui-sans-serif,system-ui,sans-serif;display:flex;flex-direction:column;gap:4px;width:216px;padding:16px;background:var(--sidebar,#f2f2ef)}.ds-nav-item{display:flex;align-items:center;gap:14px;height:44px;padding:0 14px;border-radius:var(--radius-control,10px);color:var(--ink-2,#454543);font-size:14px;text-decoration:none;transition:background-color .15s,color .15s}.ds-nav-item:hover{background:var(--hover,#eeeeeb);color:var(--ink,#171717)}.ds-nav-item.is-active{background:var(--accent,#171717);color:var(--accent-ink,#fff);font-weight:500}.ds-nav-item:focus-visible{outline:2px solid var(--accent,#171717);outline-offset:2px}"
+    },
+    {
+      "name": "Badges",
+      "kind": "chip",
+      "refersTo": "badge-neutral",
+      "description": "22px pills; colour only for meaning.",
+      "html": "<span class=\"ds-badge\">Pending</span> <span class=\"ds-badge ds-badge-pos\">Paid</span> <span class=\"ds-badge ds-badge-neg\">Overdue</span>",
+      "css": ".ds-badge{font-family:'Geist Variable',ui-sans-serif,system-ui,sans-serif;display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:9999px;background:var(--hover,#eeeeeb);color:var(--ink-2,#454543);font-size:11px;font-weight:500}.ds-badge-pos{background:var(--positive-soft,#e8f3ec);color:var(--positive,#17794b)}.ds-badge-neg{background:var(--negative-soft,#fbecea);color:var(--negative,#c2352b)}"
+    },
+    {
+      "name": "Summary Tile",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Panel with label and change on one line, the figure beneath, comparison at the foot.",
+      "html": "<section class=\"ds-tile\"><div class=\"ds-tile-head\"><p class=\"ds-tile-label\">Expenses</p><span class=\"ds-delta-neg\">&#8593; 8.4%</span></div><p class=\"ds-tile-figure\">€18,240.00</p><p class=\"ds-tile-foot\"><b>+€1,412.00</b> vs previous 30 days</p></section>",
+      "css": ".ds-tile{font-family:'Geist Variable',ui-sans-serif,system-ui,sans-serif;width:300px;padding:24px;border:1px solid var(--panel-line,#e8e8e5);border-radius:var(--radius-panel,16px);background:var(--surface,#fff);box-shadow:var(--shadow-panel,0 1px 2px rgb(23 23 23 / .04))}.ds-tile-head{display:flex;justify-content:space-between;align-items:baseline}.ds-tile-label{margin:0;font-size:14px;color:var(--ink-2,#454543)}.ds-delta-neg{font-size:14px;font-weight:500;color:var(--negative,#c2352b);font-variant-numeric:tabular-nums}.ds-tile-figure{margin:6px 0 0;font-size:28px;line-height:34px;font-weight:600;letter-spacing:-.025em;color:var(--ink,#171717);font-variant-numeric:tabular-nums lining-nums}.ds-tile-foot{margin:16px 0 0;font-size:13px;color:var(--muted,#6b6b68);font-variant-numeric:tabular-nums}.ds-tile-foot b{font-weight:500;color:var(--ink-2,#454543)}"
+    },
+    {
+      "name": "Capsule Bar Chart",
+      "kind": "custom",
+      "refersTo": "capsule-value",
+      "description": "Signature form: ink capsules in pale tracks; reading one steps the others back to 32%.",
+      "html": "<div class=\"ds-caps\"><span class=\"ds-cap\"><i style=\"height:55%\"></i></span><span class=\"ds-cap\"><i style=\"height:72%\"></i></span><span class=\"ds-cap\"><i style=\"height:40%\"></i></span><span class=\"ds-cap\"><i style=\"height:86%\"></i></span><span class=\"ds-cap\"><i style=\"height:62%\"></i></span><span class=\"ds-cap\"><i style=\"height:30%\"></i></span><span class=\"ds-cap\"><i style=\"height:68%\"></i></span></div>",
+      "css": ".ds-caps{display:flex;align-items:flex-end;gap:14px;height:180px;padding:8px 0}.ds-cap{position:relative;width:32px;height:100%;border-radius:9999px;background:var(--chart-track,#e6e6e3);transition:background-color .2s}.ds-cap i{position:absolute;left:0;right:0;bottom:0;min-height:32px;border-radius:9999px;background:var(--chart-1,#252525);transition:opacity .2s cubic-bezier(.22,1,.36,1)}.ds-caps:hover .ds-cap i{opacity:.32}.ds-caps .ds-cap:hover i{opacity:1}.ds-caps .ds-cap:hover{background:var(--line-strong,#d6d6d2)}"
+    },
+    {
+      "name": "Chart Tooltip",
+      "kind": "custom",
+      "refersTo": "chart-tooltip",
+      "description": "Floating period readout: income, expenses, net.",
+      "html": "<div class=\"ds-tip\"><p class=\"ds-tip-title\">Tue 14 Oct</p><div class=\"ds-tip-row\"><span><i style=\"background:#252525\"></i>Income</span><b>€2,140.00</b></div><div class=\"ds-tip-row\"><span><i style=\"background:#a3a3a0\"></i>Expenses</span><b>€980.00</b></div><div class=\"ds-tip-row ds-tip-net\"><span>Net</span><b>+€1,160.00</b></div></div>",
+      "css": ".ds-tip{font-family:'Geist Variable',ui-sans-serif,system-ui,sans-serif;min-width:176px;padding:12px 14px;border:1px solid var(--line,#e8e8e5);border-radius:var(--radius-field,12px);background:var(--raised,#fff);box-shadow:var(--shadow-pop,0 12px 32px -12px rgb(23 23 23 / .16),0 2px 6px -2px rgb(23 23 23 / .06))}.ds-tip-title{margin:0 0 6px;font-size:12px;font-weight:600;color:var(--ink,#171717)}.ds-tip-row{display:flex;justify-content:space-between;gap:20px;font-size:12px;line-height:20px}.ds-tip-row span{display:flex;align-items:center;gap:6px;color:var(--muted,#6b6b68)}.ds-tip-row i{width:8px;height:8px;border-radius:9999px}.ds-tip-row b{font-weight:400;color:var(--ink-2,#454543);font-variant-numeric:tabular-nums}.ds-tip-net{margin-top:6px;padding-top:6px;border-top:1px solid var(--line,#e8e8e5)}.ds-tip-net b{font-weight:600;color:var(--ink,#171717)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Ledger Room",
+    "overview": "Montra is a monochrome room for reading money. Paper-white canvas, white panels held by a hairline and a whisper of shadow, ink for text, for the primary action and for the one navigation pill that says where you are. Nothing in the frame is coloured for decoration. The only expressive form is the capsule: tall pale tracks with ink capsules inside them, showing how full each period was. The same capsule shape returns in the segmented control, the badges and the active navigation pill, so the chart's vocabulary is the interface's vocabulary.\n\nDensity is calm rather than sparse. Figures lead at 600 weight with tabular lining numerals; labels and context sit beneath them in a two-step grey (ink-2 for secondary text, muted for metadata). Green and red are reserved for meaning: money in and money out, favourable and unfavourable change. Every other signal is carried by weight, position and the ink-on-paper contrast.\n\nLight is the default theme. Dark is a selectable mirror that maps every role to neutral greys (no tint, no hue shift), and the `system` preference follows the OS. A `dark` preference saved before store version 1 cannot be told from the old dark default, so it is moved to light once; `light` and `system` were explicit choices and are kept. The rule lives in the UI store's migration and is repeated in the pre-paint script in `index.html` so there is no flash.\n\nCoverage today: the dashboard and the shared shell (sidebar, rail, sheet, top bar, tab bar) are composed in this system. Every other page inherits the tokens and primitives but has not been recomposed, so some still carry patterns this system does not use (the uppercase page eyebrow, the generic empty-state card). Treat those as pending migration, not as precedent.",
+    "keyCharacteristics": [
+      "Black, white and neutral greys; green and red only for money direction and change.",
+      "The capsule (fully rounded, never shorter than it is wide) as the signature form.",
+      "Three radii: 10px controls, 12px larger fields and floating layers, 16px panels; pills for everything capsule-shaped.",
+      "One panel surface, never nested; depth from a hairline plus a 4% shadow.",
+      "Geist throughout; money in tabular figures at 600.",
+      "Light default, neutral dark mirror, every text pair at WCAG 2.2 AA in both."
+    ],
+    "rules": [
+      {
+        "name": "The Meaning-Only Colour Rule",
+        "body": "Green and red mean money in, money out, favourable and unfavourable. They never decorate, never tint an icon tile, never mark a category. Colour follows meaning, not direction: rising expenses read red.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Ink Rule",
+        "body": "Ink fills exactly one navigation item (the page you are on), one segment per control and the primary action. A second ink-filled control in the same group means one of them is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Faint Is Not Text Rule",
+        "body": "Faint (#a3a3a0) fails text contrast; use it for placeholder glyphs only. Anything a reader must read uses muted or darker.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Money Rule",
+        "body": "Every amount, percentage, date range and axis tick is set with tabular lining figures (`tnum`, `lnum`), so columns align and changing values do not jitter.",
+        "section": "typography"
+      },
+      {
+        "name": "The Title Speaks Rule",
+        "body": "A page or panel opens with its title. No uppercase kicker or eyebrow line above it.",
+        "section": "typography"
+      },
+      {
+        "name": "The No-Nesting Rule",
+        "body": "Panels never nest. Inside a panel, group with spacing, dividers or a sunken band.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Floating-Only Shadow Rule",
+        "body": "Only content that floats over other content earns the pop shadow. Resting surfaces get the whisper or nothing.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep the frame monochrome: ink, white and the neutral greys carry every surface, control and chart.",
+      "Do reserve positive and negative for money in, money out and favourable or unfavourable change, and let `goodWhen` decide the colour of a change, not its direction.",
+      "Do draw bars as capsules: fully rounded ends, never shorter than their width, ink on a pale track.",
+      "Do set every amount, percentage, date and tick in tabular lining figures.",
+      "Do use 10px for controls, 12px for the large fields and floating readouts, 16px for panels, and full pills for capsule shapes.",
+      "Do label any panel fed by sample data with \"Sample data · as of [date]\" and show plain dates on it.",
+      "Do give every chart a keyboard path, a polite live region and a screen-reader table.",
+      "Do keep text at muted (#6b6b68) or darker and input borders at control grey or darker."
+    ],
+    "donts": [
+      "Don't introduce an accent hue: no teal, purple, gradient, glow or tinted icon tile anywhere.",
+      "Don't nest panels or add a shadow to a resting surface beyond the panel whisper.",
+      "Don't fill more than one navigation item, segment or primary action per group with ink.",
+      "Don't set readable text in faint.",
+      "Don't put an uppercase kicker or eyebrow above a page or panel title.",
+      "Don't let a narrow chart squeeze capsules below 12px; scroll instead."
+    ]
+  }
+}

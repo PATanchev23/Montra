@@ -1,5 +1,6 @@
 import { render } from '@testing-library/react';
-import { createMemoryRouter } from 'react-router';
+import type { ReactNode } from 'react';
+import { createMemoryRouter, Outlet } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { restoreSession } from '../api/session';
 import { Providers } from '../app/Providers';
@@ -7,8 +8,12 @@ import { RequireAuth, RequireBusiness } from '../features/auth/guards';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { TransactionsPage } from '../features/transactions/TransactionsPage';
 
-/** The Dashboard and Transactions pages behind the real guards and providers, signed in through the fake API. */
-export function renderTransactions(url = '/transactions') {
+/**
+ * The Dashboard and Transactions pages behind the real guards and providers,
+ * signed in through the fake API. `chrome` renders above the page, inside the
+ * guards, for controls that live in the app shell (the date-range menu).
+ */
+export function renderTransactions(url = '/transactions', chrome?: ReactNode) {
   const router = createMemoryRouter(
     [
       {
@@ -17,8 +22,18 @@ export function renderTransactions(url = '/transactions') {
           {
             element: <RequireBusiness />,
             children: [
-              { index: true, element: <DashboardPage /> },
-              { path: 'transactions', element: <TransactionsPage /> },
+              {
+                element: (
+                  <>
+                    {chrome}
+                    <Outlet />
+                  </>
+                ),
+                children: [
+                  { index: true, element: <DashboardPage /> },
+                  { path: 'transactions', element: <TransactionsPage /> },
+                ],
+              },
             ],
           },
         ],

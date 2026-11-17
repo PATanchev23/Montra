@@ -6,25 +6,18 @@ import { Panel, PanelHeader } from '../../components/ui/Panel';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Skeleton } from '../../components/ui/States';
 import { money } from '../../lib/format';
+import { axisFormatter, bucketNoun } from './axis';
 import { bucketLabels } from './period';
 
 type Measure = 'income' | 'expenses';
 
 const per = { day: 'daily', week: 'weekly', month: 'monthly' } as const;
 
-const thousandsFormat = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
-
-/** Axis ticks in whole currency units for small figures, thousands ("2.5k") for large ones. */
-function axisFormatter(maxCents: number) {
-  return maxCents >= 1_000_00
-    ? (cents: number) => (cents === 0 ? '0' : `${thousandsFormat.format(cents / 100_000)}k`)
-    : (cents: number) => String(Math.round(cents / 100));
-}
-
 /**
- * The hero of the product. Lavender capsules show the chosen measure for
- * each day, week or month of the period, against slate tracks that run to
- * the top of the scale, so each bar reads as "how full" it was.
+ * The hero of the dashboard. Ink capsules show the chosen measure for each
+ * day, week or month of the period, against pale tracks that run to the top
+ * of the scale, so each bar reads as "how full" it was. Reading a period
+ * shows its income, expenses and net together.
  */
 export function CashFlowOverview({
   data,
@@ -37,22 +30,25 @@ export function CashFlowOverview({
   const points = data?.trend.points ?? [];
   const interval = data?.trend.interval ?? 'day';
   const currency = data?.currency;
+  const noun = measure === 'income' ? 'Income' : 'Expenses';
 
   const values = points.map((p) => (measure === 'income' ? p.incomeCents : p.expenseCents));
   const total = measure === 'income' ? data?.overview.income.cents : data?.overview.expenses.cents;
   const average = points.length ? Math.round((total ?? 0) / points.length) : 0;
   const empty = data !== undefined && data.overview.transactionCount === 0;
+  const labels = points.map((p) => bucketLabels(p, interval, points.length));
+  const formatValue = (cents: number) => money(cents, { currency });
 
   return (
-    <Panel className="p-5 sm:p-6" aria-labelledby="cash-flow-overview">
+    <Panel className="flex flex-col p-5 sm:p-6" aria-labelledby="cash-flow-overview">
       <PanelHeader
         id="cash-flow-overview"
         title="Cash flow overview"
         description={
           data ? (
             <span className="tabular">
-              {money(total ?? 0, { currency })} {measure === 'income' ? 'earned' : 'spent'} ·{' '}
-              {money(average, { currency })} {per[interval]} average
+              {formatValue(total ?? 0)} {measure === 'income' ? 'earned' : 'spent'} ·{' '}
+              {formatValue(average)} {per[interval]} average
             </span>
           ) : (
             'Income and expenses over the period'
@@ -72,41 +68,41 @@ export function CashFlowOverview({
         }
       />
 
-      <div className="relative mt-6">
+      {/* The plot takes whatever height the row gives it, never less than a readable chart. */}
+      <div className="relative mt-6 min-h-[240px] flex-1 sm:min-h-[300px]">
         {!data ? (
           <ChartSkeleton />
         ) : (
-          <>
+          <div className="absolute inset-0">
             <CapsuleBarChart
-              ariaLabel={`${measure === 'income' ? 'Income' : 'Expenses'} by ${interval}, ${periodLabel}`}
-              height={284}
+              // A new range starts with nothing pinned; switching the measure keeps the pin.
+              key={`${data.period.from}/${data.period.to}/${interval}`}
+              ariaLabel={`${noun} by ${bucketNoun[interval]}, ${periodLabel}`}
+              height="fill"
               formatTick={axisFormatter(Math.max(0, ...values))}
-              categories={points.map((p) => ({
-                key: p.start,
-                label: bucketLabels(p, interval, points.length).label,
-              }))}
-              series={[
-                {
-                  id: measure,
-                  label: measure === 'income' ? 'Income' : 'Expenses',
-                  values,
-                  tone: 'primary',
-                },
-              ]}
+              formatValue={formatValue}
+              categories={points.map((p, i) => ({ key: p.start, label: labels[i]!.label }))}
+              series={[{ id: 'measure', label: noun, values, tone: 'primary' }]}
+              describe={(i) => {
+                const p = points[i]!;
+                return `${labels[i]!.title}: income ${formatValue(p.incomeCents)}, expenses ${formatValue(
+                  p.expenseCents,
+                )}, net ${money(p.netCents, { currency, sign: 'always' })}.`;
+              }}
               renderTooltip={(i) => {
                 const p = points[i]!;
                 return (
                   <>
-                    <TooltipTitle>{bucketLabels(p, interval, points.length).title}</TooltipTitle>
+                    <TooltipTitle>{labels[i]!.title}</TooltipTitle>
                     <TooltipRow
-                      swatch={measure === 'income' ? 'bg-chart-1' : 'bg-chart-2'}
+                      swatch={measure === 'income' ? 'bg-chart-1' : 'bg-chart-4'}
                       label="Income"
-                      value={money(p.incomeCents, { currency })}
+                      value={formatValue(p.incomeCents)}
                     />
                     <TooltipRow
-                      swatch={measure === 'expenses' ? 'bg-chart-1' : 'bg-chart-2'}
+                      swatch={measure === 'expenses' ? 'bg-chart-1' : 'bg-chart-4'}
                       label="Expenses"
-                      value={money(p.expenseCents, { currency })}
+                      value={formatValue(p.expenseCents)}
                     />
                     <div className="mt-1.5 border-t border-line pt-1.5">
                       <TooltipRow
@@ -120,11 +116,11 @@ export function CashFlowOverview({
               }}
             />
             {empty && (
-              <p className="pointer-events-none absolute inset-x-0 top-[38%] text-center text-[13px] text-muted">
+              <p className="pointer-events-none absolute inset-x-0 top-[38%] text-center text-body-sm text-muted">
                 No transactions in this period.
               </p>
             )}
-          </>
+          </div>
         )}
       </div>
     </Panel>
@@ -134,10 +130,10 @@ export function CashFlowOverview({
 function ChartSkeleton() {
   const heights = [55, 72, 48, 64, 58, 66, 61, 70, 52, 60, 74, 68];
   return (
-    <div aria-hidden className="flex h-[284px] items-end gap-[2.2%] pb-[30px] pl-9">
+    <div aria-hidden className="absolute inset-0 flex items-end gap-[2.2%] pb-8 pl-10">
       {heights.map((h, i) => (
-        <div key={i} className="flex h-full flex-1 items-end">
-          <Skeleton className="w-full rounded-full" style={{ height: `${h}%` }} />
+        <div key={i} className="flex h-full flex-1 items-end justify-center">
+          <Skeleton className="w-full max-w-11 rounded-full" style={{ height: `${h}%` }} />
         </div>
       ))}
     </div>

@@ -33,6 +33,7 @@ export function Delta({
       {!flat && <Icon className="size-3.5" strokeWidth={2.25} aria-hidden />}
       <span className="sr-only">{up ? 'Up' : 'Down'} </span>
       {percent(Math.abs(ratio))}
+      {good !== null && <span className="sr-only">, {good ? 'favourable' : 'unfavourable'}</span>}
     </span>
   );
 }

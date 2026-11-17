@@ -5,7 +5,16 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/coverage/**', 'apps/api/src/generated/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      'apps/api/src/generated/**',
+      // Bundled, minified scripts shipped by Impeccable (a design tool), not project code.
+      '.claude/skills/impeccable/scripts/**',
+      '.github/skills/impeccable/scripts/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

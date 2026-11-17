@@ -4,3 +4,15 @@ coverage
 package-lock.json
 apps/api/src/generated
 apps/api/prisma/migrations
+
+# Impeccable (design tool): bundled scripts, data files and launchers, shipped as-is
+.claude/skills/impeccable/scripts/
+.github/skills/impeccable/scripts/
+
+# Impeccable: generated output. design.json is rewritten by the tool (it carries a
+# generatedAt timestamp); mocks/, questions/ and review/ are git-ignored by their
+# own .gitignore files, which Prettier does not read.
+**/.impeccable/design.json
+**/.impeccable/mocks/
+**/.impeccable/questions/
+**/.impeccable/review/

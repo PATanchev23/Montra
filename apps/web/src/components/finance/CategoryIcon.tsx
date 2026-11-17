@@ -2,12 +2,17 @@ import type { CategoryId } from '../../demo/types';
 import { cn } from '../../lib/cn';
 import { categoryVisuals, type CategoryTone } from './categoryVisuals';
 
+/*
+ * Every category sits on the same quiet tile. Colour is kept for the money
+ * itself, so a row's amount is the only thing that reads green or red.
+ */
+const tile = 'bg-sunken text-ink-2';
 const toneClasses: Record<CategoryTone, string> = {
-  positive: 'bg-positive-soft text-positive',
-  negative: 'bg-negative-soft text-negative',
-  analytic: 'bg-chart-1-soft text-chart-1',
-  warning: 'bg-warning-soft text-warning',
-  neutral: 'bg-hover text-ink-2',
+  positive: tile,
+  negative: tile,
+  analytic: tile,
+  warning: tile,
+  neutral: tile,
 };
 
 export function CategoryIcon({

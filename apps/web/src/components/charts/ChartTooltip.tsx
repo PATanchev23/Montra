@@ -2,18 +2,23 @@ import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 
 /**
- * Floating readout shared by every chart. The chart supplies the anchor
- * point; the tooltip sits above it and flips its alignment near the edges.
+ * Floating readout shared by every chart. By default the chart supplies an
+ * anchor point and the tooltip sits above it, flipping its alignment near the
+ * edges. With `side`, it hangs from (x, y) beside the anchor instead, so a
+ * chart can keep it inside its own plot, clear of headings above the chart.
  */
 export function ChartTooltip({
   x,
   y,
   containerWidth,
+  side,
   children,
 }: {
   x: number;
   y: number;
   containerWidth: number;
+  /** Which side of x the tooltip opens towards, with (x, y) as its top corner. */
+  side?: 'left' | 'right';
   children: ReactNode;
 }) {
   const align = x < 110 ? 'left' : x > containerWidth - 110 ? 'right' : 'center';
@@ -21,12 +26,17 @@ export function ChartTooltip({
     <div
       role="presentation"
       className={cn(
-        'pointer-events-none absolute z-10 min-w-40 -translate-y-full rounded-xl border border-line-strong bg-raised px-3 py-2.5 whitespace-nowrap shadow-pop transition-[left,top] duration-100 ease-out',
-        align === 'center' && '-translate-x-1/2',
-        align === 'right' && '-translate-x-full',
+        'pointer-events-none absolute z-10 min-w-44 rounded-field border border-line bg-raised px-3.5 py-3 whitespace-nowrap shadow-pop transition-[left,top] duration-150 ease-[var(--ease-out-soft)]',
+        side
+          ? side === 'left' && '-translate-x-full'
+          : [
+              '-translate-y-full',
+              align === 'center' && '-translate-x-1/2',
+              align === 'right' && '-translate-x-full',
+            ],
       )}
       style={{
-        left: align === 'left' ? Math.max(0, x - 16) : align === 'right' ? x + 16 : x,
+        left: side ? x : align === 'left' ? Math.max(0, x - 16) : align === 'right' ? x + 16 : x,
         top: y,
       }}
     >
@@ -36,7 +46,7 @@ export function ChartTooltip({
 }
 
 export function TooltipTitle({ children }: { children: ReactNode }) {
-  return <p className="mb-1.5 text-[12px] font-medium text-ink">{children}</p>;
+  return <p className="mb-1.5 text-caption font-semibold text-ink">{children}</p>;
 }
 
 export function TooltipRow({

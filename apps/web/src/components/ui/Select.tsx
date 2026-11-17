@@ -36,8 +36,8 @@ export function Select<T extends string>({
         id={id}
         aria-label={label}
         className={cn(
-          'inline-flex cursor-pointer items-center justify-between gap-2 rounded-control border border-line bg-raised text-ink transition-colors hover:border-line-strong disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-line-strong [&>span]:truncate',
-          size === 'sm' ? 'h-8 px-2.5 text-[12px]' : 'h-9 px-3 text-[13px]',
+          'inline-flex cursor-pointer items-center justify-between gap-2 rounded-control border border-control bg-raised text-ink transition-colors hover:border-ink-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-ink-2 [&>span]:truncate',
+          size === 'sm' ? 'h-8 px-2.5 text-caption' : 'h-9 px-3 text-body-sm',
           className,
         )}
       >
@@ -60,7 +60,7 @@ export function Select<T extends string>({
               <RadixSelect.Item
                 key={option.value}
                 value={option.value}
-                className="relative flex h-9 cursor-pointer items-center gap-2.5 rounded-lg pr-8 pl-2.5 text-[13px] text-ink-2 outline-none select-none data-[highlighted]:bg-hover data-[highlighted]:text-ink data-[state=checked]:text-ink"
+                className="relative flex h-9 cursor-pointer items-center gap-2.5 rounded-control pr-8 pl-2.5 text-body-sm text-ink-2 outline-none select-none data-[highlighted]:bg-hover data-[highlighted]:text-ink data-[state=checked]:text-ink"
               >
                 {option.icon}
                 <RadixSelect.ItemText>{option.label}</RadixSelect.ItemText>

@@ -30,10 +30,7 @@ export function SegmentedControl<T extends string>({
       value={value}
       onValueChange={(next) => next && onChange(next as T)}
       aria-label={label}
-      className={cn(
-        'inline-flex shrink-0 items-center rounded-control border border-line bg-sunken p-[3px]',
-        className,
-      )}
+      className={cn('inline-flex shrink-0 items-center rounded-full bg-hover p-1', className)}
     >
       {options.map((option) => {
         const active = option.value === value;
@@ -42,15 +39,16 @@ export function SegmentedControl<T extends string>({
             key={option.value}
             value={option.value}
             className={cn(
-              'relative cursor-pointer rounded-[7px] font-medium transition-colors duration-150',
-              size === 'sm' ? 'h-7 px-2.5 text-[12px]' : 'h-[30px] px-3.5 text-[13px]',
-              active ? 'text-ink' : 'text-muted hover:text-ink',
+              'relative flex-1 cursor-pointer rounded-full font-medium whitespace-nowrap transition-colors duration-150',
+              size === 'sm' ? 'h-7 px-3 text-caption' : 'h-8 px-4 text-body-sm',
+              active ? 'text-accent-ink' : 'text-ink-2 hover:text-ink',
             )}
           >
+            {/* The ink pill glides between segments; the same capsule the charts are drawn with. */}
             {active && (
               <motion.span
                 layoutId={indicatorId}
-                className="absolute inset-0 rounded-[7px] border border-selected-line bg-selected"
+                className="absolute inset-0 rounded-full bg-accent"
                 transition={{ type: 'spring', stiffness: 520, damping: 42 }}
               />
             )}

@@ -3,7 +3,11 @@ import type { CategoryId } from '../../demo/types';
 import { cn } from '../../lib/cn';
 import { CategoryIcon } from './CategoryIcon';
 
-/** One line in a compact money list: icon, two lines of text, figure and meta on the right. */
+/**
+ * One line in a compact money list: a quiet tile, two lines of text, the
+ * figure and its date on the right. Lists rule the rows apart themselves
+ * (`divide-y divide-line`).
+ */
 export function LedgerRow({
   categoryId,
   icon,
@@ -16,27 +20,24 @@ export function LedgerRow({
   /** A sample-data category; or pass `icon` for anything else. */
   categoryId?: CategoryId;
   icon?: ReactNode;
-  title: ReactNode;
+  title: string;
   subtitle: ReactNode;
   amount: ReactNode;
   meta: ReactNode;
   className?: string;
 }) {
   return (
-    <li
-      className={cn(
-        '-mx-2 flex items-center gap-3.5 rounded-control px-2 py-2.5 transition-colors hover:bg-hover/60',
-        className,
-      )}
-    >
+    <li className={cn('flex items-center gap-3.5 py-3', className)}>
       {icon ?? (categoryId && <CategoryIcon categoryId={categoryId} />)}
-      <div className="min-w-0 flex-1 leading-tight">
-        <p className="truncate text-[14px] text-ink">{title}</p>
-        <p className="mt-1 truncate text-[12px] text-muted">{subtitle}</p>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-body font-medium text-ink" title={title}>
+          {title}
+        </p>
+        <p className="truncate text-body-sm text-muted">{subtitle}</p>
       </div>
-      <div className="shrink-0 text-right leading-tight">
-        <p className="text-[14px]">{amount}</p>
-        <p className="mt-1 text-[12px] text-muted">{meta}</p>
+      <div className="shrink-0 text-right">
+        <p className="text-body">{amount}</p>
+        <p className="tabular text-body-sm text-muted">{meta}</p>
       </div>
     </li>
   );
@@ -44,10 +45,10 @@ export function LedgerRow({
 
 export function LedgerSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <ul aria-hidden className="flex flex-col">
+    <ul aria-hidden className="divide-y divide-line">
       {Array.from({ length: rows }, (_, i) => (
-        <li key={i} className="flex items-center gap-3.5 py-2.5">
-          <span className="size-9 animate-pulse rounded-[10px] bg-hover" />
+        <li key={i} className="flex items-center gap-3.5 py-3">
+          <span className="size-9 animate-pulse rounded-control bg-hover" />
           <span className="flex-1 space-y-2">
             <span className="block h-3.5 w-32 animate-pulse rounded bg-hover" />
             <span className="block h-3 w-20 animate-pulse rounded bg-hover" />

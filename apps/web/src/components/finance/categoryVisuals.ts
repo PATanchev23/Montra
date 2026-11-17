@@ -46,12 +46,23 @@ export const categoryVisuals: Record<CategoryId, CategoryVisual> = {
   taxes: { icon: Landmark, tone: 'warning', fill: 'fill-chart-6', swatch: 'bg-chart-6' },
 };
 
-/** Breakdown charts colour by rank so adjacent segments always contrast. */
+/**
+ * Breakdown charts shade by rank, darkest for the largest share, stepping
+ * down the grey ramp so neighbouring segments always differ in tone.
+ */
 export const rankFills = [
   'fill-chart-1',
   'fill-chart-3',
+  'fill-chart-2',
   'fill-chart-4',
   'fill-chart-5',
-  'fill-chart-2',
+  'fill-chart-6',
 ];
-export const rankSwatches = ['bg-chart-1', 'bg-chart-3', 'bg-chart-4', 'bg-chart-5', 'bg-chart-2'];
+export const rankSwatches = [
+  'bg-chart-1',
+  'bg-chart-3',
+  'bg-chart-2',
+  'bg-chart-4',
+  'bg-chart-5',
+  'bg-chart-6',
+];

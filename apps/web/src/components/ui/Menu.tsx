@@ -8,7 +8,7 @@ export const MenuTrigger = DropdownMenu.Trigger;
 export const MenuRadioGroup = DropdownMenu.RadioGroup;
 
 export const popoverSurface =
-  'z-50 rounded-xl border border-line bg-raised p-1 shadow-pop outline-none data-[state=open]:animate-[pop-in_140ms_var(--ease-out-soft)]';
+  'z-50 rounded-panel border border-line bg-raised p-1.5 shadow-pop outline-none data-[state=open]:animate-[pop-in_140ms_var(--ease-out-soft)]';
 
 export function MenuContent({
   className,
@@ -29,7 +29,7 @@ export function MenuContent({
 }
 
 const itemClass =
-  'relative flex h-9 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-[13px] text-ink-2 outline-none select-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45 data-[highlighted]:bg-hover data-[highlighted]:text-ink [&_svg]:size-4 [&_svg]:text-muted';
+  'relative flex h-9 cursor-pointer items-center gap-2.5 rounded-control px-2.5 text-body-sm text-ink-2 outline-none select-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45 data-[highlighted]:bg-hover data-[highlighted]:text-ink [&_svg]:size-4 [&_svg]:text-muted';
 
 export function MenuItem({ className, ...props }: ComponentProps<typeof DropdownMenu.Item>) {
   return <DropdownMenu.Item className={cn(itemClass, className)} {...props} />;
@@ -45,7 +45,7 @@ export function MenuRadioItem({
     <DropdownMenu.RadioItem className={cn(itemClass, 'pr-8', className)} {...props}>
       <span className="flex min-w-0 flex-1 flex-col leading-tight">
         <span className="truncate">{children}</span>
-        {hint && <span className="truncate text-[11px] text-faint">{hint}</span>}
+        {hint && <span className="truncate text-[11px] text-muted">{hint}</span>}
       </span>
       <DropdownMenu.ItemIndicator className="absolute right-2.5">
         <Check className="!text-accent" strokeWidth={2.25} />
@@ -77,7 +77,7 @@ export function MenuCheckboxItem({
 
 export function MenuLabel({ children }: { children: ReactNode }) {
   return (
-    <DropdownMenu.Label className="px-2.5 pt-2 pb-1 text-[11px] font-medium text-faint">
+    <DropdownMenu.Label className="px-2.5 pt-2 pb-1 text-micro text-muted uppercase">
       {children}
     </DropdownMenu.Label>
   );

@@ -3,109 +3,125 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Montra design tokens
- * ────────────────────
- * Components reference only these semantic names (bg-surface, text-muted,
- * border-line, fill-chart-1 …) so both themes stay in lockstep.
+ * Montra design tokens: Monochrome
+ * ────────────────────────────────
+ * Black, white and neutral greys. Components reference only these semantic
+ * names (bg-surface, text-muted, fill-chart-1 …) so the light and dark themes
+ * stay in lockstep.
  *
  * Colour roles
- *   accent      teal — primary actions, active navigation, focus
- *   positive    money in, favourable change
- *   negative    money out where it matters, unfavourable change (restrained)
- *   chart-1     lavender — the analytical voice of the product (charts, insights)
- *   chart-track muted slate-blue capsules that sit behind chart-1
+ *   canvas → surface → raised   paper, panels, floating layers
+ *   accent      ink: primary actions, the active navigation pill, focus, links
+ *   positive    money in and favourable change, nowhere else
+ *   negative    money out, unfavourable change and errors, nowhere else
+ *   warning     a payment or limit that is close; status only
+ *   chart-1     ink capsules; chart-track the pale capsule behind them
+ *   chart-2…6   the grey ramp for a second series and for shares
+ *   control     input and select boundaries (3:1 against the planes they sit on)
+ *   faint       decorative only (placeholder glyphs); never text
  *
- * Dark is the signature theme; light mirrors every role.
+ * Every text pair below meets WCAG 2.2 AA (4.5:1) in both themes.
+ * Light is the default theme; dark mirrors every role in neutral greys.
  */
 :root {
-  --canvas: #f4f6f7;
-  --sidebar: #eef2f3;
+  --canvas: #f7f7f5;
+  --sidebar: #f2f2ef;
   --surface: #ffffff;
   --raised: #ffffff;
-  --sunken: #f1f4f5;
-  --hover: #eef2f4;
-  --line: #e1e7ea;
-  --line-soft: #ecf0f2;
-  --line-strong: #cdd6db;
-  --grid: #e8edf0;
+  --sunken: #f3f3f0;
+  --hover: #eeeeeb;
+  --line: #e8e8e5;
+  --line-soft: #f0f0ed;
+  --line-strong: #d6d6d2;
+  --control: #8c8c88;
+  --grid: #eeeeeb;
   --selected: #ffffff;
-  --selected-line: #d3dbe0;
+  --selected-line: #d6d6d2;
+  --panel-line: #e8e8e5;
 
-  --ink: #0c1a1f;
-  --ink-2: #3a4952;
-  --muted: #64737d;
-  --faint: #98a4ac;
+  --ink: #171717;
+  --ink-2: #454543;
+  --muted: #6b6b68;
+  --faint: #a3a3a0;
 
-  --accent: #0e9f8e;
-  --accent-hover: #0c8f80;
+  --accent: #171717;
+  --accent-hover: #333331;
   --accent-ink: #ffffff;
-  --accent-soft: #e0f3f0;
-  --accent-line: #a9ded6;
+  --accent-soft: #eeeeeb;
+  --accent-line: #cfcfcb;
 
-  --positive: #0a8676;
-  --positive-soft: #e3f4f1;
-  --negative: #cc4b50;
-  --negative-soft: #fbeaea;
-  --warning: #b07418;
-  --warning-soft: #fbf1e1;
+  --positive: #17794b;
+  --positive-soft: #e8f3ec;
+  --negative: #c2352b;
+  --negative-soft: #fbecea;
+  --warning: #8a5a00;
+  --warning-soft: #f6eedc;
+  --info: #454543;
+  --info-soft: #eeeeeb;
 
-  --chart-1: #7b5cf0;
-  --chart-1-soft: #ece7fd;
-  --chart-track: #e5e9f2;
-  --chart-2: #9eabc4;
-  --chart-3: #3fb8c0;
-  --chart-4: #12a08c;
-  --chart-5: #4a4fc8;
-  --chart-6: #8a97a8;
+  --chart-1: #252525;
+  --chart-1-soft: #eeeeeb;
+  --chart-track: #e6e6e3;
+  --chart-2: #858585;
+  --chart-3: #555555;
+  --chart-4: #a3a3a0;
+  --chart-5: #c2c2be;
+  --chart-6: #d9d9d5;
 
-  --overlay: rgb(12 26 31 / 0.32);
-  --shadow-pop: 0 18px 40px -16px rgb(12 26 31 / 0.22), 0 2px 6px -2px rgb(12 26 31 / 0.08);
+  --overlay: rgb(23 23 23 / 0.32);
+  --shadow-panel: 0 1px 2px rgb(23 23 23 / 0.04);
+  --shadow-pop: 0 12px 32px -12px rgb(23 23 23 / 0.16), 0 2px 6px -2px rgb(23 23 23 / 0.06);
   color-scheme: light;
 }
 
 .dark {
-  --canvas: #071216;
-  --sidebar: #061014;
-  --surface: #0b181d;
-  --raised: #0f1e24;
-  --sunken: #08141a;
-  --hover: #112229;
-  --line: #13252c;
-  --line-soft: #10212a;
-  --line-strong: #1e353e;
-  --grid: #15262e;
-  --selected: #1b2a3e;
-  --selected-line: #2a3b55;
+  --canvas: #0f0f0f;
+  --sidebar: #0b0b0b;
+  --surface: #171717;
+  --raised: #1e1e1e;
+  --sunken: #131313;
+  --hover: #242424;
+  --line: #262626;
+  --line-soft: #1f1f1f;
+  --line-strong: #363636;
+  --control: #757575;
+  --grid: #222222;
+  --selected: #2a2a2a;
+  --selected-line: #363636;
+  --panel-line: #262626;
 
-  --ink: #f2f5f7;
-  --ink-2: #b6bfca;
-  --muted: #8593a0;
-  --faint: #56656f;
+  --ink: #f5f5f3;
+  --ink-2: #c7c7c4;
+  --muted: #9a9a97;
+  --faint: #5e5e5c;
 
-  --accent: #20c2af;
-  --accent-hover: #3dd1bf;
-  --accent-ink: #03201b;
-  --accent-soft: #0a2c28;
-  --accent-line: #1b5a52;
+  --accent: #f5f5f3;
+  --accent-hover: #ffffff;
+  --accent-ink: #171717;
+  --accent-soft: #262626;
+  --accent-line: #404040;
 
-  --positive: #5dd4bb;
-  --positive-soft: #0c2b28;
-  --negative: #ee7b7b;
-  --negative-soft: #2d171b;
-  --warning: #f0b45b;
-  --warning-soft: #2c2213;
+  --positive: #5cc08b;
+  --positive-soft: #16261d;
+  --negative: #f08a7e;
+  --negative-soft: #2b1917;
+  --warning: #d9a94e;
+  --warning-soft: #2a2416;
+  --info: #c7c7c4;
+  --info-soft: #262626;
 
-  --chart-1: #9575fa;
-  --chart-1-soft: #201c3d;
-  --chart-track: #1f3044;
-  --chart-2: #435a80;
-  --chart-3: #7cd6dc;
-  --chart-4: #2aa592;
-  --chart-5: #4c4fc4;
-  --chart-6: #5d6f86;
+  --chart-1: #ededea;
+  --chart-1-soft: #262626;
+  --chart-track: #2a2a2a;
+  --chart-2: #8f8f8c;
+  --chart-3: #bdbdba;
+  --chart-4: #6a6a68;
+  --chart-5: #4f4f4d;
+  --chart-6: #3b3b3a;
 
-  --overlay: rgb(2 8 10 / 0.6);
-  --shadow-pop: 0 20px 48px -16px rgb(0 0 0 / 0.7), 0 2px 8px -2px rgb(0 0 0 / 0.4);
+  --overlay: rgb(0 0 0 / 0.64);
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-pop: 0 16px 40px -16px rgb(0 0 0 / 0.7), 0 2px 8px -2px rgb(0 0 0 / 0.45);
   color-scheme: dark;
 }
 
@@ -119,9 +135,11 @@
   --color-line: var(--line);
   --color-line-soft: var(--line-soft);
   --color-line-strong: var(--line-strong);
+  --color-control: var(--control);
   --color-grid: var(--grid);
   --color-selected: var(--selected);
   --color-selected-line: var(--selected-line);
+  --color-panel-line: var(--panel-line);
 
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
@@ -140,6 +158,8 @@
   --color-negative-soft: var(--negative-soft);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
 
   --color-chart-1: var(--chart-1);
   --color-chart-1-soft: var(--chart-1-soft);
@@ -151,13 +171,58 @@
   --color-chart-6: var(--chart-6);
 
   --color-overlay: var(--overlay);
+  --shadow-panel: var(--shadow-panel);
   --shadow-pop: var(--shadow-pop);
 
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
 
+  /*
+   * Type scale. Each step carries its own line height (and weight and
+   * tracking where they are part of the role), so nothing inherits the
+   * body's line height by accident. Figures are set at 600 so the money
+   * leads the page.
+   */
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1rem;
+  --text-micro--letter-spacing: 0.06em;
+  --text-micro--font-weight: 500;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.25rem;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.375rem;
+  --text-body-lg: 0.9375rem;
+  --text-body-lg--line-height: 1.375rem;
+  --text-title: 1.0625rem;
+  --text-title--line-height: 1.5rem;
+  --text-title--letter-spacing: -0.015em;
+  --text-title--font-weight: 600;
+  --text-figure-sm: 1.25rem;
+  --text-figure-sm--line-height: 1.75rem;
+  --text-figure-sm--letter-spacing: -0.02em;
+  --text-figure-sm--font-weight: 600;
+  --text-figure: 1.75rem;
+  --text-figure--line-height: 2.125rem;
+  --text-figure--letter-spacing: -0.025em;
+  --text-figure--font-weight: 600;
+  --text-display: 2rem;
+  --text-display--line-height: 2.375rem;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 600;
+  --text-figure-xl: 2.5rem;
+  --text-figure-xl--line-height: 2.75rem;
+  --text-figure-xl--letter-spacing: -0.03em;
+  --text-figure-xl--font-weight: 600;
+
+  /* Controls, the larger top-bar fields, and panels. Bars, segments and badges are full pills. */
+  /* Where the dashboard has room for three panels in its lower row. */
+  --breakpoint-wide: 90rem;
+
   --radius-control: 10px;
-  --radius-panel: 14px;
+  --radius-field: 12px;
+  --radius-panel: 16px;
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -175,7 +240,16 @@
   }
 
   ::selection {
-    @apply bg-accent-soft text-ink;
+    @apply bg-accent text-accent-ink;
+  }
+
+  input,
+  textarea {
+    caret-color: var(--ink);
+  }
+
+  a {
+    text-underline-offset: 0.2em;
   }
 
   :focus-visible {
@@ -189,12 +263,13 @@
   }
 }
 
+/* Tabular, lining figures that keep Geist's stylistic sets. */
 @utility tabular {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'ss01', 'cv11', 'tnum', 'lnum';
 }
 
-/* Uppercase micro-label used above page titles and in table headers */
+/* Uppercase micro-label: table headers and navigation group labels. */
 @utility eyebrow {
   font-size: 11px;
   line-height: 16px;
@@ -208,8 +283,17 @@
   border-radius: var(--radius-control);
 }
 
+@utility rounded-field {
+  border-radius: var(--radius-field);
+}
+
 @utility rounded-panel {
   border-radius: var(--radius-panel);
+}
+
+/* Room for the phone tab bar and the home indicator beneath it. */
+@utility pb-tabbar {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
 }
 
 @keyframes pop-in {
@@ -235,6 +319,13 @@
 @keyframes slide-in-left {
   from {
     transform: translateX(-24px);
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    transform: translateY(24px);
     opacity: 0;
   }
 }

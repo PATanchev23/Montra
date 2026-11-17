@@ -1,12 +1,13 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { resetSessionForTests } from '../../api/session';
 import { useToastStore } from '../../stores/toasts';
 import { useUiStore } from '../../stores/ui';
 import { apiError } from '../../test/authApi';
 import { ledgerServer, transaction } from '../../test/ledgerApi';
 import { polyfillRadix, renderTransactions } from '../../test/renderTransactions';
+import { PeriodPicker } from './PeriodPicker';
 
 /*
  * The fake API's "today" is 9 November 2026, so the default period (last
@@ -56,7 +57,8 @@ const history = () => [
   }),
 ];
 
-const kpi = (name: string) => screen.getByRole('region', { name });
+/** A summary tile: net cash flow, income or expenses. */
+const kpi = (name: string) => screen.getByRole('group', { name });
 
 beforeAll(polyfillRadix);
 beforeEach(() => {
@@ -72,7 +74,7 @@ describe('dashboard figures', () => {
     renderTransactions('/');
 
     expect(
-      await within(await screen.findByRole('region', { name: 'Income' })).findByText('US$1,500.00'),
+      await within(await screen.findByRole('group', { name: 'Income' })).findByText('US$1,500.00'),
     ).toBeInTheDocument();
     expect(within(kpi('Income')).getByText('+US$500.00')).toBeInTheDocument();
     expect(within(kpi('Income')).getByText('50%')).toBeInTheDocument();
@@ -81,15 +83,21 @@ describe('dashboard figures', () => {
     expect(within(kpi('Expenses')).getByText('−US$99.56')).toBeInTheDocument();
     expect(within(kpi('Net cash flow')).getByText('US$1,099.56')).toBeInTheDocument();
     expect(within(kpi('Net cash flow')).getByText('+US$599.56')).toBeInTheDocument();
-    expect(screen.getByText(/performed in the last 30 days/)).toHaveTextContent('3 transactions');
+    expect(screen.getByText(/TechStore performed in the last 30 days/)).toBeInTheDocument();
+    expect(screen.getByText(/11 Oct – 9 Nov 2026 · 3 transactions/)).toBeInTheDocument();
 
-    const breakdown = screen.getByRole('region', { name: 'Expense breakdown' });
-    expect(within(breakdown).getByText('Last 30 days')).toBeInTheDocument();
-    const categories = within(breakdown).getAllByRole('listitem');
-    expect(categories.map((li) => li.textContent)).toEqual([
+    const allocation = screen.getByRole('region', { name: 'Expense breakdown' });
+    expect(within(allocation).getByText('Last 30 days')).toBeInTheDocument();
+    const categories = within(allocation).getAllByRole('listitem');
+    expect(categories.map((row) => row.textContent)).toEqual([
       'Advertising77.5%US$310.45',
       'Software22.5%US$89.99',
     ]);
+    // Each category drills into its expenses over exactly this period.
+    expect(within(allocation).getByRole('link', { name: 'Advertising' })).toHaveAttribute(
+      'href',
+      '/transactions?category=Advertising&type=expense&range=custom&from=2026-10-11&to=2026-11-09',
+    );
 
     const recent = within(screen.getByRole('region', { name: 'Recent transactions' }));
     expect(recent.getAllByRole('listitem').map((li) => li.querySelector('p')?.textContent)).toEqual(
@@ -100,42 +108,88 @@ describe('dashboard figures', () => {
     expect(
       within(chart).getByText(/US\$1,500\.00 earned · US\$50\.00 daily average/),
     ).toBeInTheDocument();
+    // The chart's data is also there as a table, for screen readers.
+    expect(
+      within(chart).getByRole('table', { name: 'Income by day, Last 30 days' }),
+    ).toBeInTheDocument();
     expect(api.dashboardQueries()).toEqual([{ period: '30d' }]);
 
-    // Nothing from the sample data layer.
+    expect(
+      screen.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), / }),
+    ).toBeInTheDocument();
     expect(screen.queryByText('Montra insight')).not.toBeInTheDocument();
-    expect(screen.queryByText('Upcoming payments')).not.toBeInTheDocument();
-    expect(screen.queryByText('Scenario preview')).not.toBeInTheDocument();
-    expect(screen.queryByText(/TechStore performed/)).toBeInTheDocument();
+  });
+
+  it('labels the two forward-looking panels as sample data, and nothing else', async () => {
+    ledgerServer({ transactions: history() });
+    renderTransactions('/');
+
+    // Scheduled payments and scenarios are not served by the API yet.
+    const upcoming = await screen.findByRole('region', { name: 'Upcoming payments' });
+    expect(within(upcoming).getByText('Sample data · as of 25 Oct')).toBeInTheDocument();
+    // Its dates are the sample layer's own, so none is called "Today" or "Tomorrow".
+    expect(within(upcoming).queryByText(/Today|Tomorrow|Yesterday/)).not.toBeInTheDocument();
+    expect(await within(upcoming).findAllByRole('listitem')).not.toHaveLength(0);
+    const scenario = screen.getByRole('region', { name: 'Scenario preview' });
+    expect(within(scenario).getByText('Sample data · as of 25 Oct')).toBeInTheDocument();
+    expect(await within(scenario).findByRole('link', { name: 'Run simulation' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^\/simulations\?scenario=/),
+    );
+    // Everything fed by the API stays unmarked.
+    expect(screen.getAllByText(/^Sample data/)).toHaveLength(2);
   });
 
   it('reloads for another reporting period', async () => {
     const api = ledgerServer({ transactions: history() });
-    renderTransactions('/');
+    renderTransactions('/', <PeriodPicker />);
     const u = userEvent.setup();
-    await within(await screen.findByRole('region', { name: 'Income' })).findByText('€1,500.00');
+    await within(await screen.findByRole('group', { name: 'Income' })).findByText('€1,500.00');
 
-    await u.click(screen.getByRole('combobox', { name: 'Reporting period' }));
-    await u.click(await screen.findByRole('option', { name: 'Last month' }));
+    await u.click(screen.getByRole('button', { name: 'Reporting period: Last 30 days' }));
+    await u.click(await screen.findByRole('menuitemradio', { name: /Last month/ }));
 
     await waitFor(() => expect(within(kpi('Income')).getByText('€1,000.00')).toBeInTheDocument());
     expect(api.dashboardQueries().at(-1)).toEqual({ period: 'last-month' });
     expect(within(kpi('Expenses')).getByText('€310.45')).toBeInTheDocument();
     expect(within(kpi('Expenses')).getByText(/vs\. September/)).toBeInTheDocument();
-    expect(screen.getByText(/performed in October 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/TechStore performed in October 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/1 – 31 Oct 2026 · 2 transactions/)).toBeInTheDocument();
     expect(
       within(screen.getByRole('region', { name: 'Expense breakdown' })).getByText('October 2026'),
     ).toBeInTheDocument();
   });
 
-  it('takes a custom range, refusing one that runs backwards', async () => {
+  it('switches between the quick periods in one tap', async () => {
     const api = ledgerServer({ transactions: history() });
     renderTransactions('/');
     const u = userEvent.setup();
-    await within(await screen.findByRole('region', { name: 'Income' })).findByText('€1,500.00');
+    await within(await screen.findByRole('group', { name: 'Income' })).findByText('€1,500.00');
+    expect(screen.getByRole('radio', { name: '30 days' })).toBeChecked();
 
-    await u.click(screen.getByRole('combobox', { name: 'Reporting period' }));
-    await u.click(await screen.findByRole('option', { name: 'Custom range' }));
+    await u.click(screen.getByRole('radio', { name: '90 days' }));
+
+    await waitFor(() => expect(within(kpi('Income')).getByText('€2,500.00')).toBeInTheDocument());
+    expect(api.dashboardQueries().at(-1)).toEqual({ period: '90d' });
+    expect(screen.getByRole('radio', { name: '90 days' })).toBeChecked();
+    expect(screen.getByText(/TechStore performed in the last 90 days/)).toBeInTheDocument();
+  });
+
+  it('takes a custom range, refusing one that runs backwards', async () => {
+    // The custom range starts from "today" in the business's time zone; pin the
+    // clock to the fake API's today so the expected dates hold on any day.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-09T12:00:00Z'));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const api = ledgerServer({ transactions: history() });
+    renderTransactions('/', <PeriodPicker />);
+    const u = userEvent.setup();
+    await within(await screen.findByRole('group', { name: 'Income' })).findByText('€1,500.00');
+
+    await u.click(screen.getByRole('button', { name: 'Reporting period: Last 30 days' }));
+    await u.click(await screen.findByRole('menuitemradio', { name: /Custom range/ }));
     // It starts from the dates that were on screen.
     expect(screen.getByLabelText('From date')).toHaveValue('2026-10-11');
     expect(screen.getByLabelText('To date')).toHaveValue('2026-11-09');
@@ -177,7 +231,7 @@ describe('dashboard states', () => {
     api.state.override = null;
     await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }));
     expect(
-      await within(await screen.findByRole('region', { name: 'Income' })).findByText('€1,500.00'),
+      await within(await screen.findByRole('group', { name: 'Income' })).findByText('€1,500.00'),
     ).toBeInTheDocument();
   });
 
@@ -210,7 +264,7 @@ describe('dashboard states', () => {
     ledgerServer({ role: 'VIEWER', transactions: history() });
     renderTransactions('/');
     expect(
-      await within(await screen.findByRole('region', { name: 'Income' })).findByText('€1,500.00'),
+      await within(await screen.findByRole('group', { name: 'Income' })).findByText('€1,500.00'),
     ).toBeInTheDocument();
   });
 
@@ -230,7 +284,7 @@ describe('after changes', () => {
     ledgerServer({ transactions: history() });
     const router = renderTransactions('/');
     const u = userEvent.setup();
-    await within(await screen.findByRole('region', { name: 'Income' })).findByText('€1,500.00');
+    await within(await screen.findByRole('group', { name: 'Income' })).findByText('€1,500.00');
 
     await act(() => router.navigate('/transactions'));
     await u.click(await screen.findByRole('button', { name: 'New transaction' }));

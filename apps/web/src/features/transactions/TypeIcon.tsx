@@ -22,7 +22,7 @@ export function TypeIcon({
       className={cn(
         'flex shrink-0 items-center justify-center rounded-[10px]',
         size === 'sm' ? 'size-8' : 'size-9',
-        type === 'INCOME' ? 'bg-positive-soft text-positive' : 'bg-hover text-ink-2',
+        'bg-sunken text-ink-2',
         className,
       )}
     >

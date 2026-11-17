@@ -1,59 +1,37 @@
-import type { ComparedAmount, DashboardResponse } from '@montra/shared';
-import { ChartColumn, Receipt, Scale, type LucideIcon } from 'lucide-react';
-import { Sparkline, type SparkTone } from '../../components/charts/Sparkline';
+import type { DashboardResponse } from '@montra/shared';
+import { Sparkline } from '../../components/charts/Sparkline';
 import { Delta } from '../../components/ui/Delta';
 import { Panel } from '../../components/ui/Panel';
 import { Skeleton } from '../../components/ui/States';
-import { cn } from '../../lib/cn';
 import { money } from '../../lib/format';
 
-type Key = 'income' | 'expenses' | 'net';
+type Key = 'net' | 'income' | 'expenses';
 
 interface KpiDefinition {
   key: Key;
   label: string;
-  icon: LucideIcon;
-  iconClass: string;
   goodWhen: 'up' | 'down';
-  /** The trend values its sparkline draws. */
-  series: 'incomeCents' | 'expenseCents' | 'netCents';
+  /** The trend values its line adds up, bucket by bucket. */
+  series: 'netCents' | 'incomeCents' | 'expenseCents';
 }
 
 const definitions: KpiDefinition[] = [
-  {
-    key: 'income',
-    label: 'Income',
-    icon: ChartColumn,
-    iconClass: 'bg-chart-1-soft text-chart-1',
-    goodWhen: 'up',
-    series: 'incomeCents',
-  },
-  {
-    key: 'expenses',
-    label: 'Expenses',
-    icon: Receipt,
-    iconClass: 'bg-negative-soft text-negative',
-    goodWhen: 'down',
-    series: 'expenseCents',
-  },
-  {
-    key: 'net',
-    label: 'Net cash flow',
-    icon: Scale,
-    iconClass: 'bg-hover text-ink-2',
-    goodWhen: 'up',
-    series: 'netCents',
-  },
+  { key: 'net', label: 'Net cash flow', goodWhen: 'up', series: 'netCents' },
+  { key: 'income', label: 'Income', goodWhen: 'up', series: 'incomeCents' },
+  { key: 'expenses', label: 'Expenses', goodWhen: 'down', series: 'expenseCents' },
 ];
 
-function sparkTone(amount: ComparedAmount, goodWhen: 'up' | 'down', key: Key): SparkTone {
-  if (key === 'income') return 'analytic';
-  if (amount.changeCents === 0) return 'neutral';
-  const rising = amount.changeCents > 0;
-  return rising === (goodWhen === 'up') ? 'positive' : 'negative';
+/** Running total across the period, so each line ends on the figure above it. */
+function cumulative(values: number[]) {
+  let sum = 0;
+  return values.map((value) => (sum += value));
 }
 
-/** Income, expenses and net for the period, each against the equivalent period before. */
+/**
+ * Net cash flow, income and expenses for the period, each against the
+ * equivalent period before. The figure leads in ink; only the change takes
+ * colour, by meaning rather than direction (rising expenses read red).
+ */
 export function KpiCards({
   data,
   comparisonLabel,
@@ -62,55 +40,46 @@ export function KpiCards({
   comparisonLabel: string;
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      {definitions.map(({ key, label, icon: Icon, iconClass, goodWhen, series }) => {
+    <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
+      {definitions.map(({ key, label, goodWhen, series }) => {
         const amount = data?.overview[key];
         const currency = data?.currency;
         return (
-          <Panel key={key} className="p-5" aria-label={label}>
-            <div className="flex gap-3.5">
-              <span
-                className={cn(
-                  'flex size-10 shrink-0 items-center justify-center rounded-[11px]',
-                  iconClass,
-                )}
-              >
-                <Icon className="size-5" strokeWidth={1.7} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[13px] whitespace-nowrap text-ink-2">{label}</p>
-                  {amount && <Delta ratio={amount.changeRatio} goodWhen={goodWhen} />}
-                </div>
-                {amount ? (
-                  <p className="tabular mt-0.5 truncate text-[24px] leading-8 font-semibold tracking-[-0.02em] text-ink">
-                    {money(amount.cents, { currency, sign: key === 'net' ? 'auto' : 'never' })}
-                  </p>
-                ) : (
-                  <Skeleton className="mt-1.5 h-7 w-28" />
-                )}
-              </div>
+          <Panel key={key} role="group" aria-label={label} className="@container p-5 sm:p-6">
+            {/* The change sits on the label's line, so every tile has the same anatomy at any width. */}
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-body text-ink-2">{label}</p>
+              {amount && (
+                <Delta ratio={amount.changeRatio} goodWhen={goodWhen} className="text-body" />
+              )}
             </div>
-            <div className="mt-4 flex items-end gap-4">
-              <div className="w-11 shrink-0">
-                {amount && data.trend.points.length > 1 && (
-                  <Sparkline
-                    values={data.trend.points.map((point) => point[series])}
-                    tone={sparkTone(amount, goodWhen, key)}
-                    width={44}
-                    height={22}
-                  />
-                )}
-              </div>
+            {amount ? (
+              <p className="tabular mt-1.5 text-figure text-ink">
+                {money(amount.cents, { currency, sign: key === 'net' ? 'auto' : 'never' })}
+              </p>
+            ) : (
+              <Skeleton className="mt-2.5 h-8 w-40" />
+            )}
+            <div className="mt-4 flex items-end justify-between gap-4">
               {amount ? (
-                <p className="tabular min-w-0 text-[12px] leading-snug text-muted">
-                  <span className="text-ink-2">
+                <p className="tabular min-w-0 text-body-sm text-muted">
+                  <span className="font-medium text-ink-2">
                     {money(amount.changeCents, { currency, sign: 'always' })}
                   </span>{' '}
                   {comparisonLabel}
                 </p>
               ) : (
-                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-44" />
+              )}
+              {amount && data.trend.points.length > 1 && (
+                <Sparkline
+                  values={cumulative(data.trend.points.map((point) => point[series]))}
+                  tone="ink"
+                  width={64}
+                  height={24}
+                  // Narrow tiles give the comparison the whole line.
+                  className="hidden @[18rem]:block"
+                />
               )}
             </div>
           </Panel>

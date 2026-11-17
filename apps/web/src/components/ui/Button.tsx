@@ -5,20 +5,25 @@ import { cn } from '../../lib/cn';
 type Variant = 'primary' | 'secondary' | 'ghost' | 'analytic';
 type Size = 'sm' | 'md' | 'lg';
 
+const primary = 'bg-accent text-accent-ink hover:bg-accent-hover';
+
 const variants: Record<Variant, string> = {
-  primary: 'bg-accent text-accent-ink hover:bg-accent-hover',
+  primary,
   secondary:
-    'border border-line bg-raised text-ink hover:border-line-strong hover:bg-hover data-[state=open]:bg-hover',
+    'border border-line-strong bg-raised text-ink hover:border-control hover:bg-hover data-[state=open]:bg-hover',
   ghost:
     'text-muted hover:bg-hover hover:text-ink data-[state=open]:bg-hover data-[state=open]:text-ink',
-  /** Lavender — reserved for analytical actions (simulations, insights). */
-  analytic: 'bg-chart-1 text-white hover:brightness-110',
+  /**
+   * Kept for pages not yet recomposed. Analysis has no colour of its own in
+   * the monochrome system, so it renders as the primary (ink) action.
+   */
+  analytic: primary,
 };
 
 const sizes: Record<Size, string> = {
-  sm: 'h-8 gap-1.5 px-2.5 text-[13px] [&_svg]:size-3.5',
-  md: 'h-9 gap-2 px-3.5 text-[13px] [&_svg]:size-4',
-  lg: 'h-11 gap-2.5 px-5 text-sm [&_svg]:size-4',
+  sm: 'h-8 gap-1.5 px-2.5 text-body-sm [&_svg]:size-3.5',
+  md: 'h-9 gap-2 px-3.5 text-body-sm [&_svg]:size-4',
+  lg: 'h-11 gap-2.5 px-5 text-body [&_svg]:size-4',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
