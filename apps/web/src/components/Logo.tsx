@@ -1,24 +1,18 @@
 import { cn } from '../lib/cn';
 
 /**
- * The faceted gem mark with the wordmark. Same four facets as always, cut in
- * four tones of ink (grey upper facets, ink below), so the mark follows the
- * active theme.
+ * Two stacked diamonds whose overlap is cut out (even-odd fill), traced from
+ * design/LogoLightTheme.png and design/LogoDarkTheme.png. It fills with the
+ * ink token, so it is black on the light theme and white on the dark one.
  */
+const MARK_PATH =
+  'M19.58 0.25A0.7 0.7 0 0 1 20.42 0.25L36.24 11.94A0.7 0.7 0 0 1 36.24 13.06L20.42 24.75A0.7 0.7 0 0 1 19.58 24.75L3.76 13.06A0.7 0.7 0 0 1 3.76 11.94Z' +
+  'M19.58 15.25A0.7 0.7 0 0 1 20.42 15.25L36.24 26.94A0.7 0.7 0 0 1 36.24 28.06L20.42 39.75A0.7 0.7 0 0 1 19.58 39.75L3.76 28.06A0.7 0.7 0 0 1 3.76 26.94Z';
+
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={cn('size-7 shrink-0', className)} aria-hidden>
-      <g strokeLinejoin="round" strokeWidth="1.2">
-        <path d="M16 2.5 4.5 14 16 17Z" className="fill-muted stroke-muted" />
-        <path d="M16 2.5 27.5 14 16 17Z" className="fill-ink-2 stroke-ink-2" />
-        <path d="M4.5 14 16 17v12.5Z" className="fill-accent stroke-accent" />
-        <path
-          d="M27.5 14 16 17v12.5Z"
-          className="fill-accent stroke-accent"
-          fillOpacity={0.55}
-          strokeOpacity={0.55}
-        />
-      </g>
+    <svg viewBox="0 0 40 40" className={cn('size-7 shrink-0 fill-ink', className)} aria-hidden>
+      <path fillRule="evenodd" d={MARK_PATH} />
     </svg>
   );
 }

@@ -24,7 +24,7 @@ export function TextField({ label, hint, error, className, ...props }: TextField
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy(id, error, hint)}
-        className={cn('h-11 text-[14px]', className)}
+        className={cn('h-11 text-base sm:text-body', className)}
         {...props}
       />
     </Field>
@@ -49,7 +49,7 @@ export function PasswordField({ label, hint, error, className, ...props }: TextF
           spellCheck={false}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy(id, error, hint)}
-          className={cn('h-11 pr-11 text-[14px]', className)}
+          className={cn('h-11 pr-11 text-base sm:text-body', className)}
           {...props}
         />
         <button

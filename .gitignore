@@ -11,6 +11,18 @@ coverage/
 # Prisma generated client
 apps/api/src/generated/
 
+# Tool caches & local overrides
+.eslintcache
+.cache/
+.vite/
+*.local
+test-results/
+playwright-report/
+
+# Keys & certificates
+*.pem
+*.key
+
 # Logs & OS
 *.log
 .DS_Store
@@ -21,8 +33,13 @@ Thumbs.db
 !.vscode/extensions.json
 .idea/
 
-# Claude Code: personal permissions, not shared
-.claude/settings.local.json
-
-# Impeccable: per-machine detector cache (mocks/, questions/ and review/ ignore themselves)
-**/.impeccable/hook.cache.json
+# AI coding assistants: personal settings, plugins and working files, not part of Montra.
+# Claude Code (settings, the Impeccable design skill and its agents)
+.claude/
+CLAUDE.local.md
+# The same tooling installed for GitHub Copilot; .github/workflows (CI) stays tracked
+.github/agents/
+.github/hooks/
+.github/skills/
+# Impeccable design tool: config, generated design.json, surface briefs, caches, mocks, reviews
+**/.impeccable/

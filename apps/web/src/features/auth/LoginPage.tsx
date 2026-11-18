@@ -9,7 +9,7 @@ import { useMessages } from '../../i18n';
 import { showToast } from '../../stores/toasts';
 import { firstName } from './access';
 import { FormNotice, PasswordField, TextField } from './AuthFields';
-import { AuthHeading } from './AuthLayout';
+import { AuthHeading, AuthSwitch } from './AuthLayout';
 import { authMessages } from './messages';
 import { useSchemaForm } from './useSchemaForm';
 
@@ -83,7 +83,7 @@ export function LoginPage() {
         </Button>
       </form>
 
-      <p className="mt-7 text-center text-[13px] text-muted">
+      <AuthSwitch>
         {m.newHere}{' '}
         <Link
           to="/register"
@@ -92,7 +92,7 @@ export function LoginPage() {
         >
           {m.createAccount}
         </Link>
-      </p>
+      </AuthSwitch>
     </>
   );
 }
