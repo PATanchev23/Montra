@@ -16,6 +16,7 @@ import { useSchemaForm } from './useSchemaForm';
 const signOutNotices = {
   expired: { tone: 'warning', text: 'expired' },
   'signed-out': { tone: 'neutral', text: 'signedOut' },
+  deleted: { tone: 'neutral', text: 'accountDeleted' },
 } as const;
 
 export function LoginPage() {
@@ -67,6 +68,7 @@ export function LoginPage() {
         <PasswordField
           label={t.password}
           autoComplete="current-password"
+          placeholder={m.passwordPlaceholder}
           error={form.errors.password}
           {...form.register('password')}
         />
@@ -76,7 +78,7 @@ export function LoginPage() {
           variant="primary"
           size="lg"
           disabled={login.isPending}
-          className="mt-1 w-full"
+          className="mt-2 h-13 w-full"
         >
           {login.isPending && <Loader2 className="animate-spin" />}
           {login.isPending ? m.submitting : m.submit}
@@ -88,7 +90,7 @@ export function LoginPage() {
         <Link
           to="/register"
           state={location.state}
-          className="font-medium text-accent underline-offset-4 hover:underline"
+          className="font-medium text-ink underline decoration-1 underline-offset-4 hover:decoration-2"
         >
           {m.createAccount}
         </Link>

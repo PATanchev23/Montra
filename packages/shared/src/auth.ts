@@ -55,6 +55,12 @@ export const loginRequestSchema = z.object({
 });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
+/** DELETE /auth/me: the current password, so an unattended signed-in tab cannot delete the account. */
+export const deleteAccountRequestSchema = z.object({
+  password: loginRequestSchema.shape.password,
+});
+export type DeleteAccountRequest = z.infer<typeof deleteAccountRequestSchema>;
+
 /**
  * `error.code` values the auth endpoints add to the standard error envelope.
  * INVALID_ACCESS_TOKEN means "refresh and retry"; INVALID_REFRESH_TOKEN means
@@ -66,6 +72,10 @@ export const AUTH_ERROR_CODES = {
   EMAIL_TAKEN: 'EMAIL_TAKEN',
   INVALID_ACCESS_TOKEN: 'INVALID_ACCESS_TOKEN',
   INVALID_REFRESH_TOKEN: 'INVALID_REFRESH_TOKEN',
+  /** The password given to confirm a sensitive action (deleting the account) is wrong. */
+  INVALID_PASSWORD: 'INVALID_PASSWORD',
+  /** The shared demo accounts cannot be deleted, so every judge finds them intact. */
+  ACCOUNT_PROTECTED: 'ACCOUNT_PROTECTED',
 } as const;
 export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
 

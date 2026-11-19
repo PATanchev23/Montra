@@ -2,6 +2,7 @@ import type { DashboardResponse } from '@montra/shared';
 import { useState } from 'react';
 import { CapsuleBarChart } from '../../components/charts/CapsuleBarChart';
 import { TooltipRow, TooltipTitle } from '../../components/charts/ChartTooltip';
+import { EmptyChartNote } from '../../components/finance/EmptyChartNote';
 import { Panel, PanelHeader } from '../../components/ui/Panel';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Skeleton } from '../../components/ui/States';
@@ -18,13 +19,21 @@ type Measure = 'income' | 'expenses';
  * day, week or month of the period, against pale tracks that run to the top
  * of the scale, so each bar reads as "how full" it was. Reading a period
  * shows its income, expenses and net together.
+ *
+ * With no transactions at all (`noData`), the empty tracks stay in place but
+ * step back, and a note over them says what fills them: with an Import button
+ * for an owner, plainly for a viewer, who cannot add anything.
  */
 export function CashFlowOverview({
   data,
   periodLabel,
+  noData = false,
+  canEdit = false,
 }: {
   data: DashboardResponse | undefined;
   periodLabel: string;
+  noData?: boolean;
+  canEdit?: boolean;
 }) {
   const [measure, setMeasure] = useState<Measure>('income');
   const points = data?.trend.points ?? [];
@@ -46,7 +55,9 @@ export function CashFlowOverview({
         id="cash-flow-overview"
         title={m.title}
         description={
-          data ? (
+          noData ? (
+            m.noTransactionsYet
+          ) : data ? (
             <span className="tabular">
               {m.summary(formatValue(total ?? 0), measure, formatValue(average), interval)}
             </span>
@@ -74,54 +85,60 @@ export function CashFlowOverview({
           <ChartSkeleton />
         ) : (
           <div className="absolute inset-0">
-            <CapsuleBarChart
-              // A new range starts with nothing pinned; switching the measure keeps the pin.
-              key={`${data.period.from}/${data.period.to}/${interval}`}
-              ariaLabel={m.chartLabel(noun, interval, periodLabel)}
-              height="fill"
-              formatTick={axisFormatter(Math.max(0, ...values))}
-              formatValue={formatValue}
-              categories={points.map((p, i) => ({ key: p.start, label: labels[i]!.label }))}
-              series={[{ id: 'measure', label: noun, values, tone: 'primary' }]}
-              describe={(i) => {
-                const p = points[i]!;
-                return m.describe(
-                  labels[i]!.title,
-                  formatValue(p.incomeCents),
-                  formatValue(p.expenseCents),
-                  money(p.netCents, { currency, sign: 'always' }),
-                );
-              }}
-              renderTooltip={(i) => {
-                const p = points[i]!;
-                return (
-                  <>
-                    <TooltipTitle>{labels[i]!.title}</TooltipTitle>
-                    <TooltipRow
-                      swatch={measure === 'income' ? 'bg-chart-1' : 'bg-chart-4'}
-                      label={m.income}
-                      value={formatValue(p.incomeCents)}
-                    />
-                    <TooltipRow
-                      swatch={measure === 'expenses' ? 'bg-chart-1' : 'bg-chart-4'}
-                      label={m.expenses}
-                      value={formatValue(p.expenseCents)}
-                    />
-                    <div className="mt-1.5 border-t border-line pt-1.5">
+            <div className={noData ? 'absolute inset-0 opacity-40' : 'absolute inset-0'}>
+              <CapsuleBarChart
+                // A new range starts with nothing pinned; switching the measure keeps the pin.
+                key={`${data.period.from}/${data.period.to}/${interval}`}
+                ariaLabel={m.chartLabel(noun, interval, periodLabel)}
+                height="fill"
+                formatTick={axisFormatter(Math.max(0, ...values))}
+                formatValue={formatValue}
+                categories={points.map((p, i) => ({ key: p.start, label: labels[i]!.label }))}
+                series={[{ id: 'measure', label: noun, values, tone: 'primary' }]}
+                describe={(i) => {
+                  const p = points[i]!;
+                  return m.describe(
+                    labels[i]!.title,
+                    formatValue(p.incomeCents),
+                    formatValue(p.expenseCents),
+                    money(p.netCents, { currency, sign: 'always' }),
+                  );
+                }}
+                renderTooltip={(i) => {
+                  const p = points[i]!;
+                  return (
+                    <>
+                      <TooltipTitle>{labels[i]!.title}</TooltipTitle>
                       <TooltipRow
-                        label={m.net}
-                        value={money(p.netCents, { currency, sign: 'always' })}
-                        emphasis
+                        swatch={measure === 'income' ? 'bg-chart-1' : 'bg-chart-4'}
+                        label={m.income}
+                        value={formatValue(p.incomeCents)}
                       />
-                    </div>
-                  </>
-                );
-              }}
-            />
-            {empty && (
-              <p className="pointer-events-none absolute inset-x-0 top-[38%] text-center text-body-sm text-muted">
-                {m.noTransactions}
-              </p>
+                      <TooltipRow
+                        swatch={measure === 'expenses' ? 'bg-chart-1' : 'bg-chart-4'}
+                        label={m.expenses}
+                        value={formatValue(p.expenseCents)}
+                      />
+                      <div className="mt-1.5 border-t border-line pt-1.5">
+                        <TooltipRow
+                          label={m.net}
+                          value={money(p.netCents, { currency, sign: 'always' })}
+                          emphasis
+                        />
+                      </div>
+                    </>
+                  );
+                }}
+              />
+            </div>
+            {noData ? (
+              <EmptyChartNote canEdit={canEdit} ownerText={m.firstTransactions} />
+            ) : (
+              empty && (
+                <p className="pointer-events-none absolute inset-x-0 top-[38%] text-center text-body-sm text-muted">
+                  {m.noTransactions}
+                </p>
+              )
             )}
           </div>
         )}

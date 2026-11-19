@@ -222,6 +222,7 @@ export function ledgerServer(options: LedgerOptions = {}) {
         ),
         transactionCount: now.length,
         previousTransactionCount: before.length,
+        totalTransactionCount: state.transactions.length,
       },
       trend: {
         interval: p.interval,

@@ -98,7 +98,8 @@ export function LineChart({
     .domain([Math.min(0, min - pad) < 0 && min >= 0 ? 0 : min - pad, max + pad])
     .range([height - MARGIN.bottom, MARGIN.top])
     .nice(5);
-  const ticks = y.ticks(5);
+  // Nothing to scale: label the baseline only, not a column of fractions that all read 0.
+  const ticks = min === 0 && max === 0 ? [0] : y.ticks(5);
   const months = eachMonthOfInterval({ start: first, end: last }).filter((m) => m >= first);
 
   const toXY = (p: LinePoint) => [x(parseISO(p.date)), y(p.value)] as [number, number];

@@ -42,7 +42,7 @@ describe('protected navigation', () => {
     });
     const router = renderApp('/reports?year=2026');
 
-    expect(await screen.findByRole('heading', { name: 'Sign in to Montra' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/login');
 
     const u = user();

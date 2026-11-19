@@ -136,6 +136,7 @@ describe('dashboard API', () => {
         },
         transactionCount: 6,
         previousTransactionCount: 2,
+        totalTransactionCount: expect.any(Number),
       });
     });
 
@@ -220,6 +221,17 @@ describe('dashboard API', () => {
       expect(overview.income.cents).toBe(income._sum.amountCents);
       expect(overview.expenses.cents).toBe(expenses._sum.amountCents);
       expect(overview.transactionCount).toBe(await db.transaction.count({ where }));
+      expect(overview.totalTransactionCount).toBe(
+        await db.transaction.count({ where: { businessId: business.id } }),
+      );
+    });
+
+    it('counts every transaction the business has, even when the period is empty', async () => {
+      const total = await db.transaction.count({ where: { businessId: business.id } });
+      const { overview } = await dashboard('?period=custom&from=2020-01-01&to=2020-01-31');
+      expect(overview.transactionCount).toBe(0);
+      expect(total).toBeGreaterThan(0);
+      expect(overview.totalTransactionCount).toBe(total);
     });
   });
 
@@ -272,6 +284,7 @@ describe('dashboard API', () => {
       net: zero,
       transactionCount: 0,
       previousTransactionCount: 0,
+      totalTransactionCount: 0,
     });
     expect(result.expenseBreakdown).toEqual({ totalCents: 0, items: [] });
     expect(result.recent).toEqual([]);

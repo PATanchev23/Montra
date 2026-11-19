@@ -2,6 +2,7 @@ import {
   AUTH_ERROR_CODES,
   currencySchema,
   type CurrentUserResponse,
+  type DeleteAccountRequest,
   type LoginRequest,
   type RegisterRequest,
 } from '@montra/shared';
@@ -135,6 +136,46 @@ export async function revokeSession(db: Db, refreshToken: string): Promise<void>
   await db.session.updateMany({
     where: { tokenHash: hashRefreshToken(refreshToken), revokedAt: null },
     data: { revokedAt: new Date() },
+  });
+}
+
+/**
+ * Deletes the signed-in user once their password checks out.
+ *
+ * Businesses they own alone go with them, transactions and imports included.
+ * A business with another owner stays; only this user's membership ends.
+ * Sessions, onboarding and memberships cascade, and imports this user uploaded
+ * to a surviving business keep their record without an uploader.
+ */
+export async function deleteAccount(
+  db: Db,
+  userId: string,
+  { password }: DeleteAccountRequest,
+  protectedEmails: readonly string[],
+): Promise<{ deletedBusinessIds: string[] }> {
+  const user = await db.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { email: true, passwordHash: true },
+  });
+  if (!(await verifyPassword(user.passwordHash, password))) {
+    throw new AppError(403, AUTH_ERROR_CODES.INVALID_PASSWORD, 'Incorrect password.');
+  }
+  if (protectedEmails.includes(user.email)) {
+    throw new AppError(403, AUTH_ERROR_CODES.ACCOUNT_PROTECTED, 'Demo accounts cannot be deleted.');
+  }
+
+  return db.$transaction(async (tx) => {
+    const soleOwned = await tx.business.findMany({
+      where: {
+        memberships: { some: { userId, role: 'OWNER' } },
+        NOT: { memberships: { some: { userId: { not: userId }, role: 'OWNER' } } },
+      },
+      select: { id: true },
+    });
+    const deletedBusinessIds = soleOwned.map((business) => business.id);
+    await tx.business.deleteMany({ where: { id: { in: deletedBusinessIds } } });
+    await tx.user.delete({ where: { id: userId } });
+    return { deletedBusinessIds };
   });
 }
 

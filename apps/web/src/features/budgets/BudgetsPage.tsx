@@ -19,6 +19,10 @@ import { cn } from '../../lib/cn';
 import { messagesFor, useMessages } from '../../i18n';
 import { count, money, percent } from '../../lib/format';
 import { budgetMessages } from './messages';
+import { common } from '../../i18n/common';
+import { emptyBudgetMonth } from '../noData';
+import { useHasTransactions } from '../../api/transactions';
+import { useCurrentMembership } from '../auth/currentUser';
 
 type SortKey = 'usage' | 'amount' | 'name';
 const MIN_OFFSET = -11;
@@ -45,7 +49,16 @@ function status(line: BudgetLine) {
 export function BudgetsPage() {
   const [offset, setOffset] = useState(0);
   const [sort, setSort] = useState<SortKey>('usage');
-  const { data, isPending, isError, isPlaceholderData, refetch } = useBudgets(offset);
+  // The figures come from the TechStore sample layer, which must not stand in for a
+  // business that has recorded nothing: that business sees the same page, at zero.
+  const { business } = useCurrentMembership();
+  const gate = useHasTransactions(business.id);
+  const noData = gate.hasTransactions === false;
+  const sample = useBudgets(offset, { enabled: gate.hasTransactions === true });
+  const zero = useMemo(() => (noData ? emptyBudgetMonth(offset) : undefined), [noData, offset]);
+  const data = zero ?? sample.data;
+  const isPending = !data;
+  const { isError, isPlaceholderData, refetch } = sample;
   const m = useMessages(budgetMessages).page;
 
   const lines = useMemo(() => {
@@ -102,9 +115,12 @@ export function BudgetsPage() {
         }
       />
 
-      {isError ? (
+      {!noData && (gate.isError || isError) ? (
         <Panel>
-          <ErrorState title={m.loadError} onRetry={() => refetch()} />
+          <ErrorState
+            title={m.loadError}
+            onRetry={() => (gate.isError ? gate.refetch() : refetch())}
+          />
         </Panel>
       ) : (
         <div
@@ -113,7 +129,7 @@ export function BudgetsPage() {
             isPlaceholderData && 'opacity-60',
           )}
         >
-          <BudgetSummary month={data} />
+          <BudgetSummary month={data} noData={noData} />
           <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
             <Panel className="overflow-hidden" aria-labelledby="budget-categories">
               <div className="px-5 pt-5 pb-3 sm:px-6">
@@ -145,13 +161,18 @@ export function BudgetsPage() {
                 </div>
               ) : (
                 <ul>
+                  {lines.length === 0 && (
+                    <li className="border-t border-line-soft px-5 py-8 text-center text-[13px] text-muted sm:px-6">
+                      {m.noBudgets}
+                    </li>
+                  )}
                   {lines.map((line) => (
                     <BudgetRow key={line.categoryId} line={line} isCurrent={data.isCurrent} />
                   ))}
                 </ul>
               )}
             </Panel>
-            <SpendShare month={data} />
+            <SpendShare month={data} noData={noData} />
           </div>
         </div>
       )}
@@ -159,8 +180,10 @@ export function BudgetsPage() {
   );
 }
 
-function BudgetSummary({ month }: { month: BudgetMonth | undefined }) {
+function BudgetSummary({ month, noData }: { month: BudgetMonth | undefined; noData: boolean }) {
   const m = useMessages(budgetMessages).summary;
+  const page = useMessages(budgetMessages).page;
+  const noDataYet = useMessages(common).delta.noData;
   if (!month) {
     return (
       <Panel className="p-6">
@@ -185,8 +208,12 @@ function BudgetSummary({ month }: { month: BudgetMonth | undefined }) {
       ? { label: m.dailyAllowance, value: money(daily, { decimals: 0 }), tone: 'text-ink' }
       : {
           label: m.used,
-          value: percent(month.totalSpentCents / month.totalLimitCents),
-          tone: 'text-ink',
+          // No limits set means no share to speak of, never NaN%.
+          value:
+            month.totalLimitCents > 0
+              ? percent(month.totalSpentCents / month.totalLimitCents)
+              : noDataYet,
+          tone: month.totalLimitCents > 0 ? 'text-ink' : 'text-muted text-[14px] font-normal',
         },
     month.isCurrent
       ? { label: m.daysLeft, value: count(month.daysLeft), tone: 'text-ink' }
@@ -205,7 +232,7 @@ function BudgetSummary({ month }: { month: BudgetMonth | undefined }) {
           {money(month.totalSpentCents, { decimals: 0 })}
           <span className="text-[16px] font-normal tracking-normal text-muted">
             {' '}
-            {m.of(money(month.totalLimitCents, { decimals: 0 }))}
+            {noData ? `· ${page.noBudgets}` : m.of(money(month.totalLimitCents, { decimals: 0 }))}
           </span>
         </p>
         <div className="mt-5">
@@ -214,23 +241,27 @@ function BudgetSummary({ month }: { month: BudgetMonth | undefined }) {
             label={m.totalUsed}
             value={month.totalSpentCents}
             max={month.totalLimitCents}
-            pace={month.isCurrent ? pace : undefined}
+            pace={month.isCurrent && !noData ? pace : undefined}
           />
         </div>
-        {month.isCurrent && (
-          <p className="tabular mt-3 text-[13px] text-muted">
-            {ahead > 0 ? (
-              <>
-                <span className="text-warning">{m.ahead(money(ahead, { decimals: 0 }))}</span>{' '}
-                {m.aheadRest}
-              </>
-            ) : (
-              <>
-                <span className="text-positive">{m.below(money(-ahead, { decimals: 0 }))}</span>{' '}
-                {m.belowRest}
-              </>
-            )}
-          </p>
+        {noData ? (
+          <p className="mt-3 text-[13px] text-muted">{noDataYet}</p>
+        ) : (
+          month.isCurrent && (
+            <p className="tabular mt-3 text-[13px] text-muted">
+              {ahead > 0 ? (
+                <>
+                  <span className="text-warning">{m.ahead(money(ahead, { decimals: 0 }))}</span>{' '}
+                  {m.aheadRest}
+                </>
+              ) : (
+                <>
+                  <span className="text-positive">{m.below(money(-ahead, { decimals: 0 }))}</span>{' '}
+                  {m.belowRest}
+                </>
+              )}
+            </p>
+          )
         )}
       </div>
       <dl className="grid grid-cols-3 divide-x divide-line rounded-control border border-line bg-sunken">
@@ -299,9 +330,10 @@ function BudgetRow({ line, isCurrent }: { line: BudgetLine; isCurrent: boolean }
   );
 }
 
-function SpendShare({ month }: { month: BudgetMonth | undefined }) {
+function SpendShare({ month, noData }: { month: BudgetMonth | undefined; noData: boolean }) {
   const [active, setActive] = useState<string | null>(null);
   const m = useMessages(budgetMessages).share;
+  const page = useMessages(budgetMessages).page;
   const items = useMemo(() => {
     if (!month) return [];
     const sorted = [...month.lines].sort((a, b) => b.spentCents - a.spentCents);
@@ -315,7 +347,13 @@ function SpendShare({ month }: { month: BudgetMonth | undefined }) {
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="spend-share">
       <PanelHeader id="spend-share" title={m.title} description={m.description} />
-      {month ? (
+      {month && noData ? (
+        // Nothing spent: an empty ring and no legend, rather than a donut of zeros.
+        <div className="mt-6 flex flex-col items-center gap-4">
+          <div aria-hidden className="size-44 rounded-full border-20 border-chart-track" />
+          <p className="text-body text-muted">{page.noSpending}</p>
+        </div>
+      ) : month ? (
         <>
           <div className="mt-6 flex justify-center">
             <DonutChart

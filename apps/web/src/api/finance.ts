@@ -26,41 +26,52 @@ export const financeKeys = {
   upcoming: (limit: number, lang: string) => ['upcoming', limit, lang] as const,
 };
 
-export function useCashFlow() {
-  const lang = useLanguage();
-  return useQuery({ queryKey: financeKeys.cashFlow(lang), queryFn: sample.getCashFlow });
+/** Off (`enabled: false`) for a business with no transactions: the sample is not its data. */
+interface SampleOptions {
+  enabled?: boolean;
 }
 
-export function useBudgets(offset: number) {
+export function useCashFlow({ enabled = true }: SampleOptions = {}) {
+  const lang = useLanguage();
+  return useQuery({ queryKey: financeKeys.cashFlow(lang), queryFn: sample.getCashFlow, enabled });
+}
+
+export function useBudgets(offset: number, { enabled = true }: SampleOptions = {}) {
   const lang = useLanguage();
   return useQuery({
     queryKey: financeKeys.budgets(offset, lang),
     queryFn: () => sample.getBudgets(offset),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 
-export function useScenarios() {
+export function useScenarios({ enabled = true }: SampleOptions = {}) {
   const lang = useLanguage();
-  return useQuery({ queryKey: financeKeys.scenarios(lang), queryFn: sample.listScenarios });
+  return useQuery({
+    queryKey: financeKeys.scenarios(lang),
+    queryFn: sample.listScenarios,
+    enabled,
+  });
 }
 
-export function useScenarioResult(id: string | undefined) {
+export function useScenarioResult(id: string | undefined, { enabled = true }: SampleOptions = {}) {
   const lang = useLanguage();
   return useQuery({
     queryKey: financeKeys.scenario(id ?? '', lang),
     queryFn: () => sample.getScenarioResult(id!),
-    enabled: Boolean(id),
+    enabled: enabled && Boolean(id),
     placeholderData: keepPreviousData,
   });
 }
 
-export function useReport(year: number) {
+export function useReport(year: number, { enabled = true }: SampleOptions = {}) {
   const lang = useLanguage();
   return useQuery({
     queryKey: financeKeys.report(year, lang),
     queryFn: () => sample.getReport(year),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 
@@ -73,9 +84,13 @@ export function useUpcomingPayments(limit = 5) {
   });
 }
 
-export function useNotifications() {
+export function useNotifications({ enabled = true }: SampleOptions = {}) {
   const lang = useLanguage();
-  return useQuery({ queryKey: financeKeys.notifications(lang), queryFn: sample.getNotifications });
+  return useQuery({
+    queryKey: financeKeys.notifications(lang),
+    queryFn: sample.getNotifications,
+    enabled,
+  });
 }
 
 export { exportTransactions } from '../demo/api';

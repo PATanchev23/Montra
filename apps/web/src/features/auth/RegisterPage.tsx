@@ -96,7 +96,7 @@ export function RegisterPage() {
           variant="primary"
           size="lg"
           disabled={register.isPending}
-          className="mt-1 w-full"
+          className="mt-2 h-13 w-full"
         >
           {register.isPending && <Loader2 className="animate-spin" />}
           {register.isPending ? m.submitting : m.submit}
@@ -108,7 +108,7 @@ export function RegisterPage() {
         <Link
           to="/login"
           state={location.state}
-          className="font-medium text-accent underline-offset-4 hover:underline"
+          className="font-medium text-ink underline decoration-1 underline-offset-4 hover:decoration-2"
         >
           {m.signIn}
         </Link>

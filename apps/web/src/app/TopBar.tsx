@@ -3,11 +3,13 @@ import { DropdownMenu } from 'radix-ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useNotifications } from '../api/finance';
+import { useHasTransactions } from '../api/transactions';
 import { Logo } from '../components/Logo';
 import { IconButton } from '../components/ui/IconButton';
 import { SearchField } from '../components/ui/Input';
 import { Menu, MenuContent, MenuLabel, MenuTrigger } from '../components/ui/Menu';
 import { Tooltip } from '../components/ui/Tooltip';
+import { useCurrentMembership } from '../features/auth/currentUser';
 import { PeriodPicker } from '../features/dashboard/PeriodPicker';
 import { useMessages } from '../i18n';
 import { common } from '../i18n/common';
@@ -71,9 +73,13 @@ function GlobalSearch() {
 
 const toneDot = { neutral: 'bg-ink-2', warning: 'bg-warning', negative: 'bg-negative' } as const;
 
-function Notifications() {
+/**
+ * Notifications come from the TechStore sample layer, so a business with no
+ * transactions of its own gets none (and a plain line saying so).
+ */
+function Notifications({ sample }: { sample: boolean }) {
   const navigate = useNavigate();
-  const { data = [] } = useNotifications();
+  const { data = [] } = useNotifications({ enabled: sample });
   const m = useMessages(common).topBar;
 
   return (
@@ -88,6 +94,9 @@ function Notifications() {
       </MenuTrigger>
       <MenuContent className="w-80">
         <MenuLabel>{m.notifications}</MenuLabel>
+        {data.length === 0 && (
+          <p className="px-2.5 pt-1 pb-3 text-body-sm text-muted">{m.noNotifications}</p>
+        )}
         {data.map((n) => (
           <DropdownMenu.Item
             key={n.id}
@@ -139,6 +148,9 @@ export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const m = useMessages(common);
+  // Sample figures, and the badge that labels them, only for a business with transactions of its own.
+  const { business } = useCurrentMembership();
+  const sample = useHasTransactions(business.id).hasTransactions === true;
   return (
     <div className="flex h-[72px] items-center gap-3 sm:gap-4">
       <IconButton
@@ -155,7 +167,7 @@ export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
         <GlobalSearch />
       </div>
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
-        {!LIVE_DATA_PATHS.includes(location.pathname) && <SampleDataMarker />}
+        {sample && !LIVE_DATA_PATHS.includes(location.pathname) && <SampleDataMarker />}
         {location.pathname === '/' && <PeriodPicker />}
         <IconButton
           label={m.topBar.searchLabel}
@@ -166,7 +178,7 @@ export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
         >
           <Search />
         </IconButton>
-        <Notifications />
+        <Notifications sample={sample} />
       </div>
     </div>
   );

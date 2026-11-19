@@ -1,4 +1,5 @@
 import { FlaskConical, Plus } from 'lucide-react';
+import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { useScenarioResult, useScenarios } from '../../api/finance';
 import { Legend, TooltipRow, TooltipTitle } from '../../components/charts/ChartTooltip';
@@ -14,13 +15,28 @@ import { cn } from '../../lib/cn';
 import { useMessages } from '../../i18n';
 import { formatDate, money } from '../../lib/format';
 import { simulationMessages } from './messages';
+import { useHasTransactions } from '../../api/transactions';
+import { EmptyChartNote } from '../../components/finance/EmptyChartNote';
+import { common } from '../../i18n/common';
+import { emptyScenarioResult } from '../noData';
+import { useCurrentMembership } from '../auth/currentUser';
 
 export function SimulationsPage() {
   const [params, setParams] = useSearchParams();
-  const scenarios = useScenarios();
+  // Scenarios come from the TechStore sample layer, which must not stand in for a
+  // business that has recorded nothing: that business sees the same page, at zero.
+  const { business, role } = useCurrentMembership();
+  const gate = useHasTransactions(business.id);
+  const noData = gate.hasTransactions === false;
+  const sample = gate.hasTransactions === true;
+  const scenarios = useScenarios({ enabled: sample });
   const selectedId = params.get('scenario') ?? scenarios.data?.[0]?.id;
-  const result = useScenarioResult(selectedId);
+  const result = useScenarioResult(selectedId, { enabled: sample });
   const m = useMessages(simulationMessages).page;
+  const zero = useMemo(
+    () => (noData ? emptyScenarioResult(m.noScenario) : undefined),
+    [noData, m.noScenario],
+  );
 
   return (
     <div className="flex flex-col gap-7">
@@ -40,14 +56,17 @@ export function SimulationsPage() {
         }
       />
 
-      {scenarios.isError ? (
+      {!noData && (gate.isError || scenarios.isError) ? (
         <Panel>
-          <ErrorState title={m.loadError} onRetry={() => scenarios.refetch()} />
+          <ErrorState
+            title={m.loadError}
+            onRetry={() => (gate.isError ? gate.refetch() : scenarios.refetch())}
+          />
         </Panel>
       ) : (
         <div className="grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
           <ScenarioList
-            scenarios={scenarios.data}
+            scenarios={noData ? [] : scenarios.data}
             selectedId={selectedId}
             onSelect={(id) => setParams({ scenario: id }, { replace: true })}
           />
@@ -56,7 +75,12 @@ export function SimulationsPage() {
               <ErrorState title={m.runError} onRetry={() => result.refetch()} />
             </Panel>
           ) : (
-            <ScenarioDetail result={result.data} stale={result.isPlaceholderData} />
+            <ScenarioDetail
+              result={zero ?? result.data}
+              stale={!noData && result.isPlaceholderData}
+              noData={noData}
+              canEdit={role === 'OWNER'}
+            />
           )}
         </div>
       )}
@@ -74,10 +98,15 @@ function ScenarioList({
   onSelect: (id: string) => void;
 }) {
   const m = useMessages(simulationMessages).list;
+  const page = useMessages(simulationMessages).page;
   return (
     <Panel className="p-2" aria-label={m.title}>
       <p className="eyebrow px-3 pt-3 pb-2">{m.title}</p>
-      {scenarios ? (
+      {scenarios && scenarios.length === 0 ? (
+        <p className="mx-1 mb-1 rounded-control bg-sunken px-4 py-6 text-center text-body-sm text-muted">
+          {page.noScenarios}
+        </p>
+      ) : scenarios ? (
         <ul role="radiogroup" aria-label={m.choose} className="flex flex-col gap-1">
           {scenarios.map((s) => {
             const active = s.id === selectedId;
@@ -127,9 +156,21 @@ function ScenarioList({
   );
 }
 
-function ScenarioDetail({ result, stale }: { result: ScenarioResult | undefined; stale: boolean }) {
+function ScenarioDetail({
+  result,
+  stale,
+  noData = false,
+  canEdit = false,
+}: {
+  result: ScenarioResult | undefined;
+  stale: boolean;
+  /** No transactions: a flat plan at zero, with nothing to compare. */
+  noData?: boolean;
+  canEdit?: boolean;
+}) {
   const t = useMessages(simulationMessages);
   const s$ = t.stats;
+  const c = useMessages(common);
   if (!result) {
     return (
       <Panel className="p-6">
@@ -159,7 +200,7 @@ function ScenarioDetail({ result, stale }: { result: ScenarioResult | undefined;
       label: s$.difference,
       hint: delta < 0 ? s$.less : s$.more,
       value: money(delta, { decimals: 0, sign: 'always' }),
-      className: delta < 0 ? 'text-negative' : 'text-positive',
+      className: noData ? 'text-ink' : delta < 0 ? 'text-negative' : 'text-positive',
     },
     {
       label: s$.lowest,
@@ -175,7 +216,9 @@ function ScenarioDetail({ result, stale }: { result: ScenarioResult | undefined;
         <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-ink">
           {result.scenario.name}
         </h2>
-        <p className="mt-1 text-[14px] text-ink-2">{result.scenario.description}</p>
+        <p className="mt-1 text-[14px] text-ink-2">
+          {noData ? c.noTransactions.title : result.scenario.description}
+        </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {result.scenario.assumptions.map((a) => (
             <Badge key={a} tone="analytic">
@@ -196,7 +239,9 @@ function ScenarioDetail({ result, stale }: { result: ScenarioResult | undefined;
               >
                 {s.value}
               </dd>
-              <dd className="mt-0.5 text-[11px] text-faint">{s.hint}</dd>
+              <dd className={cn('mt-0.5 text-[11px]', noData ? 'text-muted' : 'text-faint')}>
+                {noData ? c.delta.noData : s.hint}
+              </dd>
             </div>
           ))}
         </dl>
@@ -206,7 +251,7 @@ function ScenarioDetail({ result, stale }: { result: ScenarioResult | undefined;
         <PanelHeader
           id="scenario-chart"
           title={t.chart.title}
-          description={t.chart.description}
+          description={noData ? c.noTransactions.title : t.chart.description}
           actions={
             <Legend
               items={[
@@ -216,52 +261,55 @@ function ScenarioDetail({ result, stale }: { result: ScenarioResult | undefined;
             />
           }
         />
-        <div className="mt-6">
-          <LineChart
-            height={300}
-            ariaLabel={t.chart.label(result.scenario.name)}
-            series={[
-              {
-                id: 'baseline',
-                label: s$.currentPlan,
-                tone: 'secondary',
-                points: result.baseline.map((p) => ({ date: p.date, value: p.balanceCents })),
-              },
-              {
-                id: 'scenario',
-                label: t.chart.scenario,
-                tone: 'primary',
-                area: true,
-                points: result.projection.map((p) => ({ date: p.date, value: p.balanceCents })),
-              },
-            ]}
-            renderTooltip={(date) => {
-              const base = result.baseline.find((p) => p.date === date)?.balanceCents ?? 0;
-              const scenario = projection.get(date) ?? 0;
-              return (
-                <>
-                  <TooltipTitle>{formatDate(date, 'EEE, d MMM yyyy')}</TooltipTitle>
-                  <TooltipRow
-                    swatch="bg-chart-2"
-                    label={s$.currentPlan}
-                    value={money(base, { decimals: 0 })}
-                  />
-                  <TooltipRow
-                    swatch="bg-chart-1"
-                    label={t.chart.scenario}
-                    value={money(scenario, { decimals: 0 })}
-                  />
-                  <div className="mt-1.5 border-t border-line pt-1.5">
+        <div className="relative mt-6">
+          <div className={noData ? 'opacity-40' : undefined}>
+            <LineChart
+              height={300}
+              ariaLabel={t.chart.label(result.scenario.name)}
+              series={[
+                {
+                  id: 'baseline',
+                  label: s$.currentPlan,
+                  tone: 'secondary',
+                  points: result.baseline.map((p) => ({ date: p.date, value: p.balanceCents })),
+                },
+                {
+                  id: 'scenario',
+                  label: t.chart.scenario,
+                  tone: 'primary',
+                  area: true,
+                  points: result.projection.map((p) => ({ date: p.date, value: p.balanceCents })),
+                },
+              ]}
+              renderTooltip={(date) => {
+                const base = result.baseline.find((p) => p.date === date)?.balanceCents ?? 0;
+                const scenario = projection.get(date) ?? 0;
+                return (
+                  <>
+                    <TooltipTitle>{formatDate(date, 'EEE, d MMM yyyy')}</TooltipTitle>
                     <TooltipRow
-                      label={s$.difference}
-                      value={money(scenario - base, { decimals: 0, sign: 'always' })}
-                      emphasis
+                      swatch="bg-chart-2"
+                      label={s$.currentPlan}
+                      value={money(base, { decimals: 0 })}
                     />
-                  </div>
-                </>
-              );
-            }}
-          />
+                    <TooltipRow
+                      swatch="bg-chart-1"
+                      label={t.chart.scenario}
+                      value={money(scenario, { decimals: 0 })}
+                    />
+                    <div className="mt-1.5 border-t border-line pt-1.5">
+                      <TooltipRow
+                        label={s$.difference}
+                        value={money(scenario - base, { decimals: 0, sign: 'always' })}
+                        emphasis
+                      />
+                    </div>
+                  </>
+                );
+              }}
+            />
+          </div>
+          {noData && <EmptyChartNote canEdit={canEdit} ownerText={t.page.chartOwner} />}
         </div>
       </Panel>
 

@@ -33,6 +33,11 @@ export const dashboardMessages = defineMessages(
       performed: (business: string, phrase: string) =>
         `Here’s how ${business} performed ${phrase}.`,
       doing: (business: string) => `Here’s how ${business} is doing.`,
+      startOwner: (business: string) =>
+        `Add your first transactions to see how ${business} is doing.`,
+      startViewer: 'No transactions yet.',
+      import: 'Import',
+      addTransaction: 'Add transaction',
       transactions: (n: string, count: number) => `${n} transaction${count === 1 ? '' : 's'}`,
       fromDate: 'From date',
       to: 'to',
@@ -42,10 +47,6 @@ export const dashboardMessages = defineMessages(
     states: {
       checkRange: 'Check the date range',
       loadError: 'Could not load the dashboard',
-      empty: 'No transactions yet',
-      emptyOwner: 'Your dashboard fills in as soon as you record a payment or import your history.',
-      emptyViewer: 'The dashboard fills in once the business owner records transactions.',
-      addOrImport: 'Add or import transactions',
     },
     picker: {
       title: 'Reporting period',
@@ -75,6 +76,8 @@ export const dashboardMessages = defineMessages(
       describe: (title: string, income: string, expenses: string, net: string) =>
         `${title}: income ${income}, expenses ${expenses}, net ${net}.`,
       noTransactions: 'No transactions in this period.',
+      firstTransactions: 'Add your first transactions to see your daily cash flow',
+      noTransactionsYet: 'No transactions yet',
     },
     panels: {
       viewAll: 'View all',
@@ -85,6 +88,7 @@ export const dashboardMessages = defineMessages(
       breakdown: 'Expense breakdown',
       otherCategories: 'Other categories',
       noExpenses: 'No expenses in this period.',
+      noExpensesYet: 'No expenses yet',
       expensesByCategory: 'Expenses by category',
       expenseCategories: 'Expense categories',
       total: 'Total',
@@ -97,6 +101,7 @@ export const dashboardMessages = defineMessages(
       viewAllUpcoming: 'View all upcoming payments',
       upcomingError: 'Could not load upcoming payments',
       nothingDue: 'Nothing is due in the next 30 days.',
+      upcomingStart: 'Payments due in the next 30 days will appear here.',
       estimated: 'est. · ',
       scenario: 'Scenario preview',
       viewAllScenarios: 'View all scenarios',
@@ -106,6 +111,8 @@ export const dashboardMessages = defineMessages(
       vsPlan: 'vs. plan',
       assumptions: 'Assumptions',
       run: 'Run simulation',
+      scenarioStart:
+        'Once your transactions are in, you can test a decision here before you make it.',
     },
   },
   {
@@ -138,6 +145,11 @@ export const dashboardMessages = defineMessages(
       performed: (business: string, phrase: string) =>
         `Ето как се представи ${business} ${phrase}.`,
       doing: (business: string) => `Ето как се справя ${business}.`,
+      startOwner: (business: string) =>
+        `Добавете първите си транзакции, за да видите как се справя ${business}.`,
+      startViewer: 'Все още няма транзакции.',
+      import: 'Импорт',
+      addTransaction: 'Добави транзакция',
       transactions: (n: string, count: number) =>
         `${n} ${count === 1 ? 'транзакция' : 'транзакции'}`,
       fromDate: 'Начална дата',
@@ -148,11 +160,6 @@ export const dashboardMessages = defineMessages(
     states: {
       checkRange: 'Проверете периода',
       loadError: 'Таблото не може да се зареди',
-      empty: 'Все още няма транзакции',
-      emptyOwner:
-        'Таблото ви се попълва веднага щом запишете плащане или импортирате историята си.',
-      emptyViewer: 'Таблото се попълва, когато собственикът на бизнеса запише транзакции.',
-      addOrImport: 'Добавете или импортирайте транзакции',
     },
     picker: {
       title: 'Отчетен период',
@@ -182,6 +189,8 @@ export const dashboardMessages = defineMessages(
       describe: (title: string, income: string, expenses: string, net: string) =>
         `${title}: приходи ${income}, разходи ${expenses}, нетно ${net}.`,
       noTransactions: 'Няма транзакции за този период.',
+      firstTransactions: 'Добавете първите си транзакции, за да видите дневния си паричен поток',
+      noTransactionsYet: 'Все още няма транзакции',
     },
     panels: {
       viewAll: 'Виж всички',
@@ -192,6 +201,7 @@ export const dashboardMessages = defineMessages(
       breakdown: 'Разходи по категории',
       otherCategories: 'Други категории',
       noExpenses: 'Няма разходи за този период.',
+      noExpensesYet: 'Все още няма разходи',
       expensesByCategory: 'Разходи по категории',
       expenseCategories: 'Категории разходи',
       total: 'Общо',
@@ -204,6 +214,7 @@ export const dashboardMessages = defineMessages(
       viewAllUpcoming: 'Виж всички предстоящи плащания',
       upcomingError: 'Предстоящите плащания не могат да се заредят',
       nothingDue: 'Нищо не е дължимо през следващите 30 дни.',
+      upcomingStart: 'Тук ще се показват плащанията за следващите 30 дни.',
       estimated: 'прибл. · ',
       scenario: 'Преглед на сценарий',
       viewAllScenarios: 'Виж всички сценарии',
@@ -213,6 +224,8 @@ export const dashboardMessages = defineMessages(
       vsPlan: 'спрямо плана',
       assumptions: 'Допускания',
       run: 'Пусни симулацията',
+      scenarioStart:
+        'Щом транзакциите ви са тук, ще можете да тествате решение, преди да го вземете.',
     },
   },
 );

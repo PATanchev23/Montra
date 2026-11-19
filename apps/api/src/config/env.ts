@@ -1,3 +1,4 @@
+import { normalizeEmail } from '@montra/shared';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 
@@ -33,6 +34,9 @@ const envSchema = z
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(10),
     /** Refreshes per IP per minute; higher, as every page load refreshes once. */
     REFRESH_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(30),
+    /** The judges' shared demo accounts, also read by the seed. They cannot be deleted. */
+    DEMO_OWNER_EMAIL: z.string().optional(),
+    DEMO_VIEWER_EMAIL: z.string().optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
@@ -53,11 +57,15 @@ const envSchema = z
       });
     }
   })
-  .transform(({ JWT_SECRET, ...env }) => ({
+  .transform(({ JWT_SECRET, DEMO_OWNER_EMAIL, DEMO_VIEWER_EMAIL, ...env }) => ({
     ...env,
     // Outside production a missing secret gets a random one per process: the
     // app works with no setup, and restarts merely force a token refresh.
     JWT_SECRET: JWT_SECRET || randomBytes(48).toString('base64url'),
+    /** Normalised emails of accounts that cannot be deleted; blank ones are skipped. */
+    PROTECTED_ACCOUNT_EMAILS: [DEMO_OWNER_EMAIL, DEMO_VIEWER_EMAIL]
+      .map((email) => normalizeEmail(email ?? ''))
+      .filter(Boolean),
   }));
 
 export type Env = z.infer<typeof envSchema>;

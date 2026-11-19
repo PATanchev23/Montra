@@ -14,6 +14,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { errorMessage } from '../../api/client';
 import {
   fetchTransactions,
@@ -103,9 +104,31 @@ export function TransactionsPage() {
     [categories.data],
   );
 
-  const [sheet, setSheet] = useState<SheetState>(null);
-  const [importSheet, setImportSheet] = useState<ImportSheetState>(null);
+  // Links from elsewhere (the empty dashboard) open a sheet: ?import=new or ?new=1.
+  // Read once on arrival; the parameter is then dropped from the address, so going
+  // back or reloading does not reopen it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openImport = searchParams.get('import') === 'new';
+  const openNew = searchParams.get('new') === '1';
+  const [sheet, setSheet] = useState<SheetState>(() =>
+    canEdit && openNew && !openImport ? { mode: 'create' } : null,
+  );
+  const [importSheet, setImportSheet] = useState<ImportSheetState>(() =>
+    canEdit && openImport ? { importId: null } : null,
+  );
   const [exporting, setExporting] = useState(false);
+  useEffect(() => {
+    if (!openImport && !openNew) return;
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.delete('import');
+        next.delete('new');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [openImport, openNew, setSearchParams]);
 
   const { data, isPending, isError, isPlaceholderData, refetch, error } = list;
 

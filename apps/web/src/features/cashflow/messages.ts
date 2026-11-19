@@ -8,6 +8,9 @@ export const cashFlowMessages = defineMessages(
       description:
         'Twelve months of history and a 90-day projection built from scheduled payments and seasonal averages.',
       loadError: 'Could not load cash flow',
+      chartOwner: 'Add your first transactions to see income and expenses month by month',
+      balanceOwner: 'Your balance and its 90-day projection appear once you add transactions',
+      noUpcoming: 'No upcoming payments yet',
     },
     stats: {
       opening: 'Opening balance',
@@ -66,6 +69,9 @@ export const cashFlowMessages = defineMessages(
       description:
         'Дванадесет месеца история и прогноза за 90 дни, изградена от планираните плащания и сезонните средни стойности.',
       loadError: 'Паричният поток не може да се зареди',
+      chartOwner: 'Добавете първите си транзакции, за да видите приходите и разходите по месеци',
+      balanceOwner: 'Наличността и прогнозата за 90 дни се появяват, щом добавите транзакции',
+      noUpcoming: 'Все още няма предстоящи плащания',
     },
     stats: {
       opening: 'Начален баланс',

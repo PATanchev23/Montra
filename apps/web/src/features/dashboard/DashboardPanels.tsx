@@ -91,9 +91,12 @@ function categoryHref(category: string, from: string, to: string) {
 export function ExpenseBreakdownPanel({
   data,
   periodLabel,
+  noData = false,
 }: {
   data: DashboardResponse | undefined;
   periodLabel: string;
+  /** No transactions at all: an empty ring in place of the donut, and no legend. */
+  noData?: boolean;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const m = useMessages(dashboardMessages).panels;
@@ -120,6 +123,14 @@ export function ExpenseBreakdownPanel({
               <Skeleton key={i} className="h-4 w-full" />
             ))}
           </div>
+        </div>
+      ) : noData ? (
+        <div className="mt-5 flex flex-col items-center gap-x-8 gap-y-4 @md:flex-row">
+          <div
+            aria-hidden
+            className="size-[156px] shrink-0 rounded-full border-[25px] border-chart-track"
+          />
+          <p className="text-body text-muted">{m.noExpensesYet}</p>
         </div>
       ) : items.length === 0 ? (
         <PanelNote>{m.noExpenses}</PanelNote>
@@ -204,7 +215,14 @@ export function ExpenseBreakdownPanel({
 // ── Recent transactions ──────────────────────────────────────────────────
 
 /** The business's latest entries, newest first, whatever the period. */
-export function RecentTransactionsPanel({ data }: { data: DashboardResponse | undefined }) {
+export function RecentTransactionsPanel({
+  data,
+  noData = false,
+}: {
+  data: DashboardResponse | undefined;
+  /** No transactions at all: no "View all", which would open an empty list. */
+  noData?: boolean;
+}) {
   const today = data ? parseISO(data.today) : new Date();
   const m = useMessages(dashboardMessages).panels;
   return (
@@ -214,7 +232,7 @@ export function RecentTransactionsPanel({ data }: { data: DashboardResponse | un
         className="items-start"
         title={m.recent}
         description={m.recentHint}
-        actions={<ViewAll to="/transactions" label={m.viewAllTransactions} />}
+        actions={!noData && <ViewAll to="/transactions" label={m.viewAllTransactions} />}
       />
       <div className="mt-2">
         {!data ? (
@@ -238,6 +256,32 @@ export function RecentTransactionsPanel({ data }: { data: DashboardResponse | un
           </ul>
         )}
       </div>
+    </Panel>
+  );
+}
+
+// ── Before the first transaction ─────────────────────────────────────────
+
+/**
+ * Stands in for a forward-looking panel while the business has no
+ * transactions at all. It reads nothing: the TechStore sample layer must
+ * never reach a real account that has not recorded anything yet.
+ */
+export function NotYetPanel({
+  id,
+  title,
+  note,
+  className,
+}: {
+  id: string;
+  title: string;
+  note: string;
+  className?: string;
+}) {
+  return (
+    <Panel className={cn('p-5 sm:p-6', className)} aria-labelledby={id}>
+      <PanelHeader id={id} title={title} />
+      <PanelNote>{note}</PanelNote>
     </Panel>
   );
 }

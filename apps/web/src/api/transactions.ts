@@ -73,6 +73,22 @@ export function useTransactionList(
   });
 }
 
+/**
+ * Whether the business has recorded anything at all: one row is enough to
+ * know. Undefined while loading. It sits under the transactions key, so it
+ * refreshes after any add, edit, delete or import. Pages that still run on
+ * the TechStore sample layer use it to keep that sample away from a business
+ * with no transactions of its own.
+ */
+export function useHasTransactions(businessId: string) {
+  const query = useTransactionList(businessId, { page: 1, pageSize: 1, sort: 'date_desc' });
+  return {
+    hasTransactions: query.data ? query.data.total > 0 : undefined,
+    isError: query.isError,
+    refetch: query.refetch,
+  };
+}
+
 /** Categories in use, for the filter and the form's suggestions. */
 export function useTransactionCategories(businessId: string) {
   return useQuery({

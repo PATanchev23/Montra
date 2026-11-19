@@ -261,6 +261,12 @@ export const dashboardResponseSchema = z.object({
     net: comparedAmountSchema,
     transactionCount: z.int().min(0),
     previousTransactionCount: z.int().min(0),
+    /**
+     * Every transaction the business has, whatever the period. Zero means
+     * nothing has been recorded yet, which the dashboard shows differently
+     * from a period that happens to be empty.
+     */
+    totalTransactionCount: z.int().min(0),
   }),
   trend: z.object({
     interval: trendIntervalSchema,

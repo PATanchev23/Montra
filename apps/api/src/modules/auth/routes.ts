@@ -4,6 +4,7 @@ import {
   AUTH_ERROR_CODES,
   authResponseSchema,
   currentUserResponseSchema,
+  deleteAccountRequestSchema,
   loginRequestSchema,
   registerRequestSchema,
   type AuthResponse,
@@ -18,6 +19,7 @@ import { AppError } from '../../lib/app-error';
 import { hashPassword } from '../../lib/credentials';
 import { authOf } from '../../plugins/auth';
 import {
+  deleteAccount,
   loadCurrentUser,
   registerUser,
   revokeSession,
@@ -191,6 +193,36 @@ export const authRoutes: FastifyPluginAsyncZod<AuthRoutesOptions> = async (app, 
     },
     async (request): Promise<CurrentUserResponse> =>
       loadCurrentUser(app.db, authOf(request).userId),
+  );
+
+  app.delete(
+    '/me',
+    {
+      // Rate limited like login: the password in the body can be guessed.
+      config: authLimit,
+      preHandler: app.authenticate,
+      schema: {
+        tags: ['auth'],
+        summary: 'Delete the signed-in user’s account',
+        description:
+          'Requires the current password. Deletes the user, every session they have, and each business they own alone with all of its data. Businesses with another owner are kept. Demo accounts cannot be deleted.',
+        security: [{ bearerAuth: [] }],
+        body: deleteAccountRequestSchema,
+        response: { 204: z.null(), ...errorResponses },
+      },
+    },
+    async (request, reply) => {
+      const { userId } = authOf(request);
+      const { deletedBusinessIds } = await deleteAccount(
+        app.db,
+        userId,
+        request.body,
+        env.PROTECTED_ACCOUNT_EMAILS,
+      );
+      request.log.info({ userId, deletedBusinessIds }, 'Account deleted');
+      clearRefreshCookie(reply);
+      return reply.status(204).send(null);
+    },
   );
 };
 

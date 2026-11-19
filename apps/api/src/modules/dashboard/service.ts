@@ -127,7 +127,7 @@ export async function getDashboard(
 
   return db.$transaction(
     async (tx) => {
-      const [current, previous, daily, breakdown, recent] = await Promise.all([
+      const [current, previous, daily, breakdown, recent, total] = await Promise.all([
         totals(tx, businessId, from, to),
         totals(tx, businessId, previousFrom, previousTo),
         tx.transaction.groupBy({
@@ -142,6 +142,7 @@ export async function getDashboard(
           take: DASHBOARD_RECENT_COUNT,
           select: transactionSelect,
         }),
+        tx.transaction.count({ where: { businessId } }),
       ]);
 
       const points = trendBuckets(from, to, period.interval).map((bucket) => {
@@ -173,6 +174,7 @@ export async function getDashboard(
           net: compared(current.income - current.expenses, previous.income - previous.expenses),
           transactionCount: current.count,
           previousTransactionCount: previous.count,
+          totalTransactionCount: total,
         },
         trend: { interval: period.interval, points },
         expenseBreakdown: breakdown,

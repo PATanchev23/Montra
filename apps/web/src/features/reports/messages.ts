@@ -29,6 +29,8 @@ export const reportMessages = defineMessages(
       print: 'Print / PDF',
       exportPnl: 'Export P&L',
       loadError: 'Could not build this report',
+      chartOwner: 'Add your first transactions to see revenue month by month',
+      noRevenue: 'No revenue yet',
     },
     summary: {
       revenue: 'Revenue',
@@ -107,6 +109,8 @@ export const reportMessages = defineMessages(
       print: 'Печат / PDF',
       exportPnl: 'Експорт на ОПР',
       loadError: 'Този отчет не може да се изготви',
+      chartOwner: 'Добавете първите си транзакции, за да видите приходите по месеци',
+      noRevenue: 'Все още няма приходи',
     },
     summary: {
       revenue: 'Приходи',

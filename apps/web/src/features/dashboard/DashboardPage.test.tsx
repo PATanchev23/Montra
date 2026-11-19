@@ -235,29 +235,97 @@ describe('dashboard states', () => {
     ).toBeInTheDocument();
   });
 
-  it('invites the owner to add transactions when there are none', async () => {
+  it('keeps the layout for a business with no transactions, inviting the owner to start', async () => {
     ledgerServer();
     renderTransactions('/');
 
-    expect(await screen.findByText('No transactions yet')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Add or import transactions' })).toHaveAttribute(
+    expect(
+      await screen.findByText('Add your first transactions to see how TechStore is doing.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/0 transactions/)).toBeInTheDocument();
+
+    // Same tiles, €0.00, and no comparison, change or percentage to misread.
+    for (const name of ['Net cash flow', 'Income', 'Expenses']) {
+      const tile = kpi(name);
+      expect(within(tile).getByText('€0.00')).toBeInTheDocument();
+      expect(within(tile).getByText('No data yet')).toBeInTheDocument();
+      expect(within(tile).queryByText(/%|vs\./)).not.toBeInTheDocument();
+    }
+
+    // The chart stays, readable by keyboard and screen reader, behind a note and an Import button.
+    expect(
+      screen.getByText('Add your first transactions to see your daily cash flow'),
+    ).toBeInTheDocument();
+    const chart = screen.getByRole('region', { name: 'Cash flow overview' });
+    expect(
+      within(chart).getByRole('table', { name: 'Income by day, Last 30 days' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Import transactions' })).toHaveAttribute(
       'href',
-      '/transactions',
+      '/transactions?import=new',
     );
+    expect(screen.getByRole('link', { name: 'Import' })).toHaveAttribute(
+      'href',
+      '/transactions?import=new',
+    );
+    expect(screen.getByRole('link', { name: 'Add transaction' })).toHaveAttribute(
+      'href',
+      '/transactions?new=1',
+    );
+
+    // An empty ring with no legend, and no sample data anywhere.
+    expect(screen.getByText('No expenses yet')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Expense categories' })).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Payments due in the next 30 days will appear here.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Sample data/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Run simulation' })).not.toBeInTheDocument();
   });
 
-  it('tells a viewer that the owner has not recorded anything yet', async () => {
+  it('opens the import flow from the empty dashboard', async () => {
+    ledgerServer();
+    renderTransactions('/');
+    const u = userEvent.setup();
+
+    await u.click(await screen.findByRole('link', { name: 'Import' }));
+    expect(await screen.findByRole('dialog', { name: 'Import transactions' })).toBeInTheDocument();
+  });
+
+  it('shows a viewer the same empty layout with no actions and no dead ends', async () => {
     ledgerServer({ role: 'VIEWER' });
+    renderTransactions('/');
+
+    expect(await screen.findByText('No transactions yet.')).toBeInTheDocument();
+    expect(within(kpi('Income')).getByText('No data yet')).toBeInTheDocument();
+    // In the chart panel: its description, and the note over the empty tracks.
+    const chart = screen.getByRole('region', { name: 'Cash flow overview' });
+    expect(within(chart).getAllByText('No transactions yet')).toHaveLength(2);
+    expect(screen.queryByRole('link', { name: /Import/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Add transaction' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View all transactions' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sample data/)).not.toBeInTheDocument();
+  });
+
+  it('speaks Bulgarian when there are no transactions', async () => {
+    useUiStore.setState({ language: 'bg' });
+    onTestFinished(() => {
+      useUiStore.setState({ language: 'en' });
+    });
+    ledgerServer();
     renderTransactions('/');
 
     expect(
       await screen.findByText(
-        'The dashboard fills in once the business owner records transactions.',
+        'Добавете първите си транзакции, за да видите как се справя TechStore.',
       ),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('link', { name: 'Add or import transactions' }),
-    ).not.toBeInTheDocument();
+    expect(screen.getAllByText('Още няма данни')).toHaveLength(3);
+    expect(screen.getByText('Все още няма разходи')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Импорт' })).toHaveAttribute(
+      'href',
+      '/transactions?import=new',
+    );
   });
 
   it('shows viewers the same figures as owners', async () => {
@@ -268,7 +336,7 @@ describe('dashboard states', () => {
     ).toBeInTheDocument();
   });
 
-  it('says so when a period has no transactions', async () => {
+  it('shows real zeros, not an empty state, when only the period is empty', async () => {
     useUiStore.setState({ period: { period: '7d' } });
     ledgerServer({ transactions: history().filter((t) => t.date < '2026-11-01') });
     renderTransactions('/');
@@ -276,6 +344,34 @@ describe('dashboard states', () => {
     expect(await screen.findByText('No transactions in this period.')).toBeInTheDocument();
     expect(screen.getByText('No expenses in this period.')).toBeInTheDocument();
     expect(within(kpi('Income')).getAllByText('€0.00')).toHaveLength(2);
+    // Nothing either side of the comparison: zero against zero is no change.
+    expect(within(kpi('Income')).getByText('No change')).toBeInTheDocument();
+    expect(screen.queryByText('No data yet')).not.toBeInTheDocument();
+    expect(screen.getByText(/Here’s how TechStore performed/)).toBeInTheDocument();
+  });
+
+  it('compares an empty period with the real period before it', async () => {
+    // 11 Oct – 9 Nov is empty; the period before holds €1,000 income and €500 expenses.
+    ledgerServer({ transactions: history().filter((t) => t.date < '2026-10-11') });
+    renderTransactions('/');
+
+    const income = await screen.findByRole('group', { name: 'Income' });
+    expect(await within(income).findByText('−€1,000.00')).toBeInTheDocument();
+    expect(within(income).getByText('100%')).toBeInTheDocument();
+    expect(within(income).getByText('€0.00')).toBeInTheDocument();
+    expect(within(kpi('Expenses')).getByText('100%')).toBeInTheDocument();
+    expect(screen.queryByText('No data yet')).not.toBeInTheDocument();
+  });
+
+  it('says "No earlier data", without an arrow or colour, when the period before is empty', async () => {
+    ledgerServer({ transactions: history().filter((t) => t.date >= '2026-11-01') });
+    renderTransactions('/');
+
+    const income = await screen.findByRole('group', { name: 'Income' });
+    const change = await within(income).findByText('No earlier data');
+    expect(change.querySelector('svg')).toBeNull();
+    expect(change.className).not.toMatch(/text-(positive|negative)/);
+    expect(within(income).queryByText(/NaN|Infinity/)).not.toBeInTheDocument();
   });
 });
 

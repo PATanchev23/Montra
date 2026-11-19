@@ -116,11 +116,14 @@ export function CapsuleBarChart({
   const active = hovered ?? (pinned !== null && pinned < count ? pinned : null);
 
   const drawn = layout === 'track' ? series.slice(0, 1) : series.slice(0, 2);
-  const maxValue = Math.max(1, ...drawn.flatMap((s) => s.values));
+  const peak = Math.max(0, ...drawn.flatMap((s) => s.values));
+  const maxValue = Math.max(1, peak);
   const y = scaleLinear().domain([0, maxValue]).nice(tickCount);
   let ticks = y.ticks(tickCount);
   // A nice scale can ask for eight or nine lines; every second one is plenty.
   if (ticks.length > 6) ticks = ticks.filter((_, i) => i % 2 === 0);
+  // Nothing to scale: label the baseline only, not a column of fractions of a cent that all read 0.
+  if (peak === 0) ticks = [0];
   const left = Math.max(28, 14 + Math.max(...ticks.map((t) => formatTick(t).length)) * CHAR);
   const plotWidth = Math.max(0, width - left);
 

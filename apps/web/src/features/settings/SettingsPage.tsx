@@ -1,5 +1,5 @@
-import { ArrowUpRight, Check, Monitor, Moon, Sun } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { ArrowUpRight, Check, Monitor, Moon, Sun, Trash2 } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 import { business } from '../../api/finance';
 import { useHealth } from '../../api/health';
@@ -17,6 +17,7 @@ import { useSignedInUser } from '../auth/currentUser';
 import { LanguageSwitch } from '../../components/LanguageSwitch';
 import { useMessages } from '../../i18n';
 import { deriveStatus } from '../status/deriveStatus';
+import { DeleteAccountDialog } from './DeleteAccountDialog';
 import { settingsMessages } from './messages';
 
 const SECTIONS = [
@@ -26,6 +27,7 @@ const SECTIONS = [
   'language',
   'notifications',
   'system',
+  'deleteAccount',
 ] as const;
 
 function Section({
@@ -96,6 +98,13 @@ export function SettingsPage() {
   const { user, memberships } = useSignedInUser();
   const membership = memberships[0];
   const m = useMessages(settingsMessages);
+  const [deleting, setDeleting] = useState(false);
+  const ownedBusinesses = memberships
+    .filter((entry) => entry.role === 'OWNER')
+    .map((entry) => entry.business.name);
+  const deletionConsequence = ownedBusinesses.length
+    ? m.deleteAccount.withBusinesses(ownedBusinesses.join(', '))
+    : m.deleteAccount.profileOnly;
 
   useEffect(() => {
     if (location.hash)
@@ -311,6 +320,31 @@ export function SettingsPage() {
                 <ArrowUpRight />
               </Link>
             </Button>
+          </Section>
+
+          <Section
+            id="deleteAccount"
+            title={m.sections.deleteAccount}
+            description={m.deleteAccount.description}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <p className="max-w-md text-[13px] leading-relaxed text-muted">
+                {deletionConsequence} {m.deleteAccount.irreversible}
+              </p>
+              <Button
+                size="sm"
+                onClick={() => setDeleting(true)}
+                className="border-negative/40 text-negative hover:border-negative hover:bg-negative-soft hover:text-negative"
+              >
+                <Trash2 />
+                {m.deleteAccount.open}
+              </Button>
+            </div>
+            <DeleteAccountDialog
+              open={deleting}
+              onOpenChange={setDeleting}
+              consequence={deletionConsequence}
+            />
           </Section>
         </div>
       </div>

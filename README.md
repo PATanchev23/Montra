@@ -52,6 +52,8 @@ credentials are set in `apps/api/.env`. Nothing is hard-coded or committed.
 
 Passwords must be 10–128 characters. Re-running the seed is safe: it updates names and roles and
 re-hashes a password only when its configured value changes.
+The API reads the two emails as well and refuses to delete either account, so every judge finds
+the demo intact.
 
 ### Authentication
 
@@ -60,6 +62,11 @@ token in an HttpOnly, SameSite=Strict cookie scoped to `/api/v1/auth`. Refresh t
 every use and are stored only as SHA-256 hashes; replaying a rotated token revokes all of that
 user's sessions. Registration creates the account and its onboarding; the business is created
 when onboarding completes.
+
+`DELETE /auth/me` deletes the signed-in account after checking the password in the body (rate
+limited like login). It ends every session and deletes each business the user owns alone, with all
+of its transactions and imports; a business with another owner is kept. Users reach it from
+Settings → Delete account.
 
 | Variable                                        | Default    | Notes                                                  |
 | ----------------------------------------------- | ---------- | ------------------------------------------------------ |

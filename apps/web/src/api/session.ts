@@ -31,7 +31,7 @@ const EXPIRY_MARGIN_MS = 30_000;
 
 export type SessionStatus = 'loading' | 'authenticated' | 'anonymous' | 'unavailable';
 /** Why this tab was signed out, so the login page can say so. */
-export type SignOutReason = 'signed-out' | 'expired';
+export type SignOutReason = 'signed-out' | 'expired' | 'deleted';
 
 export interface SessionState {
   status: SessionStatus;
@@ -198,6 +198,14 @@ export async function signOut(): Promise<void> {
     }
   });
   endSession('signed-out', { broadcast: true });
+}
+
+/**
+ * Signs out here and in every other tab once the server has deleted the
+ * account (which already ended every session there).
+ */
+export function endDeletedSession(): void {
+  endSession('deleted', { broadcast: true });
 }
 
 async function getAccessToken(): Promise<string> {

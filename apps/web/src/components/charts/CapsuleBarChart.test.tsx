@@ -71,3 +71,17 @@ describe('reading a period on the capsule chart', () => {
     expect(rows).toEqual(['PeriodIncome', 'Week 1€10', 'Week 2€20', 'Week 3€30']);
   });
 });
+
+describe('an empty chart', () => {
+  it('labels only the baseline when every value is zero', () => {
+    render(
+      <CapsuleBarChart
+        ariaLabel="Income by day"
+        categories={categories}
+        series={[{ id: 'income', label: 'Income', values: [0, 0, 0], tone: 'primary' }]}
+        formatTick={(cents) => String(Math.round(cents / 100))}
+      />,
+    );
+    expect(screen.getAllByText('0', { selector: 'text' })).toHaveLength(1);
+  });
+});

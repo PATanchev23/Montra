@@ -590,7 +590,7 @@ describe('who sees onboarding', () => {
     });
     const router = renderApp('/onboarding');
 
-    expect(await screen.findByRole('heading', { name: 'Sign in to Montra' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
     expect(router.state.location.state).toMatchObject({ from: { pathname: '/onboarding' } });
   });
 

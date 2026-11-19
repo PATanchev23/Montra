@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- a test helper, never hot-reloaded */
 import { render } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { createMemoryRouter, Outlet, useLocation } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { useLogout } from '../api/auth';
@@ -26,8 +27,8 @@ function AppPage() {
   );
 }
 
-/** The real guards and pages, with the shell replaced by AppPage. */
-export function renderApp(path: string) {
+/** The real guards and pages, with the shell replaced by AppPage (or `page`). */
+export function renderApp(path: string, page: ReactElement = <AppPage />) {
   const router = createMemoryRouter(
     [
       {
@@ -50,9 +51,7 @@ export function renderApp(path: string) {
               { path: 'onboarding', element: <OnboardingPage /> },
               {
                 element: <RequireBusiness />,
-                children: [
-                  { element: <Outlet />, children: [{ path: '*', element: <AppPage /> }] },
-                ],
+                children: [{ element: <Outlet />, children: [{ path: '*', element: page }] }],
               },
             ],
           },

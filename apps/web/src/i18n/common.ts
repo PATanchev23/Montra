@@ -40,6 +40,7 @@ export const common = defineMessages(
       searchPlaceholder: 'Search transactions, suppliers, categories…',
       searchLabel: 'Search transactions',
       notifications: 'Notifications',
+      noNotifications: 'No notifications yet',
       sampleData: 'Sample data',
       sampleNote:
         'Figures on this page are deterministic TechStore sample data. Live data arrives with the financial API.',
@@ -67,7 +68,19 @@ export const common = defineMessages(
     loadErrorHint: 'Check your connection and try again.',
     tryAgain: 'Try again',
     genericError: 'Something went wrong. Try again.',
-    delta: { up: 'Up', down: 'Down', good: 'favourable', bad: 'unfavourable' },
+    delta: {
+      up: 'Up',
+      down: 'Down',
+      good: 'favourable',
+      bad: 'unfavourable',
+      noChange: 'No change',
+      noEarlier: 'No earlier data',
+      noData: 'No data yet',
+    },
+    noTransactions: {
+      title: 'No transactions yet',
+      import: 'Import transactions',
+    },
     chart: {
       period: 'Period',
       projected: ' (projected)',
@@ -114,6 +127,7 @@ export const common = defineMessages(
       searchPlaceholder: 'Търсене на транзакции, доставчици, категории…',
       searchLabel: 'Търсене на транзакции',
       notifications: 'Известия',
+      noNotifications: 'Все още няма известия',
       sampleData: 'Примерни данни',
       sampleNote:
         'Сумите на тази страница са постоянни примерни данни на TechStore. Реалните данни идват с финансовия API.',
@@ -140,7 +154,19 @@ export const common = defineMessages(
     loadErrorHint: 'Проверете връзката си и опитайте отново.',
     tryAgain: 'Опитай отново',
     genericError: 'Нещо се обърка. Опитайте отново.',
-    delta: { up: 'Ръст', down: 'Спад', good: 'благоприятно', bad: 'неблагоприятно' },
+    delta: {
+      up: 'Ръст',
+      down: 'Спад',
+      good: 'благоприятно',
+      bad: 'неблагоприятно',
+      noChange: 'Без промяна',
+      noEarlier: 'Без предишни данни',
+      noData: 'Още няма данни',
+    },
+    noTransactions: {
+      title: 'Все още няма транзакции',
+      import: 'Импортирай транзакции',
+    },
     chart: {
       period: 'Период',
       projected: ' (прогноза)',

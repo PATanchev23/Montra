@@ -135,7 +135,7 @@ describe('the app in Bulgarian', () => {
     renderApp('/login');
     const user = userEvent.setup();
 
-    expect(await screen.findByRole('heading', { name: 'Вход в Montra' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Добре дошли отново' })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe('bg');
 
     await user.type(screen.getByLabelText('Имейл'), 'ana@example.com');
@@ -150,7 +150,7 @@ describe('the app in Bulgarian', () => {
     expect(await screen.findByText('Въведете валиден имейл адрес.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('radio', { name: 'English' }));
-    expect(await screen.findByRole('heading', { name: 'Sign in to Montra' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe('en');
     expect(useUiStore.getState().language).toBe('en');
   });

@@ -52,8 +52,11 @@ export function RequireAuth() {
   if (session.status === 'loading') return <AppLoading />;
   if (session.status === 'unavailable') return <SessionUnavailable problem={session.problem} />;
   if (session.status === 'anonymous') {
-    // After an explicit sign-out the next sign-in starts fresh on the dashboard.
-    const state = session.signOutReason === 'signed-out' ? undefined : { from: location };
+    // After an explicit sign-out (or deleting the account) the next sign-in
+    // starts fresh on the dashboard.
+    const startFresh =
+      session.signOutReason === 'signed-out' || session.signOutReason === 'deleted';
+    const state = startFresh ? undefined : { from: location };
     return <Navigate to="/login" replace state={state} />;
   }
 

@@ -509,9 +509,188 @@ describe('auth API', () => {
       expect(refreshCookieOf(res)!.value).toBe('');
     });
   });
+
+  describe('DELETE /auth/me', () => {
+    const deleteAccount = (
+      accessToken: string | undefined,
+      payload: Record<string, unknown> = { password: PASSWORD },
+      headers: Record<string, string> = {},
+    ) =>
+      app.inject({
+        method: 'DELETE',
+        url: `${AUTH}/me`,
+        headers: {
+          ...headers,
+          ...(accessToken !== undefined && { authorization: `Bearer ${accessToken}` }),
+        },
+        payload,
+      });
+
+    /** A business with one transaction, owned by `ownerId` and optionally shared. */
+    async function businessFor(
+      ownerId: string,
+      others: { userId: string; role: 'OWNER' | 'VIEWER' }[] = [],
+    ) {
+      return db.business.create({
+        data: {
+          ...fixtures.business(),
+          memberships: { create: [{ userId: ownerId, role: 'OWNER' }, ...others] },
+          transactions: {
+            create: {
+              type: 'INCOME',
+              amountCents: 1_000,
+              description: 'Sale',
+              category: 'Sales',
+              date: new Date('2026-10-01'),
+            },
+          },
+        },
+      });
+    }
+
+    it('deletes the user with their sessions and onboarding, and clears the cookie', async () => {
+      const { body, refreshToken } = await signUp();
+      await login('ana@example.com', PASSWORD); // a second device
+
+      const res = await deleteAccount(body.accessToken);
+
+      expect(res.statusCode).toBe(204);
+      expect(res.body).toBe('');
+      const cleared = refreshCookieOf(res)!;
+      expect(cleared).toMatchObject({ value: '', path: '/api/v1/auth', httpOnly: true });
+      expect(await db.user.count()).toBe(0);
+      expect(await db.session.count()).toBe(0);
+      expect(await db.onboardingProgress.count()).toBe(0);
+      expect((await me(body.accessToken)).statusCode).toBe(401);
+      expect((await refresh(refreshToken)).statusCode).toBe(401);
+      expect((await login('ana@example.com', PASSWORD)).statusCode).toBe(401);
+    });
+
+    it('frees the email address for a new account', async () => {
+      const { body } = await signUp();
+      expect((await deleteAccount(body.accessToken)).statusCode).toBe(204);
+
+      expect((await register()).statusCode).toBe(201);
+    });
+
+    it('deletes businesses the user owns alone and keeps those with another owner', async () => {
+      const { body } = await signUp();
+      const userId = body.user.id;
+      const partner = await db.user.create({ data: fixtures.user() });
+      const viewer = await db.user.create({ data: fixtures.user() });
+
+      const own = await businessFor(userId, [{ userId: viewer.id, role: 'VIEWER' }]);
+      const shared = await businessFor(userId, [{ userId: partner.id, role: 'OWNER' }]);
+      const theirs = await businessFor(partner.id, [{ userId, role: 'VIEWER' }]);
+      const upload = await db.importBatch.create({
+        data: {
+          businessId: shared.id,
+          createdById: userId,
+          source: 'MONTRA_TEMPLATE',
+          fileFormat: 'CSV',
+          fileName: 'october.csv',
+          fileSize: 120,
+          fileSha256: 'a'.repeat(64),
+          status: 'CANCELLED',
+          expiresAt: new Date(Date.now() + DAY_MS),
+        },
+      });
+
+      expect((await deleteAccount(body.accessToken)).statusCode).toBe(204);
+
+      const remaining = await db.business.findMany({
+        select: { id: true },
+        orderBy: { id: 'asc' },
+      });
+      expect(remaining.map((b) => b.id).sort()).toEqual([shared.id, theirs.id].sort());
+      expect(await db.transaction.count({ where: { businessId: own.id } })).toBe(0);
+      expect(await db.transaction.count()).toBe(2);
+      expect(await db.membership.count({ where: { userId } })).toBe(0);
+      expect(await db.membership.count({ where: { businessId: own.id } })).toBe(0);
+      expect(await db.user.count({ where: { id: { in: [partner.id, viewer.id] } } })).toBe(2);
+      expect(await db.importBatch.findUniqueOrThrow({ where: { id: upload.id } })).toMatchObject({
+        createdById: null,
+      });
+    });
+
+    it('refuses a wrong password and changes nothing', async () => {
+      const { body, refreshToken } = await signUp();
+
+      const res = await deleteAccount(body.accessToken, { password: 'not my password' });
+
+      expect(res.statusCode).toBe(403);
+      expect(errorCodeOf(res)).toBe('INVALID_PASSWORD');
+      expect(refreshCookieOf(res)).toBeUndefined();
+      expect(await db.user.count()).toBe(1);
+      expect((await refresh(refreshToken)).statusCode).toBe(200);
+    });
+
+    it('requires a password and a valid access token', async () => {
+      const { body } = await signUp();
+
+      const noPassword = await deleteAccount(body.accessToken, {});
+      expect(noPassword.statusCode).toBe(400);
+      expect(errorCodeOf(noPassword)).toBe('VALIDATION_ERROR');
+
+      const signedOut = await deleteAccount(undefined);
+      expect(signedOut.statusCode).toBe(401);
+      expect(errorCodeOf(signedOut)).toBe('INVALID_ACCESS_TOKEN');
+      expect(await db.user.count()).toBe(1);
+    });
+
+    it('refuses requests from a foreign origin', async () => {
+      const { body } = await signUp();
+
+      const res = await deleteAccount(
+        body.accessToken,
+        { password: PASSWORD },
+        {
+          origin: 'https://evil.example',
+        },
+      );
+
+      expect(res.statusCode).toBe(403);
+      expect(errorCodeOf(res)).toBe('FORBIDDEN');
+      expect(await db.user.count()).toBe(1);
+    });
+  });
 });
 
 type Claims = { sub: string; sid: string; iss: string; aud: string; iat: number; exp: number };
+
+describe('deleting a demo account', () => {
+  const db = useTestDb();
+  let app: App;
+
+  beforeAll(async () => {
+    app = await createTestApp({
+      AUTH_RATE_LIMIT_MAX: '1000',
+      DEMO_OWNER_EMAIL: ' Owner@Demo.Example ',
+      DEMO_VIEWER_EMAIL: '',
+    });
+  });
+  afterAll(() => app.close());
+
+  it('is refused, so every judge finds the demo intact', async () => {
+    const registered = await app.inject({
+      method: 'POST',
+      url: `${AUTH}/register`,
+      payload: { name: 'Demo Owner', email: 'owner@demo.example', password: PASSWORD },
+    });
+    const { accessToken } = authResponseSchema.parse(registered.json());
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `${AUTH}/me`,
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { password: PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(errorCodeOf(res)).toBe('ACCOUNT_PROTECTED');
+    expect(await db.user.count()).toBe(1);
+  });
+});
 
 describe('auth rate limiting', () => {
   useTestDb();

@@ -4,12 +4,14 @@ import {
   currentUserResponseSchema,
   type AuthResponse,
   type CurrentUserResponse,
+  type DeleteAccountRequest,
   type LoginRequest,
   type RegisterRequest,
 } from '@montra/shared';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
 import { apiRequest } from './client';
-import { authorizedRequest, signIn, signOut, useSession } from './session';
+import { authorizedRequest, endDeletedSession, signIn, signOut, useSession } from './session';
 
 const AUTH = `${API_PREFIX}/auth`;
 
@@ -64,4 +66,18 @@ export function useRegister() {
 
 export function useLogout() {
   return useMutation({ mutationFn: signOut });
+}
+
+/**
+ * Deletes the signed-in user's account after checking their password, then
+ * signs out in every tab. A failure (such as a wrong password) leaves the
+ * session as it was.
+ */
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: async (input: DeleteAccountRequest) => {
+      await authorizedRequest(`${AUTH}/me`, { method: 'DELETE', body: input, schema: z.unknown() });
+      endDeletedSession();
+    },
+  });
 }

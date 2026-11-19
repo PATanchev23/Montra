@@ -35,7 +35,11 @@ describe('demo accounts', () => {
   let techstoreId: string;
 
   beforeAll(async () => {
-    app = await createTestApp({ AUTH_RATE_LIMIT_MAX: '1000' });
+    app = await createTestApp({
+      AUTH_RATE_LIMIT_MAX: '1000',
+      DEMO_OWNER_EMAIL: OWNER.email,
+      DEMO_VIEWER_EMAIL: VIEWER.email,
+    });
   });
   afterAll(() => app.close());
 
@@ -266,6 +270,25 @@ describe('demo accounts', () => {
         expect((await getBusiness(next.accessToken, techstoreId)).statusCode).toBe(401);
       },
     );
+
+    it.each([
+      ['OWNER', OWNER],
+      ['VIEWER', VIEWER],
+    ])('%s cannot delete their account, so TechStore stays intact', async (_role, account) => {
+      const { accessToken } = await login(account);
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: '/api/v1/auth/me',
+        headers: bearer(accessToken),
+        payload: { password: account.password },
+      });
+
+      expect(res.statusCode).toBe(403);
+      expect(apiErrorSchema.parse(res.json()).error.code).toBe('ACCOUNT_PROTECTED');
+      expect(await db.user.count({ where: { email: account.email } })).toBe(1);
+      expect((await getBusiness(accessToken, techstoreId)).statusCode).toBe(200);
+    });
   });
 });
 
@@ -296,6 +319,7 @@ describe('write surface of the API', () => {
    */
   it('lists every write route', () => {
     expect(writeRoutes(app)).toEqual([
+      'DELETE /api/v1/auth/me',
       'DELETE /api/v1/businesses/{businessId}/imports/{importId}',
       'DELETE /api/v1/businesses/{businessId}/transactions/{transactionId}',
       'PATCH /api/v1/businesses/{businessId}/transactions/{transactionId}',

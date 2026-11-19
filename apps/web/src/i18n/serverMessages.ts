@@ -21,6 +21,8 @@ const EXACT: Record<string, string> = {
   'Your session has ended. Sign in again.': 'Сесията ви изтече. Влезте отново.',
   'Sign in to continue.': 'Влезте, за да продължите.',
   'Requests from this origin are not allowed.': 'Заявки от този адрес не са разрешени.',
+  'Incorrect password.': 'Грешна парола.',
+  'Demo accounts cannot be deleted.': 'Демо профилите не могат да бъдат изтрити.',
   'Business not found.': 'Бизнесът не е намерен.',
   'Only the business owner can make changes.':
     'Само собственикът на бизнеса може да прави промени.',
@@ -233,6 +235,8 @@ const BY_CODE: Record<string, string> = {
   EMAIL_TAKEN: 'Вече има профил с този имейл.',
   INVALID_ACCESS_TOKEN: 'Влезте, за да продължите.',
   INVALID_REFRESH_TOKEN: 'Сесията ви изтече. Влезте отново.',
+  INVALID_PASSWORD: 'Грешна парола.',
+  ACCOUNT_PROTECTED: 'Демо профилите не могат да бъдат изтрити.',
   CURRENCY_MISMATCH: 'Валутата не съвпада с валутата на бизнеса.',
   IMPORT_FILE_EMPTY: 'Файлът е празен.',
   IMPORT_FILE_TOO_LARGE: 'Файлът е твърде голям.',

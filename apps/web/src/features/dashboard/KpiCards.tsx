@@ -6,6 +6,7 @@ import { Skeleton } from '../../components/ui/States';
 import { money } from '../../lib/format';
 
 import { useMessages } from '../../i18n';
+import { common } from '../../i18n/common';
 import { dashboardMessages } from './messages';
 type Key = 'net' | 'income' | 'expenses';
 
@@ -32,15 +33,23 @@ function cumulative(values: number[]) {
  * Net cash flow, income and expenses for the period, each against the
  * equivalent period before. The figure leads in ink; only the change takes
  * colour, by meaning rather than direction (rising expenses read red).
+ *
+ * `noData` is a business with no transactions at all: the tiles keep their
+ * shape and show €0.00, but there is nothing to compare or draw, so the
+ * change, the comparison line and the sparkline give way to "No data yet".
+ * A period that is merely empty is real information and keeps them.
  */
 export function KpiCards({
   data,
   comparisonLabel,
+  noData = false,
 }: {
   data: DashboardResponse | undefined;
   comparisonLabel: string;
+  noData?: boolean;
 }) {
   const labels = useMessages(dashboardMessages).kpi;
+  const delta = useMessages(common).delta;
   return (
     <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
       {definitions.map(({ key, goodWhen, series }) => {
@@ -52,8 +61,14 @@ export function KpiCards({
             {/* The change sits on the label's line, so every tile has the same anatomy at any width. */}
             <div className="flex items-baseline justify-between gap-3">
               <p className="text-body text-ink-2">{label}</p>
-              {amount && (
-                <Delta ratio={amount.changeRatio} goodWhen={goodWhen} className="text-body" />
+              {amount && !noData && (
+                <Delta
+                  ratio={amount.changeRatio}
+                  cents={amount.cents}
+                  previousCents={amount.previousCents}
+                  goodWhen={goodWhen}
+                  className="text-body"
+                />
               )}
             </div>
             {amount ? (
@@ -64,7 +79,9 @@ export function KpiCards({
               <Skeleton className="mt-2.5 h-8 w-40" />
             )}
             <div className="mt-4 flex items-end justify-between gap-4">
-              {amount ? (
+              {amount && noData ? (
+                <p className="min-w-0 text-body-sm text-muted">{delta.noData}</p>
+              ) : amount ? (
                 <p className="tabular min-w-0 text-body-sm text-muted">
                   <span className="font-medium text-ink-2">
                     {money(amount.changeCents, { currency, sign: 'always' })}
@@ -74,7 +91,7 @@ export function KpiCards({
               ) : (
                 <Skeleton className="h-4 w-44" />
               )}
-              {amount && data.trend.points.length > 1 && (
+              {amount && !noData && data.trend.points.length > 1 && (
                 <Sparkline
                   values={cumulative(data.trend.points.map((point) => point[series]))}
                   tone="ink"

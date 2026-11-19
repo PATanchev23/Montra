@@ -1,5 +1,5 @@
 import { Download, FileSpreadsheet, Printer, Receipt, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DEMO_TODAY, exportTransactions, useReport } from '../../api/finance';
 import { CapsuleBarChart } from '../../components/charts/CapsuleBarChart';
 import { Legend, TooltipRow, TooltipTitle } from '../../components/charts/ChartTooltip';
@@ -16,6 +16,11 @@ import { sampleDescription } from '../../demo/messages';
 import { messagesFor, useMessages } from '../../i18n';
 import { formatDate, money, percent } from '../../lib/format';
 import { reportMessages } from './messages';
+import { useHasTransactions } from '../../api/transactions';
+import { EmptyChartNote } from '../../components/finance/EmptyChartNote';
+import { common } from '../../i18n/common';
+import { emptyReport } from '../noData';
+import { useCurrentMembership } from '../auth/currentUser';
 
 const YEARS = [DEMO_TODAY.getFullYear(), DEMO_TODAY.getFullYear() - 1];
 
@@ -77,7 +82,18 @@ async function exportYearTransactions(year: number) {
 
 export function ReportsPage() {
   const [year, setYear] = useState(YEARS[0]!);
-  const { data, isPending, isError, isPlaceholderData, refetch } = useReport(year);
+  // Reports come from the TechStore sample layer, which must not stand in for a
+  // business that has recorded nothing: that business sees the same page, at zero,
+  // with the exports off (there is nothing of its own to export).
+  const { business, role } = useCurrentMembership();
+  const gate = useHasTransactions(business.id);
+  const noData = gate.hasTransactions === false;
+  const sample = useReport(year, { enabled: gate.hasTransactions === true });
+  const zero = useMemo(() => (noData ? emptyReport(year) : undefined), [noData, year]);
+  const data = zero ?? sample.data;
+  const isPending = !data;
+  const { isError, isPlaceholderData, refetch } = sample;
+  const empty = { noData, canEdit: role === 'OWNER' };
   const m = useMessages(reportMessages).page;
 
   return (
@@ -107,7 +123,7 @@ export function ReportsPage() {
             </Button>
             <Button
               variant="primary"
-              disabled={!data}
+              disabled={!data || noData}
               onClick={() => data && exportProfitAndLoss(data)}
             >
               <Download />
@@ -117,9 +133,12 @@ export function ReportsPage() {
         }
       />
 
-      {isError ? (
+      {!noData && (gate.isError || isError) ? (
         <Panel>
-          <ErrorState title={m.loadError} onRetry={() => refetch()} />
+          <ErrorState
+            title={m.loadError}
+            onRetry={() => (gate.isError ? gate.refetch() : refetch())}
+          />
         </Panel>
       ) : isPending ? (
         <div className="space-y-6">
@@ -133,21 +152,22 @@ export function ReportsPage() {
             isPlaceholderData && 'opacity-60',
           )}
         >
-          <Summary report={data} />
+          <Summary report={data} noData={noData} />
           <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <MonthlyRevenue report={data} />
-            <Channels report={data} />
+            <MonthlyRevenue report={data} empty={empty} />
+            <Channels report={data} noData={noData} />
           </div>
-          <ProfitAndLoss report={data} />
-          <Exports report={data} />
+          <ProfitAndLoss report={data} noData={noData} />
+          <Exports report={data} noData={noData} />
         </div>
       )}
     </div>
   );
 }
 
-function Summary({ report }: { report: ReportData }) {
+function Summary({ report, noData }: { report: ReportData; noData: boolean }) {
   const m = useMessages(reportMessages).summary;
+  const noDataYet = useMessages(common).delta.noData;
   const items = [
     {
       label: m.revenue,
@@ -162,12 +182,17 @@ function Summary({ report }: { report: ReportData }) {
     {
       label: m.netProfit,
       value: money(report.summary.netCents, { decimals: 0, sign: 'always' }),
-      className: report.summary.netCents < 0 ? 'text-negative' : 'text-positive',
+      className: noData
+        ? 'text-ink'
+        : report.summary.netCents < 0
+          ? 'text-negative'
+          : 'text-positive',
     },
     {
       label: m.margin,
-      value: percent(report.summary.margin, { decimals: 1 }),
-      className: 'text-ink',
+      // A margin of nothing is not 0%.
+      value: noData ? noDataYet : percent(report.summary.margin, { decimals: 1 }),
+      className: noData ? 'text-muted text-[16px] font-normal' : 'text-ink',
     },
   ];
   return (
@@ -189,15 +214,23 @@ function Summary({ report }: { report: ReportData }) {
   );
 }
 
-function MonthlyRevenue({ report }: { report: ReportData }) {
+function MonthlyRevenue({
+  report,
+  empty,
+}: {
+  report: ReportData;
+  empty: { noData: boolean; canEdit: boolean };
+}) {
   const hasProjection = report.monthlyNet.some((m) => m.projected);
   const t = useMessages(reportMessages).monthly;
+  const page = useMessages(reportMessages).page;
+  const none = useMessages(common).noTransactions.title;
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="monthly-revenue">
       <PanelHeader
         id="monthly-revenue"
         title={t.title}
-        description={hasProjection ? t.projectedHint : t.fullYear}
+        description={empty.noData ? none : hasProjection ? t.projectedHint : t.fullYear}
         actions={
           hasProjection && (
             <Legend
@@ -209,60 +242,69 @@ function MonthlyRevenue({ report }: { report: ReportData }) {
           )
         }
       />
-      <div className="mt-6">
-        <CapsuleBarChart
-          height={260}
-          maxBarWidth={44}
-          ariaLabel={t.chart(report.year)}
-          categories={report.monthlyNet.map((m) => ({
-            key: m.key,
-            label: m.label,
-            projected: m.projected,
-          }))}
-          series={[
-            {
-              id: 'revenue',
-              label: t.revenue,
-              tone: 'primary',
-              values: report.monthlyNet.map((m) => m.incomeCents),
-            },
-          ]}
-          renderTooltip={(i) => {
-            const m = report.monthlyNet[i]!;
-            return (
-              <>
-                <TooltipTitle>
-                  {formatDate(`${m.key}-01`, 'LLLL yyyy')}
-                  {m.projected && (
-                    <span className="font-normal text-chart-1">{t.projectedSuffix}</span>
-                  )}
-                </TooltipTitle>
-                <TooltipRow
-                  swatch="bg-chart-1"
-                  label={t.revenue}
-                  value={money(m.incomeCents, { decimals: 0 })}
-                  emphasis
-                />
-                <TooltipRow label={t.expenses} value={money(m.expenseCents, { decimals: 0 })} />
-                <TooltipRow
-                  label={t.net}
-                  value={money(m.netCents, { decimals: 0, sign: 'always' })}
-                />
-              </>
-            );
-          }}
-        />
+      <div className="relative mt-6">
+        <div className={empty.noData ? 'opacity-40' : undefined}>
+          <CapsuleBarChart
+            height={260}
+            maxBarWidth={44}
+            ariaLabel={t.chart(report.year)}
+            categories={report.monthlyNet.map((m) => ({
+              key: m.key,
+              label: m.label,
+              projected: m.projected,
+            }))}
+            series={[
+              {
+                id: 'revenue',
+                label: t.revenue,
+                tone: 'primary',
+                values: report.monthlyNet.map((m) => m.incomeCents),
+              },
+            ]}
+            renderTooltip={(i) => {
+              const m = report.monthlyNet[i]!;
+              return (
+                <>
+                  <TooltipTitle>
+                    {formatDate(`${m.key}-01`, 'LLLL yyyy')}
+                    {m.projected && (
+                      <span className="font-normal text-chart-1">{t.projectedSuffix}</span>
+                    )}
+                  </TooltipTitle>
+                  <TooltipRow
+                    swatch="bg-chart-1"
+                    label={t.revenue}
+                    value={money(m.incomeCents, { decimals: 0 })}
+                    emphasis
+                  />
+                  <TooltipRow label={t.expenses} value={money(m.expenseCents, { decimals: 0 })} />
+                  <TooltipRow
+                    label={t.net}
+                    value={money(m.netCents, { decimals: 0, sign: 'always' })}
+                  />
+                </>
+              );
+            }}
+          />
+        </div>
+        {empty.noData && <EmptyChartNote canEdit={empty.canEdit} ownerText={page.chartOwner} />}
       </div>
     </Panel>
   );
 }
 
-function Channels({ report }: { report: ReportData }) {
+function Channels({ report, noData }: { report: ReportData; noData: boolean }) {
   const m = useMessages(reportMessages).channels;
+  const page = useMessages(reportMessages).page;
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="channels">
       <PanelHeader id="channels" title={m.title} description={m.toDate(report.year)} />
-      <ul className="mt-6 space-y-5">
+      {noData && (
+        <p className="mt-6 rounded-control bg-sunken px-4 py-6 text-center text-body-sm text-muted">
+          {page.noRevenue}
+        </p>
+      )}
+      <ul className="mt-6 space-y-5 empty:hidden">
         {report.channels.map((c) => (
           <li key={c.categoryId}>
             <div className="flex items-baseline justify-between gap-3 text-[13px]">
@@ -278,14 +320,17 @@ function Channels({ report }: { report: ReportData }) {
           </li>
         ))}
       </ul>
-      <p className="mt-6 border-t border-line pt-4 text-[12px] leading-relaxed text-muted">
-        {m.note}
-      </p>
+      {/* The note describes the sample store's channels. */}
+      {!noData && (
+        <p className="mt-6 border-t border-line pt-4 text-[12px] leading-relaxed text-muted">
+          {m.note}
+        </p>
+      )}
     </Panel>
   );
 }
 
-function ProfitAndLoss({ report }: { report: ReportData }) {
+function ProfitAndLoss({ report, noData }: { report: ReportData; noData: boolean }) {
   const income = report.rows.filter((r) => r.type === 'income');
   const expenses = report.rows
     .filter((r) => r.type === 'expense')
@@ -347,7 +392,8 @@ function ProfitAndLoss({ report }: { report: ReportData }) {
         ))}
         <td className={cn(num, 'font-semibold text-ink')}>{money(total(rows), { decimals: 0 })}</td>
         <td className={cn(num, 'pr-5 text-muted sm:pr-6')}>
-          {percent(revenue ? total(rows) / revenue : 0, { decimals: 1 })}
+          {/* No revenue, no share of it. */}
+          {revenue ? percent(total(rows) / revenue, { decimals: 1 }) : '—'}
         </td>
       </tr>
     </tbody>
@@ -407,13 +453,17 @@ function ProfitAndLoss({ report }: { report: ReportData }) {
                 className={cn(
                   num,
                   'text-[14px] font-semibold',
-                  report.summary.netCents < 0 ? 'text-negative' : 'text-positive',
+                  noData
+                    ? 'text-ink'
+                    : report.summary.netCents < 0
+                      ? 'text-negative'
+                      : 'text-positive',
                 )}
               >
                 {money(report.summary.netCents, { decimals: 0, sign: 'always' })}
               </td>
               <td className={cn(num, 'pr-5 font-medium text-ink sm:pr-6')}>
-                {percent(report.summary.margin, { decimals: 1 })}
+                {noData ? '—' : percent(report.summary.margin, { decimals: 1 })}
               </td>
             </tr>
           </tbody>
@@ -423,7 +473,7 @@ function ProfitAndLoss({ report }: { report: ReportData }) {
   );
 }
 
-function Exports({ report }: { report: ReportData }) {
+function Exports({ report, noData }: { report: ReportData; noData: boolean }) {
   const m = useMessages(reportMessages).exports;
   const exports = [
     {
@@ -463,7 +513,7 @@ function Exports({ report }: { report: ReportData }) {
               <p className="text-[14px] font-medium text-ink">{title}</p>
               <p className="mt-0.5 text-[12px] text-muted">{body}</p>
             </div>
-            <Button size="sm" onClick={action} aria-label={m.download(title)}>
+            <Button size="sm" onClick={action} disabled={noData} aria-label={m.download(title)}>
               <Download />
               CSV
             </Button>

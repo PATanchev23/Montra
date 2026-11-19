@@ -9,6 +9,7 @@ export const settingsMessages = defineMessages(
       language: 'Language',
       notifications: 'Notifications',
       system: 'System',
+      deleteAccount: 'Delete account',
     },
     sectionsLabel: 'Settings sections',
     saveChanges: 'Save changes',
@@ -73,6 +74,20 @@ export const settingsMessages = defineMessages(
       sampleData: 'TechStore sample data',
       open: 'Open system status',
     },
+    deleteAccount: {
+      description: 'Remove your account and everything it owns from Montra.',
+      profileOnly: 'Your profile is deleted and you’re signed out on every device.',
+      withBusinesses: (names: string) =>
+        `Your profile is deleted and you’re signed out on every device. ${names} goes too, with all of its transactions and imports, unless it has another owner.`,
+      irreversible: 'This cannot be undone.',
+      open: 'Delete account…',
+      dialogTitle: 'Delete your account?',
+      password: 'Password',
+      passwordHint: 'Enter your password to confirm it’s you.',
+      passwordMissing: 'Enter your password.',
+      confirm: 'Delete account',
+      deleting: 'Deleting…',
+    },
   },
   {
     sections: {
@@ -82,6 +97,7 @@ export const settingsMessages = defineMessages(
       language: 'Език',
       notifications: 'Известия',
       system: 'Система',
+      deleteAccount: 'Изтриване на профила',
     },
     sectionsLabel: 'Раздели на настройките',
     saveChanges: 'Запази промените',
@@ -146,6 +162,20 @@ export const settingsMessages = defineMessages(
       financialData: 'Финансови данни',
       sampleData: 'Примерни данни на TechStore',
       open: 'Отвори състоянието на системата',
+    },
+    deleteAccount: {
+      description: 'Премахнете профила си и всичко, което притежава, от Montra.',
+      profileOnly: 'Профилът ви се изтрива и излизате от всички устройства.',
+      withBusinesses: (names: string) =>
+        `Профилът ви се изтрива и излизате от всички устройства. ${names} също се изтрива, с всички транзакции и импорти, освен ако няма друг собственик.`,
+      irreversible: 'Това действие е необратимо.',
+      open: 'Изтрий профила…',
+      dialogTitle: 'Да изтрием ли профила ви?',
+      password: 'Парола',
+      passwordHint: 'Въведете паролата си, за да потвърдите, че сте вие.',
+      passwordMissing: 'Въведете паролата си.',
+      confirm: 'Изтрий профила',
+      deleting: 'Изтриване…',
     },
   },
 );

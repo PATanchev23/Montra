@@ -16,6 +16,8 @@ const SERVER_MESSAGES = [
   'Your session has ended. Sign in again.',
   'Sign in to continue.',
   'Requests from this origin are not allowed.',
+  'Incorrect password.',
+  'Demo accounts cannot be deleted.',
   'Business not found.',
   'Only the business owner can make changes.',
   'The request is invalid.',
