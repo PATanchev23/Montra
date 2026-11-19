@@ -148,6 +148,11 @@ export const budgetMonthResponseSchema = z.object({
   totalLimitCents: z.int().min(0),
   totalSpentCents: z.int().min(0),
   /**
+   * The latest month (yyyy-mm, up to today) with any expense, so a month with
+   * none yet can point to where the spending is; null without any expense.
+   */
+  latestExpenseMonth: z.string().nullable(),
+  /**
    * Every expense category of the last 12 months, and every budgeted one,
    * for the editor: its limit (if set) and its average over the last three
    * full months.
@@ -179,6 +184,57 @@ export const budgetLimitsResponseSchema = z.object({
   limits: z.array(z.object({ category: z.string(), limitCents: z.int().positive() })),
 });
 export type BudgetLimitsResponse = z.infer<typeof budgetLimitsResponseSchema>;
+
+/**
+ * What a recommended budget aims for: spend no more than the income Montra
+ * expects, or also leave 10% or 20% of it unspent.
+ */
+export const BUDGET_GOALS = ['within-income', 'save-10', 'save-20'] as const;
+export const budgetGoalSchema = z.enum(BUDGET_GOALS);
+export type BudgetGoal = z.infer<typeof budgetGoalSchema>;
+
+export const budgetRecommendationQuerySchema = z.object({
+  goal: budgetGoalSchema.default('within-income'),
+});
+
+/**
+ * GET /businesses/:businessId/budgets/recommendation: a monthly limit for
+ * every expense category, from the business's own history and checked
+ * against the income it can expect.
+ */
+export const budgetRecommendationSchema = z.object({
+  currency: currencySchema,
+  today: z.iso.date(),
+  goal: budgetGoalSchema,
+  /** Full months of history the recommendation is drawn from (0 to 6). */
+  monthsOfHistory: z.int().min(0),
+  /** Average monthly income over the next three projected months; 0 when none is expected. */
+  expectedIncomeCents: z.int().min(0),
+  /** The most the goal allows to be spent each month; null without expected income. */
+  targetCents: z.int().nullable(),
+  totalCents: z.int().min(0),
+  /** How far the total still exceeds the target after trimming as far as it goes; 0 when it fits. */
+  overByCents: z.int().min(0),
+  /** The bank balance is below the warning level, so the target also leaves room to recover. */
+  recovering: z.boolean(),
+  lines: z.array(
+    z.object({
+      category: z.string(),
+      limitCents: z.int().positive(),
+      /** What a typical month cost: the median of the months used. */
+      usualCents: z.int().min(0),
+      /** Payments that repeat every month in this category. */
+      recurringCents: z.int().min(0),
+      /** Mostly recurring: kept at its usual level, never trimmed. */
+      fixed: z.boolean(),
+      /** How much the usual level was cut to meet the goal, in whole percent. */
+      trimmedPct: z.int().min(0).max(100),
+      /** A single payment far above the usual month, left out of the usual level. */
+      unusual: z.object({ amountCents: z.int().positive(), date: z.iso.date() }).nullable(),
+    }),
+  ),
+});
+export type BudgetRecommendation = z.infer<typeof budgetRecommendationSchema>;
 
 // ── Simulations ─────────────────────────────────────────────────────────
 

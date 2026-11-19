@@ -10,7 +10,9 @@ import {
   UPCOMING_DAYS,
   type Alert,
   type BalancePoint,
+  type BudgetGoal,
   type BudgetMonthResponse,
+  type BudgetRecommendation,
   type CashSettings,
   type MonthlyFlow,
   type ReportResponse,
@@ -65,6 +67,8 @@ const MIN_VARIABLE_SPAN_DAYS = 28;
 const RECURRING_LOOKBACK_MONTHS = 6;
 const RECURRING_MIN_MONTHS = 3;
 const FIXED_SHARE = 0.8;
+/** How far a recurring amount may move and still be a commitment. */
+const STEADY_SPREAD = 0.1;
 const HISTORY_MONTHS = 12;
 const PAST_WEEKS = 22;
 
@@ -103,6 +107,8 @@ interface Series {
   day: number;
   /** Every recent amount was the same. */
   fixed: boolean;
+  /** Every recent amount was within 10% of the usual one: a commitment, not a choice. */
+  steady: boolean;
   paidThisMonth: boolean;
 }
 
@@ -239,6 +245,9 @@ export class Ledger {
         amountCents: median(amounts),
         day: median(recent.map((e) => Number(e.date.slice(8, 10)))),
         fixed: amounts.every((a) => a === amounts[0]),
+        steady: amounts.every(
+          (a) => Math.abs(a - median(amounts)) <= median(amounts) * STEADY_SPREAD,
+        ),
         paidThisMonth: entries.some((e) => e.date >= thisMonth),
       });
       indexes.forEach((i) => this.recurringIndexes.add(i));
@@ -552,8 +561,155 @@ export function buildBudgetMonth(ledger: Ledger, limits: BudgetLimit[], monthKey
     lines,
     totalLimitCents: lines.reduce((s, l) => s + l.limitCents, 0),
     totalSpentCents: lines.reduce((s, l) => s + l.spentCents, 0),
+    latestExpenseMonth:
+      ledger
+        .entriesBetween('0000-01-01', today)
+        .findLast((e) => e.type === 'EXPENSE')
+        ?.date.slice(0, 7) ?? null,
     categories,
   } satisfies Omit<BudgetMonthResponse, 'currency'>;
+}
+
+// ── Recommended budget ──────────────────────────────────────────────────
+
+const RECOMMENDATION_MONTHS = 6;
+/** Flexible categories are trimmed at most this far; beyond it the gap is reported instead. */
+const MAX_TRIM = 0.5;
+/** A payment this many times the usual month is unusual, and left out of the usual level. */
+const UNUSUAL_FACTOR = 2;
+/** A balance below the warning level is brought back over this many months. */
+const RECOVERY_MONTHS = 3;
+const LIMIT_STEP = 1_000;
+const SAVE_SHARE: Record<BudgetGoal, number> = {
+  'within-income': 0,
+  'save-10': 0.1,
+  'save-20': 0.2,
+};
+
+/**
+ * A monthly limit for every expense category of the last six full months:
+ *
+ *  1. The usual level is the median month (so one unusual purchase does not
+ *     inflate it), and never below what repeats every month.
+ *  2. The goal sets the most that can be spent: the income the forecast
+ *     expects for the next three months, less the share to save, less a
+ *     third of any shortfall below the warning level.
+ *  3. If the usual levels add up to more, the flexible categories are
+ *     trimmed in proportion, by up to half. Mostly-recurring categories are
+ *     commitments and are never trimmed; what still does not fit is reported.
+ */
+export function recommendBudget(ledger: Ledger, goal: BudgetGoal) {
+  const { today } = ledger;
+  const thisMonth = isoStartOfMonth(today);
+  const firstEntry = ledger.entriesBetween('0000-01-01', today)[0]?.date;
+  const months = Array.from({ length: RECOMMENDATION_MONTHS }, (_, i) =>
+    isoShiftMonth(today, i - RECOMMENDATION_MONTHS),
+  ).filter((start) => firstEntry !== undefined && isoEndOfMonth(start) >= firstEntry);
+
+  // Each category's spending, month by month, and its largest single payment.
+  const byCategory = new Map<string, { totals: number[]; largest: LedgerEntry | null }>();
+  months.forEach((start, i) => {
+    for (const e of ledger.entriesBetween(start, isoEndOfMonth(start))) {
+      if (e.type !== 'EXPENSE') continue;
+      const key = categoryKey(e.category);
+      const entry = byCategory.get(key) ?? { totals: months.map(() => 0), largest: null };
+      entry.totals[i]! += e.amountCents;
+      if (!entry.largest || e.amountCents > entry.largest.amountCents) entry.largest = e;
+      byCategory.set(key, entry);
+    }
+  });
+
+  // Only steady monthly payments are commitments. One whose amount moves (a
+  // monthly stock order, say) repeats, but how much it costs is a choice.
+  const recurring = new Map<string, number>();
+  for (const s of ledger.recurring()) {
+    if (s.type !== 'EXPENSE' || !s.steady) continue;
+    const key = categoryKey(s.category);
+    recurring.set(key, (recurring.get(key) ?? 0) + s.amountCents);
+  }
+
+  const base = [...byCategory].map(([key, { totals, largest }]) => {
+    const usual = median(totals);
+    const recurringCents = recurring.get(key) ?? 0;
+    const level = Math.max(usual, recurringCents);
+    return {
+      key,
+      usualCents: usual,
+      recurringCents,
+      level,
+      fixed: recurringCents > 0 && recurringCents >= level * FIXED_SHARE,
+      unusual:
+        largest && usual > 0 && largest.amountCents > usual * UNUSUAL_FACTOR
+          ? { amountCents: largest.amountCents, date: largest.date }
+          : null,
+    };
+  });
+
+  // What the goal allows: the income expected over the next three months.
+  const horizonEnd = isoEndOfMonth(isoShiftMonth(today, 3));
+  const nextMonths = [1, 2, 3].map((m) => month(isoShiftMonth(today, m)));
+  const projected = projectedMonths(ledger.project(isoDaysBetween(today, horizonEnd)), nextMonths);
+  const expectedIncomeCents = Math.round(
+    projected.reduce((sum, m) => sum + m.incomeCents, 0) / nextMonths.length,
+  );
+  const { balanceCents, lowBalanceThresholdCents: threshold } = ledger.settings;
+  const shortfall =
+    balanceCents !== null && threshold !== null
+      ? Math.max(0, threshold - ledger.balanceAt(today))
+      : 0;
+  const targetCents =
+    expectedIncomeCents > 0
+      ? Math.max(
+          0,
+          Math.round(expectedIncomeCents * (1 - SAVE_SHARE[goal]) - shortfall / RECOVERY_MONTHS),
+        )
+      : null;
+
+  const total = base.reduce((sum, l) => sum + l.level, 0);
+  const flexible = base.filter((l) => !l.fixed).reduce((sum, l) => sum + l.level, 0);
+  const trim =
+    targetCents !== null && total > targetCents && flexible > 0
+      ? Math.min(MAX_TRIM, (total - targetCents) / flexible)
+      : 0;
+
+  const lines = base
+    .filter((l) => l.level > 0)
+    .map((l) => {
+      const cut = l.fixed ? 0 : trim;
+      const limitCents = Math.max(
+        LIMIT_STEP,
+        cut > 0
+          ? Math.floor((l.level * (1 - cut)) / LIMIT_STEP) * LIMIT_STEP
+          : Math.ceil(l.level / LIMIT_STEP) * LIMIT_STEP,
+      );
+      return {
+        category: ledger.displayName(l.key),
+        limitCents,
+        usualCents: l.usualCents,
+        recurringCents: l.recurringCents,
+        fixed: l.fixed,
+        trimmedPct: Math.round(cut * 100),
+        unusual: l.unusual,
+      };
+    })
+    .sort((a, b) => b.limitCents - a.limitCents || a.category.localeCompare(b.category));
+
+  const totalCents = lines.reduce((sum, l) => sum + l.limitCents, 0);
+  // Rounding each limit to a whole 10 can leave a few euros over a target the
+  // trim did meet; only a trim that ran out of room is a real gap.
+  const ranOut =
+    trim >= MAX_TRIM || (flexible === 0 && targetCents !== null && total > targetCents);
+  return {
+    today,
+    goal,
+    monthsOfHistory: months.filter((start) => start < thisMonth).length,
+    expectedIncomeCents,
+    targetCents,
+    totalCents,
+    overByCents: targetCents !== null && ranOut ? Math.max(0, totalCents - targetCents) : 0,
+    recovering: shortfall > 0,
+    lines,
+  } satisfies Omit<BudgetRecommendation, 'currency'>;
 }
 
 // ── Simulations ─────────────────────────────────────────────────────────

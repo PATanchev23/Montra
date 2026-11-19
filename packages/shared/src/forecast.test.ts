@@ -6,6 +6,7 @@ import {
   buildBudgetMonth,
   buildCashFlow,
   buildReport,
+  recommendBudget,
   Ledger,
   scenarioPresets,
   seriesKey,
@@ -255,7 +256,12 @@ describe('buildBudgetMonth', () => {
       spentCents: 120_000,
       fixed: true,
     });
-    expect(month).toMatchObject({ isCurrent: true, daysInMonth: 30, daysElapsed: 19 });
+    expect(month).toMatchObject({
+      isCurrent: true,
+      daysInMonth: 30,
+      daysElapsed: 19,
+      latestExpenseMonth: '2026-11',
+    });
     expect(month.totalSpentCents).toBe(180_000);
   });
 
@@ -269,6 +275,16 @@ describe('buildBudgetMonth', () => {
       limitCents: null,
       averageCents: 300_000,
     });
+  });
+
+  it('points to the latest month with expenses when this one has none yet', () => {
+    const october = [entry({ date: '2026-10-12', amountCents: 5_000, category: 'Rent' })];
+    const month = buildBudgetMonth(new Ledger(october, TODAY, noSettings), limits, '2026-11');
+    expect(month.totalSpentCents).toBe(0);
+    expect(month.latestExpenseMonth).toBe('2026-10');
+    expect(
+      buildBudgetMonth(new Ledger([], TODAY, noSettings), [], '2026-11').latestExpenseMonth,
+    ).toBeNull();
   });
 
   it('reads a past month in full', () => {
@@ -356,5 +372,134 @@ describe('buildAlerts', () => {
   it('says nothing about the balance until the owner has entered it', () => {
     const ledger = new Ledger(shop(), TODAY, { ...noSettings, lowBalanceThresholdCents: 1 });
     expect(buildAlerts(ledger, []).some((a) => a.kind === 'low-balance')).toBe(false);
+  });
+});
+
+describe('recommendBudget', () => {
+  /** A café that earns more than it spends: weekly takings, rent, coffee beans with one big order. */
+  function cafe(): LedgerEntry[] {
+    const entries: LedgerEntry[] = [];
+    for (let d = 0; d < 200; d += 7) {
+      entries.push(
+        entry({
+          date: isoAddDays(TODAY, -d),
+          type: 'INCOME',
+          amountCents: 150_000,
+          category: 'Sales',
+          description: 'Weekly takings',
+        }),
+      );
+    }
+    for (const m of ['05', '06', '07', '08', '09', '10', '11']) {
+      entries.push(
+        entry({
+          date: `2026-${m}-02`,
+          amountCents: 100_000,
+          category: 'Rent',
+          description: 'Rent',
+        }),
+        entry({
+          date: `2026-${m}-15`,
+          amountCents: m === '08' ? 90_000 : 30_000,
+          category: 'Beans',
+          description: `Bean order ${m}`,
+        }),
+      );
+    }
+    return entries;
+  }
+
+  it('keeps usual spending when it fits the income, leaving one unusual order out', () => {
+    const plan = recommendBudget(new Ledger(cafe(), TODAY, noSettings), 'within-income');
+
+    expect(plan.monthsOfHistory).toBe(6);
+    expect(plan.expectedIncomeCents).toBeGreaterThan(600_000);
+    expect(plan.overByCents).toBe(0);
+    expect(plan.lines).toEqual([
+      {
+        category: 'Rent',
+        limitCents: 100_000,
+        usualCents: 100_000,
+        recurringCents: 100_000,
+        fixed: true,
+        trimmedPct: 0,
+        unusual: null,
+      },
+      {
+        category: 'Beans',
+        limitCents: 30_000,
+        usualCents: 30_000,
+        recurringCents: 30_000,
+        fixed: true,
+        trimmedPct: 0,
+        // August's order was three times the usual month.
+        unusual: { amountCents: 90_000, date: '2026-08-15' },
+      },
+    ]);
+  });
+
+  it('trims flexible categories to meet the goal, and never the recurring ones', () => {
+    const plan = recommendBudget(new Ledger(shop(), TODAY, noSettings), 'within-income');
+    const line = (name: string) =>
+      plan.lines.find((l) => l.category.toLowerCase() === name.toLowerCase())!;
+
+    // Rent, salaries and the subscription repeat every month: commitments, kept whole.
+    expect(line('Rent')).toMatchObject({ limitCents: 120_000, fixed: true, trimmedPct: 0 });
+    expect(line('Payroll')).toMatchObject({ limitCents: 300_000, fixed: true, trimmedPct: 0 });
+    // Packaging is flexible, and is cut as far as a trim goes.
+    expect(line('Supplies')).toMatchObject({ fixed: false, trimmedPct: 50 });
+    // Even so, this shop spends more than it earns: the gap is reported, not hidden.
+    expect(plan.targetCents).toBe(plan.expectedIncomeCents);
+    expect(plan.overByCents).toBe(plan.totalCents - plan.targetCents!);
+    expect(plan.overByCents).toBeGreaterThan(0);
+  });
+
+  it('treats a monthly payment whose amount moves as flexible, not a commitment', () => {
+    const stock = ['06', '07', '08', '09', '10'].map((m, i) =>
+      entry({
+        date: `2026-${m}-20`,
+        amountCents: [400_000, 900_000, 500_000, 800_000, 600_000][i]!,
+        category: 'Inventory',
+        description: 'Stock order',
+      }),
+    );
+    const plan = recommendBudget(new Ledger([...cafe(), ...stock], TODAY, noSettings), 'save-20');
+    const inventory = plan.lines.find((l) => l.category === 'Inventory')!;
+
+    // It repeats every month, but its size is a choice: trimmed like any flexible cost.
+    expect(inventory.fixed).toBe(false);
+    expect(inventory.recurringCents).toBe(0);
+    expect(inventory.trimmedPct).toBeGreaterThan(0);
+    expect(plan.lines.find((l) => l.category === 'Rent')).toMatchObject({
+      fixed: true,
+      trimmedPct: 0,
+    });
+  });
+
+  it('asks for less as the goal saves more', () => {
+    const ledger = new Ledger(shop(), TODAY, noSettings);
+    const [within, save10, save20] = (['within-income', 'save-10', 'save-20'] as const).map(
+      (goal) => recommendBudget(ledger, goal),
+    );
+    expect(save10!.targetCents!).toBeLessThan(within!.targetCents!);
+    expect(save20!.targetCents!).toBe(Math.round(within!.targetCents! * 0.8));
+  });
+
+  it('leaves room to climb back above the warning level', () => {
+    const below = new Ledger(cafe(), TODAY, {
+      balanceCents: 100_000,
+      balanceDate: TODAY,
+      lowBalanceThresholdCents: 400_000,
+    });
+    const plan = recommendBudget(below, 'within-income');
+    const plain = recommendBudget(new Ledger(cafe(), TODAY, noSettings), 'within-income');
+
+    expect(plan.recovering).toBe(true);
+    expect(plan.targetCents).toBe(plain.targetCents! - 100_000);
+  });
+
+  it('has nothing to recommend without history', () => {
+    const plan = recommendBudget(new Ledger([], TODAY, noSettings), 'save-10');
+    expect(plan).toMatchObject({ monthsOfHistory: 0, lines: [], targetCents: null, totalCents: 0 });
   });
 });

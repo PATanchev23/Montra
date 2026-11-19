@@ -119,6 +119,22 @@ export function BudgetsPage() {
           )}
         >
           <BudgetSummary month={data} />
+          {/* This month has nothing yet, but earlier ones do: say why the bars are empty. */}
+          {data?.isCurrent &&
+            data.totalSpentCents === 0 &&
+            data.latestExpenseMonth !== null &&
+            data.latestExpenseMonth < data.month && (
+              <Panel className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
+                <p className="max-w-3xl text-body-sm text-ink-2">
+                  {m.nothingYet(monthLabel(data.month), monthLabel(data.latestExpenseMonth))}
+                </p>
+                {data.latestExpenseMonth >= earliest! && (
+                  <Button size="sm" onClick={() => setMonth(data.latestExpenseMonth!)}>
+                    {m.showMonth(monthLabel(data.latestExpenseMonth))}
+                  </Button>
+                )}
+              </Panel>
+            )}
           <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
             <Panel className="overflow-hidden" aria-labelledby="budget-categories">
               <div className="px-5 pt-5 pb-3 sm:px-6">

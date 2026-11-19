@@ -19,8 +19,11 @@ export const budgetMessages = defineMessages(
       next: 'Next month',
       edit: 'Edit budgets',
       setBudgets: 'Set budgets',
+      nothingYet: (month: string, latest: string) =>
+        `No spending recorded in ${month} yet, so the bars are at 0. Your latest expenses are from ${latest}; they count here once this month’s transactions are added.`,
+      showMonth: (month: string) => `Show ${month}`,
       noBudgetsOwner:
-        'Set a monthly limit for the categories you spend in. Montra suggests one from your last three months.',
+        'Set a monthly limit for the categories you spend in. Montra recommends one from your own months.',
       noBudgetsViewer: 'The owner has not set any monthly limits yet.',
       loadError: 'Could not load budgets',
       noBudgets: 'No budgets yet',
@@ -60,11 +63,51 @@ export const budgetMessages = defineMessages(
       other: 'Other',
       spent: 'Spent',
     },
+    recommend: {
+      title: 'Recommended budget',
+      description: (months: number) =>
+        months === 1
+          ? 'From your last full month, checked against the income Montra expects.'
+          : `From your last ${months} full months, checked against the income Montra expects.`,
+      descriptionLoading: 'From your own months, checked against the income Montra expects.',
+      goal: 'What the budget aims for',
+      goals: {
+        'within-income': 'Spend within income',
+        'save-10': 'Save 10%',
+        'save-20': 'Save 20%',
+      },
+      loadError: 'Could not work out a recommendation',
+      notEnough: 'A recommendation appears once there is a full month of expenses to learn from.',
+      total: 'Recommended',
+      perMonth: 'a month',
+      expectedIncome: (amount: string) => `Expected income ${amount} a month`,
+      totalOfIncome: 'Recommended spending against expected income',
+      leaves: (amount: string) => `Leaves ${amount} of expected income unspent each month.`,
+      overBy: (amount: string) =>
+        `Still ${amount} over expected income after trimming flexible costs by half. The rest has to come from recurring costs or more income.`,
+      overByFixed: (amount: string) =>
+        `${amount} over expected income. Every category here is a steady monthly payment, so none was trimmed: the difference has to come from those costs or from more income.`,
+      noIncome:
+        'Montra expects no income in the next three months, so these are your usual levels.',
+      recovering: 'It also leaves room to climb back above your warning level.',
+      why: {
+        fixed: (amount: string) => `Repeats every month: ${amount}.`,
+        usual: (amount: string) => `A usual month is ${amount}.`,
+        trimmed: (amount: string, pct: number) =>
+          `A usual month is ${amount}; trimmed ${pct}% to meet the goal.`,
+        unusual: (amount: string, date: string) =>
+          `One unusual ${amount} payment on ${date} left out.`,
+      },
+      useOne: (category: string) => `Use the recommended limit for ${category}`,
+      recommendedAmount: (amount: string) => `Recommended ${amount}`,
+      fill: 'Fill in recommendation',
+      adjustAfter: 'Fills each category below; change any amount before you save.',
+      filled: 'The limits below match this recommendation.',
+    },
     editor: {
       title: 'Monthly budgets',
       description: 'A limit for each category you spend in. Leave a category empty for no budget.',
       columns: (currency: string) => `Category · monthly limit (${currency})`,
-      fill: 'Fill from averages',
       average: (amount: string) => `About ${amount} a month lately`,
       noRecent: 'No spending in the last three months',
       none: 'No limit',
@@ -95,8 +138,11 @@ export const budgetMessages = defineMessages(
       next: 'Следващ месец',
       edit: 'Редактирай бюджетите',
       setBudgets: 'Задай бюджети',
+      nothingYet: (month: string, latest: string) =>
+        `Все още няма разходи за ${month}, затова лентите са на 0. Последните ви разходи са от ${latest}; тук се отчитат, щом добавите транзакциите за този месец.`,
+      showMonth: (month: string) => `Покажи ${month}`,
       noBudgetsOwner:
-        'Задайте месечен лимит за категориите, в които харчите. Montra предлага такъв въз основа на последните три месеца.',
+        'Задайте месечен лимит за категориите, в които харчите. Montra препоръчва такъв въз основа на вашите месеци.',
       noBudgetsViewer: 'Собственикът все още не е задал месечни лимити.',
       loadError: 'Бюджетите не могат да се заредят',
       noBudgets: 'Все още няма бюджети',
@@ -136,12 +182,52 @@ export const budgetMessages = defineMessages(
       other: 'Други',
       spent: 'Изхарчено',
     },
+    recommend: {
+      title: 'Препоръчан бюджет',
+      description: (months: number) =>
+        months === 1
+          ? 'От последния ви пълен месец, сверен с приходите, които Montra очаква.'
+          : `От последните ви ${months} пълни месеца, сверен с приходите, които Montra очаква.`,
+      descriptionLoading: 'От вашите месеци, сверен с приходите, които Montra очаква.',
+      goal: 'Към какво се стреми бюджетът',
+      goals: {
+        'within-income': 'В рамките на приходите',
+        'save-10': 'Спести 10%',
+        'save-20': 'Спести 20%',
+      },
+      loadError: 'Препоръката не може да се изчисли',
+      notEnough: 'Препоръка се появява, щом има пълен месец разходи, от който да се учи.',
+      total: 'Препоръчано',
+      perMonth: 'на месец',
+      expectedIncome: (amount: string) => `Очаквани приходи ${amount} на месец`,
+      totalOfIncome: 'Препоръчани разходи спрямо очакваните приходи',
+      leaves: (amount: string) => `Остават ${amount} от очакваните приходи всеки месец.`,
+      overBy: (amount: string) =>
+        `Все още ${amount} над очакваните приходи след намаляване на гъвкавите разходи наполовина. Останалото трябва да дойде от повтарящите се разходи или от повече приходи.`,
+      overByFixed: (amount: string) =>
+        `${amount} над очакваните приходи. Всяка категория тук е постоянно месечно плащане, затова нищо не е намалено: разликата трябва да дойде от тези разходи или от повече приходи.`,
+      noIncome:
+        'Montra не очаква приходи през следващите три месеца, затова това са обичайните ви нива.',
+      recovering: 'Оставя и място да се върнете над нивото за предупреждение.',
+      why: {
+        fixed: (amount: string) => `Повтаря се всеки месец: ${amount}.`,
+        usual: (amount: string) => `Обичаен месец е ${amount}.`,
+        trimmed: (amount: string, pct: number) =>
+          `Обичаен месец е ${amount}; намален с ${pct}%, за да се постигне целта.`,
+        unusual: (amount: string, date: string) =>
+          `Едно необичайно плащане от ${amount} на ${date} е изключено.`,
+      },
+      useOne: (category: string) => `Приложи препоръчания лимит за ${category}`,
+      recommendedAmount: (amount: string) => `Препоръчано ${amount}`,
+      fill: 'Попълни препоръката',
+      adjustAfter: 'Попълва всяка категория отдолу; можете да промените сумите, преди да запазите.',
+      filled: 'Лимитите отдолу съвпадат с тази препоръка.',
+    },
     editor: {
       title: 'Месечни бюджети',
       description:
         'Лимит за всяка категория, в която харчите. Оставете категорията празна, ако няма бюджет.',
       columns: (currency: string) => `Категория · месечен лимит (${currency})`,
-      fill: 'Попълни от средните',
       average: (amount: string) => `Около ${amount} на месец напоследък`,
       noRecent: 'Без разходи през последните три месеца',
       none: 'Без лимит',

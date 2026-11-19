@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { resetSessionForTests } from '../api/session';
@@ -190,22 +190,76 @@ describe('cash flow', () => {
 });
 
 describe('budgets', () => {
-  it('suggests limits from recent spending and compares the month with them', async () => {
+  it('explains empty bars when this month has no spending yet, and jumps to the latest', async () => {
+    // Everything is from October; the fake's today is 9 November.
+    ledgerServer({
+      transactions: [
+        transaction({ id: 'r', amountCents: 95_000, category: 'Rent', date: '2026-10-02' }),
+      ],
+      budgets: [{ category: 'Rent', limitCents: 95_000 }],
+    });
+    renderTransactions('/budgets');
+    const u = userEvent.setup();
+
+    expect(
+      await screen.findByText(
+        /^No spending recorded in November 2026 yet, so the bars are at 0\. Your latest expenses are from October 2026/,
+      ),
+    ).toBeInTheDocument();
+    await u.click(screen.getByRole('button', { name: 'Show October 2026' }));
+
+    const categories = screen.getByRole('region', { name: 'Categories' });
+    const rent = (await within(categories).findByText('Rent', { selector: 'p' })).closest('li')!;
+    await waitFor(() => expect(rent).toHaveTextContent('€950 / €950'));
+    expect(screen.queryByText(/^No spending recorded/)).not.toBeInTheDocument();
+  });
+
+  it('recommends limits in the editor, which the owner can take and adjust', async () => {
     const api = ledgerServer({ transactions: shop() });
     renderTransactions('/budgets');
     const u = userEvent.setup();
 
     expect(await screen.findByText('No budgets yet')).toBeInTheDocument();
+    // The recommendation lives in the editor, not on the page.
+    expect(screen.queryByRole('region', { name: 'Recommended budget' })).not.toBeInTheDocument();
     await u.click(screen.getByRole('button', { name: 'Set budgets' }));
     const sheet = await screen.findByRole('dialog', { name: 'Monthly budgets' });
-    // The categories the shop spends in, from its transactions.
-    expect(within(sheet).getByText('Rent')).toBeInTheDocument();
-    expect(within(sheet).getByText('About €1,200 a month lately')).toBeInTheDocument();
-    expect(within(sheet).getByText('Marketing')).toBeInTheDocument();
 
-    await u.click(within(sheet).getByRole('button', { name: 'Fill from averages' }));
-    expect(within(sheet).getByLabelText(/Rent/)).toHaveValue('1200');
-    await u.type(within(sheet).getByLabelText(/Marketing/), '300');
+    const advice = within(sheet).getByRole('region', { name: 'Recommended budget' });
+    expect(
+      await within(advice).findByText(
+        'From your last 4 full months, checked against the income Montra expects.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(advice).getByText(/^Leaves €[\d,]+ of expected income unspent/),
+    ).toBeInTheDocument();
+    // A goal that saves more asks for a smaller share of income.
+    await u.click(within(advice).getByRole('radio', { name: 'Save 20%' }));
+    expect(api.fetchMock.mock.calls.some(([url]) => String(url).endsWith('goal=save-20'))).toBe(
+      true,
+    );
+
+    // Each category says what is recommended and why; Marketing only started this month.
+    const rentRow = within(sheet).getByLabelText('Rent').closest('li')!;
+    expect(rentRow).toHaveTextContent('Recommended €1,200 · Repeats every month: €1,200.');
+    expect(within(sheet).getByLabelText('Marketing').closest('li')).toHaveTextContent(
+      'No spending in the last three months',
+    );
+
+    await u.click(within(sheet).getByRole('button', { name: 'Fill in recommendation' }));
+    expect(within(sheet).getByLabelText('Rent')).toHaveValue('1200');
+    expect(
+      within(advice).getByText('The limits below match this recommendation.'),
+    ).toBeInTheDocument();
+    // One line can also be taken on its own after a change.
+    await u.clear(within(sheet).getByLabelText('Rent'));
+    await u.click(
+      within(sheet).getByRole('button', { name: 'Use the recommended limit for Rent' }),
+    );
+    expect(within(sheet).getByLabelText('Rent')).toHaveValue('1200');
+
+    await u.type(within(sheet).getByLabelText('Marketing'), '300');
     await u.click(within(sheet).getByRole('button', { name: 'Save budgets' }));
 
     expect(await screen.findByText('Budgets saved')).toBeInTheDocument();
@@ -213,9 +267,12 @@ describe('budgets', () => {
       { category: 'Rent', limitCents: 120_000 },
       { category: 'Marketing', limitCents: 30_000 },
     ]);
-    const marketing = (await screen.findByText('Marketing', { selector: 'p' })).closest('li')!;
+    const categories = screen.getByRole('region', { name: 'Categories' });
+    const marketing = (await within(categories).findByText('Marketing', { selector: 'p' })).closest(
+      'li',
+    )!;
     expect(within(marketing).getByText('Over by €150')).toBeInTheDocument();
-    const rent = screen.getByText('Rent', { selector: 'p' }).closest('li')!;
+    const rent = within(categories).getByText('Rent', { selector: 'p' }).closest('li')!;
     // Rent repeats every month, so reaching its limit is expected.
     expect(within(rent).getByText('Paid')).toBeInTheDocument();
   });
@@ -228,7 +285,8 @@ describe('budgets', () => {
     });
     renderTransactions('/budgets');
 
-    const rent = (await screen.findByText('Rent', { selector: 'p' })).closest('li')!;
+    const categories = await screen.findByRole('region', { name: 'Categories' });
+    const rent = (await within(categories).findByText('Rent', { selector: 'p' })).closest('li')!;
     expect(rent).toHaveTextContent('€1,200 / €1,500');
     expect(rent).toHaveTextContent('€300 left');
     expect(screen.queryByRole('button', { name: 'Edit budgets' })).not.toBeInTheDocument();

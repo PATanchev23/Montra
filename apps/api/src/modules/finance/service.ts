@@ -7,10 +7,13 @@ import {
   currencySchema,
   DEFAULT_TIMEZONE,
   Ledger,
+  recommendBudget,
   scenarioPresets,
   simulate,
   todayIn,
   type AlertsResponse,
+  type BudgetGoal,
+  type BudgetRecommendation,
   type BudgetLimit,
   type BudgetLimitsResponse,
   type BudgetMonthResponse,
@@ -136,6 +139,16 @@ export async function getBudgets(
     throw new AppError(400, 'VALIDATION_ERROR', 'Choose this month or an earlier one.');
   }
   return { currency, ...buildBudgetMonth(ledger, limits, month ?? current) };
+}
+
+export async function getBudgetRecommendation(
+  db: Db,
+  businessId: string,
+  goal: BudgetGoal,
+  now = new Date(),
+): Promise<BudgetRecommendation> {
+  const { ledger, currency } = await loadLedger(db, businessId, now);
+  return { currency, ...recommendBudget(ledger, goal) };
 }
 
 /** Replaces every limit at once, as the editor saves them. */

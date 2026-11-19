@@ -3,11 +3,13 @@ import {
   API_PREFIX,
   budgetLimitsResponseSchema,
   budgetMonthResponseSchema,
+  budgetRecommendationSchema,
   cashFlowResponseSchema,
   cashSettingsSchema,
   reportResponseSchema,
   scenarioPresetsResponseSchema,
   simulationResponseSchema,
+  type BudgetGoal,
   type CashSettingsRequest,
   type ScenarioRule,
   type UpdateBudgetsRequest,
@@ -29,6 +31,8 @@ export const financeKeys = {
   cashFlow: (businessId: string) => [...financeKeys.all(businessId), 'cash-flow'] as const,
   budgets: (businessId: string, month: string | undefined) =>
     [...financeKeys.all(businessId), 'budgets', month ?? 'current'] as const,
+  recommendation: (businessId: string, goal: BudgetGoal) =>
+    [...financeKeys.all(businessId), 'recommendation', goal] as const,
   presets: (businessId: string) => [...financeKeys.all(businessId), 'presets'] as const,
   simulation: (businessId: string, rule: ScenarioRule) =>
     [...financeKeys.all(businessId), 'simulation', rule] as const,
@@ -79,6 +83,19 @@ export function useBudgets(businessId: string, month: string | undefined) {
     queryFn: ({ signal }) =>
       authorizedRequest(`${base(businessId)}/budgets${month ? `?month=${month}` : ''}`, {
         schema: budgetMonthResponseSchema,
+        signal,
+      }),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Limits Montra recommends from the business's history, for the chosen goal. */
+export function useBudgetRecommendation(businessId: string, goal: BudgetGoal) {
+  return useQuery({
+    queryKey: financeKeys.recommendation(businessId, goal),
+    queryFn: ({ signal }) =>
+      authorizedRequest(`${base(businessId)}/budgets/recommendation?goal=${goal}`, {
+        schema: budgetRecommendationSchema,
         signal,
       }),
     placeholderData: keepPreviousData,

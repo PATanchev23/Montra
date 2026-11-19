@@ -4,6 +4,8 @@ import {
   budgetLimitsResponseSchema,
   budgetMonthResponseSchema,
   budgetQuerySchema,
+  budgetRecommendationQuerySchema,
+  budgetRecommendationSchema,
   cashFlowResponseSchema,
   cashSettingsRequestSchema,
   cashSettingsSchema,
@@ -20,6 +22,7 @@ import { authOf } from '../../plugins/auth';
 import { ownerOnly, requireMembership } from '../businesses/access';
 import {
   getAlerts,
+  getBudgetRecommendation,
   getBudgets,
   getCashFlow,
   getReport,
@@ -95,6 +98,26 @@ export const financeRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       await member(request.params.businessId, authOf(request).userId);
       return getBudgets(app.db, request.params.businessId, request.query.month);
+    },
+  );
+
+  app.get(
+    '/budgets/recommendation',
+    {
+      schema: {
+        tags: ['finance'],
+        summary: 'A recommended monthly limit for every expense category',
+        description:
+          'Drawn from the last six full months (the median month, never below what repeats monthly) and checked against the income expected over the next three months, less the share the goal saves. Flexible categories are trimmed by up to half to fit; recurring ones never are.',
+        security: [{ bearerAuth: [] }],
+        params: businessParamsSchema,
+        querystring: budgetRecommendationQuerySchema,
+        response: { 200: budgetRecommendationSchema, ...readErrors },
+      },
+    },
+    async (request) => {
+      await member(request.params.businessId, authOf(request).userId);
+      return getBudgetRecommendation(app.db, request.params.businessId, request.query.goal);
     },
   );
 

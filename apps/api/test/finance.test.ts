@@ -3,6 +3,7 @@ import {
   apiErrorSchema,
   authResponseSchema,
   budgetMonthResponseSchema,
+  budgetRecommendationSchema,
   cashFlowResponseSchema,
   cashSettingsSchema,
   isoAddDays,
@@ -232,6 +233,35 @@ describe('finance API', () => {
       expect(await db.budget.findMany({ select: { category: true } })).toEqual([
         { category: 'Ads' },
       ]);
+    });
+
+    it('recommends a budget from the history, for viewers too', async () => {
+      await seedShop();
+      // Spending in the four months before this one, for the median.
+      await db.transaction.createMany({
+        data: [-4, -3, -2, -1].map((m) => ({
+          businessId: business.id,
+          type: 'EXPENSE' as const,
+          amountCents: 20_000,
+          category: 'Ads',
+          description: `Campaign ${m}`,
+          date: new Date(`${isoShiftMonth(today, m).slice(0, 8)}10T00:00:00Z`),
+        })),
+      });
+
+      const plan = await ok(
+        await call('GET', '/budgets/recommendation?goal=save-10', viewer.token),
+        budgetRecommendationSchema,
+      );
+      expect(plan.goal).toBe('save-10');
+      expect(plan.lines.find((l) => l.category === 'Rent')).toMatchObject({
+        limitCents: 100_000,
+        fixed: true,
+      });
+      expect(plan.lines.map((l) => l.category)).toContain('Ads');
+      expect(plan.targetCents).toBe(Math.round(plan.expectedIncomeCents * 0.9));
+
+      expect((await call('GET', '/budgets/recommendation?goal=save-50')).statusCode).toBe(400);
     });
 
     it('refuses the same category twice, a future month, and viewers', async () => {

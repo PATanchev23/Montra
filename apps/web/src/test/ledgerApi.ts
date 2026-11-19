@@ -1,5 +1,7 @@
 import {
   budgetQuerySchema,
+  budgetRecommendationQuerySchema,
+  recommendBudget,
   buildAlerts,
   buildBudgetMonth,
   buildCashFlow,
@@ -330,6 +332,17 @@ export function ledgerServer(options: LedgerOptions = {}) {
         if (!query.success) return invalid();
         const month = query.data.month ?? FAKE_TODAY.slice(0, 7);
         return jsonResponse({ currency, ...buildBudgetMonth(ledger(), state.budgets, month) });
+      },
+    ],
+    [
+      'GET',
+      new RegExp(`^${BASE}/budgets/recommendation$`),
+      (url) => {
+        const query = budgetRecommendationQuerySchema.safeParse(
+          Object.fromEntries(url.searchParams),
+        );
+        if (!query.success) return invalid();
+        return jsonResponse({ currency, ...recommendBudget(ledger(), query.data.goal) });
       },
     ],
     [
