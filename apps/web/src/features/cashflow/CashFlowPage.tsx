@@ -18,7 +18,7 @@ import { cn } from '../../lib/cn';
 import { formatDate, money, relativeDay, type MoneyOptions } from '../../lib/format';
 import { useCurrentMembership } from '../auth/currentUser';
 import { TypeIcon } from '../transactions/TypeIcon';
-import { CashSettingsSheet } from './CashSettingsSheet';
+import { CashSettingsDialog } from './CashSettingsDialog';
 import { cashFlowMessages } from './messages';
 
 /** Set for a business with no transactions: the page shows its layout empty, at zero. */
@@ -74,11 +74,10 @@ export function CashFlowPage() {
       )}
 
       {editing && data && (
-        <CashSettingsSheet
+        <CashSettingsDialog
           businessId={business.id}
           currency={data.currency}
           settings={data.settings}
-          open
           onOpenChange={setEditing}
         />
       )}

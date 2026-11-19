@@ -67,6 +67,7 @@ export function railAnswers(
   const threshold = preferencesFormSchema.shape.lowBalanceThreshold.safeParse(
     p.lowBalanceThreshold,
   );
+  const balance = preferencesFormSchema.shape.bankBalance.safeParse(p.bankBalance);
   const month = Number(p.fiscalYearStartMonth);
 
   const name = d.name.trim() || undefined;
@@ -79,6 +80,12 @@ export function railAnswers(
     : threshold.data == null
       ? q.noWarning
       : money(threshold.data, { currency: d.currency || DEFAULT_CURRENCY });
+
+  const cash = !balance.success
+    ? undefined
+    : balance.data == null
+      ? q.noBalance
+      : money(balance.data, { currency: d.currency || DEFAULT_CURRENCY });
 
   return {
     BUSINESS_DETAILS: [
@@ -101,6 +108,15 @@ export function railAnswers(
         label: q.fiscalYear,
         value: fiscal,
         state: prefilled('FINANCIAL_PREFERENCES', preferences.touched.fiscalYearStartMonth, fiscal),
+      },
+      {
+        label: q.balance,
+        value: cash,
+        state: prefilled(
+          'FINANCIAL_PREFERENCES',
+          preferences.touched.bankBalance || p.bankBalance.trim() !== '',
+          cash,
+        ),
       },
       {
         label: q.threshold,

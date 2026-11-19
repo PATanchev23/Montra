@@ -14,14 +14,22 @@ const saved = {
     currency: 'EUR' as const,
     timezone: 'Europe/Sofia',
   },
-  financialPreferences: { fiscalYearStartMonth: 4, lowBalanceThresholdCents: 250_050 },
+  financialPreferences: {
+    fiscalYearStartMonth: 4,
+    bankBalanceCents: -30_000,
+    lowBalanceThresholdCents: 250_050,
+  },
 };
 
 describe('onboarding draft', () => {
   it('turns a saved draft into form values and back without change', () => {
     const { details, preferences } = formValuesFrom(saved);
 
-    expect(preferences).toEqual({ fiscalYearStartMonth: '4', lowBalanceThreshold: '2500.50' });
+    expect(preferences).toEqual({
+      fiscalYearStartMonth: '4',
+      bankBalance: '-300',
+      lowBalanceThreshold: '2500.50',
+    });
     expect(toDraft(details, preferences)).toEqual(saved);
     expect(hasUnsavedChanges(details, preferences, saved)).toBe(false);
   });
@@ -30,7 +38,7 @@ describe('onboarding draft', () => {
     const { details, preferences } = formValuesFrom(saved);
     const draft = toDraft(
       { ...details, name: '   ', industry: 'x'.repeat(81) },
-      { ...preferences, lowBalanceThreshold: 'lots' },
+      { ...preferences, bankBalance: '1.2.3', lowBalanceThreshold: 'lots' },
     );
 
     expect(draft).toEqual({
@@ -54,7 +62,11 @@ describe('onboarding draft', () => {
     const { details, preferences } = formValuesFrom({});
 
     expect(details.currency).toBe('EUR');
-    expect(preferences).toEqual({ fiscalYearStartMonth: '1', lowBalanceThreshold: '' });
+    expect(preferences).toEqual({
+      fiscalYearStartMonth: '1',
+      bankBalance: '',
+      lowBalanceThreshold: '',
+    });
     expect(hasUnsavedChanges(details, preferences, {})).toBe(false);
   });
 
@@ -76,6 +88,25 @@ describe('onboarding draft', () => {
     ['9'.repeat(30), 'The threshold is too large.'],
   ])('rejects the threshold %j', (text, message) => {
     const result = preferencesFormSchema.shape.lowBalanceThreshold.safeParse(text);
+    expect(result.error?.issues[0]?.message).toBe(message);
+  });
+
+  it.each([
+    ['', null],
+    ['12500', 1_250_000],
+    ['12 500,50', 1_250_050],
+    ['-300', -30_000],
+    ['−300', -30_000],
+    ['0', 0],
+  ])('reads the bank balance %j as %j cents', (text, cents) => {
+    expect(preferencesFormSchema.shape.bankBalance.parse(text)).toBe(cents);
+  });
+
+  it.each([
+    ['12 euros', 'Enter an amount such as 2500 or 2500.50.'],
+    ['9'.repeat(30), 'The balance is too large.'],
+  ])('rejects the bank balance %j', (text, message) => {
+    const result = preferencesFormSchema.shape.bankBalance.safeParse(text);
     expect(result.error?.issues[0]?.message).toBe(message);
   });
 

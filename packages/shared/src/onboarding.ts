@@ -59,6 +59,17 @@ export const financialPreferencesSchema = z.object({
     .max(MAX_CENTS, 'The threshold is too large.')
     .nullable()
     .optional(),
+  /**
+   * Cash in the business's bank accounts today; negative if overdrawn. It is
+   * recorded as of the day setup finishes, and forecasts start from it. Null
+   * or omitted: not given (it can be entered later, on Cash flow).
+   */
+  bankBalanceCents: z
+    .int('Enter a whole amount in cents.')
+    .min(-MAX_CENTS, 'The balance is too large.')
+    .max(MAX_CENTS, 'The balance is too large.')
+    .nullable()
+    .optional(),
 });
 export type FinancialPreferences = z.infer<typeof financialPreferencesSchema>;
 

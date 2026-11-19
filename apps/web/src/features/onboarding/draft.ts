@@ -42,6 +42,26 @@ const thresholdTextSchema = z
   })
   .pipe(financialPreferencesSchema.shape.lowBalanceThresholdCents.unwrap());
 
+/**
+ * The bank balance as typed, in whole currency units; a leading minus (or −)
+ * means overdrawn. Blank means not given.
+ */
+const balanceTextSchema = z
+  .string()
+  .trim()
+  .transform((text, ctx) => {
+    if (text === '') return null;
+    const compact = text.replace(/\s/g, '').replace('−', '-');
+    if (!AMOUNT_PATTERN.test(compact)) {
+      ctx.addIssue({ code: 'custom', message: 'Enter an amount such as 2500 or 2500.50.' });
+      return z.NEVER;
+    }
+    const cents = toCents(Number(compact.replace(',', '.')));
+    // Far beyond the largest balance; the shared schema reports it as too large.
+    return Number.isSafeInteger(cents) ? cents : Number.MAX_SAFE_INTEGER;
+  })
+  .pipe(financialPreferencesSchema.shape.bankBalanceCents.unwrap());
+
 const monthTextSchema = z
   .string()
   .transform(Number)
@@ -53,6 +73,7 @@ export const detailsFormSchema = businessDetailsSchema;
 /** The financial preferences step, as typed. */
 export const preferencesFormSchema = z.object({
   fiscalYearStartMonth: monthTextSchema,
+  bankBalance: balanceTextSchema,
   lowBalanceThreshold: thresholdTextSchema,
 });
 
@@ -68,6 +89,9 @@ export function defaultTimeZone(): string {
 function amountText(cents: number): string {
   return cents % 100 === 0 ? String(fromCents(cents)) : fromCents(cents).toFixed(2);
 }
+
+const optionalAmountText = (cents: number | null | undefined) =>
+  cents == null ? '' : amountText(cents);
 
 /** The saved draft as form values. Unanswered questions start from Montra's defaults. */
 export function formValuesFrom(draft: OnboardingDraft): {
@@ -87,10 +111,8 @@ export function formValuesFrom(draft: OnboardingDraft): {
       fiscalYearStartMonth: String(
         preferences.fiscalYearStartMonth ?? DEFAULT_FISCAL_YEAR_START_MONTH,
       ),
-      lowBalanceThreshold:
-        preferences.lowBalanceThresholdCents == null
-          ? ''
-          : amountText(preferences.lowBalanceThresholdCents),
+      bankBalance: optionalAmountText(preferences.bankBalanceCents),
+      lowBalanceThreshold: optionalAmountText(preferences.lowBalanceThresholdCents),
     },
   };
 }
@@ -109,6 +131,9 @@ function collect(details: DetailsValues, preferences: PreferencesValues) {
   const financialPreferences: FinancialPreferences = {};
   const month = monthTextSchema.safeParse(preferences.fiscalYearStartMonth);
   if (month.success) financialPreferences.fiscalYearStartMonth = month.data;
+  else rejected++;
+  const balance = balanceTextSchema.safeParse(preferences.bankBalance);
+  if (balance.success) financialPreferences.bankBalanceCents = balance.data;
   else rejected++;
   const threshold = thresholdTextSchema.safeParse(preferences.lowBalanceThreshold);
   if (threshold.success) financialPreferences.lowBalanceThresholdCents = threshold.data;

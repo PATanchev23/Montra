@@ -503,6 +503,7 @@ export function PreferencesFields({
   return (
     <div>
       <FiscalYearQuestion form={form} />
+      <BalanceQuestion form={form} currency={currency} />
       <ThresholdQuestion form={form} currency={currency} />
     </div>
   );
@@ -585,7 +586,31 @@ function FiscalYearQuestion({ form }: { form: SchemaForm<typeof preferencesFormS
   );
 }
 
-/** An amount in the business currency, with the warning it sets written out as you type. */
+/** Today's bank balance: where every balance and projection starts. */
+function BalanceQuestion({
+  form,
+  currency,
+}: {
+  form: SchemaForm<typeof preferencesFormSchema>;
+  currency: string;
+}) {
+  const t = useMessages(onboardingMessages);
+  return (
+    <AmountQuestion
+      form={form}
+      field="bankBalance"
+      currency={currency}
+      title={t.explain.balanceTitle}
+      hint={t.fields.balanceHint}
+      placeholder={t.explain.balancePlaceholder}
+      preview={(cents) =>
+        cents == null ? t.explain.balanceOff : t.explain.balancePreview(money(cents, { currency }))
+      }
+    />
+  );
+}
+
+/** The low-balance warning, written out as you type. */
 function ThresholdQuestion({
   form,
   currency,
@@ -593,21 +618,54 @@ function ThresholdQuestion({
   form: SchemaForm<typeof preferencesFormSchema>;
   currency: string;
 }) {
-  const id = useId();
   const t = useMessages(onboardingMessages);
-  const inputId = `${id}-amount`;
-  const error = form.errors.lowBalanceThreshold;
-  const parsed = preferencesFormSchema.shape.lowBalanceThreshold.safeParse(
-    form.values.lowBalanceThreshold,
+  return (
+    <AmountQuestion
+      form={form}
+      field="lowBalanceThreshold"
+      currency={currency}
+      title={t.explain.thresholdTitle}
+      hint={t.fields.thresholdHint}
+      placeholder={t.explain.thresholdPlaceholder}
+      preview={(cents) =>
+        cents == null
+          ? t.explain.thresholdOff
+          : t.explain.thresholdPreview(money(cents, { currency }))
+      }
+    />
   );
+}
+
+/** An optional amount in the business currency, with what it means written out below. */
+function AmountQuestion({
+  form,
+  field,
+  currency,
+  title,
+  hint,
+  placeholder,
+  preview,
+}: {
+  form: SchemaForm<typeof preferencesFormSchema>;
+  field: 'bankBalance' | 'lowBalanceThreshold';
+  currency: string;
+  title: string;
+  hint: string;
+  placeholder: string;
+  preview: (cents: number | null) => string;
+}) {
+  const id = useId();
+  const inputId = `${id}-amount`;
+  const error = form.errors[field];
+  const parsed = preferencesFormSchema.shape[field].safeParse(form.values[field]);
   const symbol = currencySymbol(currency);
 
   return (
     <QuestionBlock
-      title={t.explain.thresholdTitle}
+      title={title}
       titleId={`${id}-title`}
       labelFor={inputId}
-      description={t.fields.thresholdHint}
+      description={hint}
       descriptionId={`${id}-hint`}
       optional
     >
@@ -623,11 +681,11 @@ function ThresholdQuestion({
             id={inputId}
             inputMode="decimal"
             autoComplete="off"
-            placeholder={t.explain.thresholdPlaceholder}
+            placeholder={placeholder}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? `${inputId}-error` : `${id}-hint ${inputId}-preview`}
             className="min-w-0 flex-1 bg-transparent px-3.5 text-[16px] font-medium text-ink tabular placeholder:font-normal placeholder:text-muted focus:outline-none"
-            {...form.register('lowBalanceThreshold')}
+            {...form.register(field)}
           />
           <span
             aria-hidden
@@ -640,9 +698,7 @@ function ThresholdQuestion({
           <FieldError id={`${inputId}-error`}>{error}</FieldError>
         ) : (
           <p id={`${inputId}-preview`} className="mt-2.5 text-[13px] leading-5 text-ink-2">
-            {parsed.success && parsed.data != null
-              ? t.explain.thresholdPreview(money(parsed.data, { currency }))
-              : t.explain.thresholdOff}
+            {preview(parsed.success ? parsed.data : null)}
           </p>
         )}
       </div>
@@ -665,6 +721,7 @@ export function ReviewSummary({
   const details = draft.businessDetails ?? {};
   const preferences = draft.financialPreferences ?? {};
   const threshold = preferences.lowBalanceThresholdCents;
+  const balance = preferences.bankBalanceCents;
   const t = useMessages(onboardingMessages);
   const f = t.fields;
   const m = t.review;
@@ -691,6 +748,12 @@ export function ReviewSummary({
         [
           f.fiscalYear,
           monthName(preferences.fiscalYearStartMonth ?? DEFAULT_FISCAL_YEAR_START_MONTH),
+        ],
+        [
+          m.balance,
+          balance == null
+            ? m.noBalance
+            : money(balance, { currency: details.currency ?? DEFAULT_CURRENCY }),
         ],
         [
           m.threshold,

@@ -45,6 +45,7 @@ const EXACT: Record<string, string> = {
   'Enter a whole amount in cents.': 'Въведете цяла сума в центове.',
   'The threshold cannot be negative.': 'Прагът не може да е отрицателен.',
   'The threshold is too large.': 'Прагът е твърде голям.',
+  'The balance is too large.': 'Наличността е твърде голяма.',
   'Choose income or expense.': 'Изберете приход или разход.',
   'Enter a date.': 'Въведете дата.',
   'Enter a real date as YYYY-MM-DD.': 'Въведете съществуваща дата във формат ГГГГ-ММ-ДД.',

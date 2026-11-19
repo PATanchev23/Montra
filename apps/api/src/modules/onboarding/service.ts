@@ -1,6 +1,8 @@
 import {
   currencySchema,
+  DEFAULT_TIMEZONE,
   ONBOARDING_ERROR_CODES,
+  todayIn,
   onboardingDraftSchema,
   onboardingSubmissionSchema,
   type CompleteOnboardingResponse,
@@ -13,6 +15,7 @@ import { Prisma } from '../../generated/prisma/client';
 import type { OnboardingProgressGetPayload } from '../../generated/prisma/models';
 import { AppError } from '../../lib/app-error';
 import { slugify, suffixedSlug } from '../../lib/slug';
+import { toDbDate } from '../transactions/service';
 import { onboardingSummary } from './status';
 
 /** Attempts at finding a free slug when concurrent sign-ups pick the same one. */
@@ -135,6 +138,10 @@ async function attemptCompletion(
     );
   }
   const { businessDetails: details, financialPreferences: preferences = {} } = submission.data;
+  // The balance was typed as "today": it is recorded as of the day setup
+  // finishes, where the business is, and forecasts carry it forward from there.
+  const balance = preferences.bankBalanceCents ?? null;
+  const balanceDate = balance === null ? null : toDbDate(todayWhere(details.timezone));
 
   return db.$transaction(async (tx) => {
     const base = slugify(details.name);
@@ -153,6 +160,8 @@ async function attemptCompletion(
         industry: details.industry || null,
         fiscalYearStartMonth: preferences.fiscalYearStartMonth,
         lowBalanceThresholdCents: preferences.lowBalanceThresholdCents ?? null,
+        cashBalanceCents: balance,
+        cashBalanceDate: balanceDate,
       },
       select: { id: true, slug: true, name: true, currency: true, timezone: true },
     });
@@ -194,4 +203,13 @@ async function attemptCompletion(
 
 function isUniqueViolation(err: unknown): boolean {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
+}
+
+function todayWhere(timeZone: string): string {
+  try {
+    return todayIn(timeZone);
+  } catch {
+    // Time zones are validated on save; this guards against one later dropped from the runtime.
+    return todayIn(DEFAULT_TIMEZONE);
+  }
 }

@@ -152,6 +152,17 @@ describe('financialPreferencesSchema', () => {
     expect(parse(-1)).toBe(false);
     expect(parse(12.5)).toBe(false);
   });
+
+  it('takes the bank balance as whole cents, overdrawn or not', () => {
+    const parse = (bankBalanceCents: unknown) =>
+      financialPreferencesSchema.safeParse({ bankBalanceCents }).success;
+    expect(parse(1_250_050)).toBe(true);
+    expect(parse(-30_000)).toBe(true);
+    expect(parse(0)).toBe(true);
+    expect(parse(null)).toBe(true);
+    expect(parse(-2_147_483_648)).toBe(false);
+    expect(parse(12.5)).toBe(false);
+  });
 });
 
 describe('onboardingDraftSchema', () => {

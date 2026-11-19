@@ -5,6 +5,7 @@ import {
   completeOnboardingResponseSchema,
   currentUserResponseSchema,
   onboardingProgressSchema,
+  todayIn,
 } from '@montra/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, TECHSTORE } from '../prisma/seed/techstore';
@@ -273,7 +274,25 @@ describe('onboarding API', () => {
         industry: null,
         fiscalYearStartMonth: 1,
         lowBalanceThresholdCents: null,
+        cashBalanceCents: null,
+        cashBalanceDate: null,
       });
+    });
+
+    it('records the bank balance as of today where the business is', async () => {
+      const { token } = await signUp();
+      await save(token, {
+        currentStep: 'REVIEW',
+        draft: { businessDetails, financialPreferences: { bankBalanceCents: -30_000 } },
+      });
+
+      const body = completeOnboardingResponseSchema.parse((await complete(token)).json());
+
+      const business = await db.business.findUniqueOrThrow({
+        where: { id: body.membership.business.id },
+      });
+      expect(business.cashBalanceCents).toBe(-30_000);
+      expect(business.cashBalanceDate?.toISOString().slice(0, 10)).toBe(todayIn('Europe/Sofia'));
     });
 
     it('lists what is missing when the draft is incomplete, and creates nothing', async () => {

@@ -43,6 +43,7 @@ const SERVER_MESSAGES = [
   'Enter a whole amount in cents.',
   'The threshold cannot be negative.',
   'The threshold is too large.',
+  'The balance is too large.',
   'Choose income or expense.',
   'Enter a date.',
   'Enter a real date as YYYY-MM-DD.',

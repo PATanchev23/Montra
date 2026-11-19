@@ -25,12 +25,22 @@ export const cashFlowMessages = defineMessages(
     },
     settings: {
       title: 'Bank balance',
-      description: 'What a transaction file cannot tell Montra. Projections start from it.',
+      description: 'What is in your business accounts today, all together.',
       balance: (currency: string) => `Bank balance today (${currency})`,
-      balanceHint:
-        'All your business accounts together. Use a minus sign if overdrawn. Leave empty to start from 0.',
+      balancePreview: (amount: string) => `Projections start from ${amount} today.`,
+      balanceEmpty: 'Empty: balances start from 0.',
+      balanceHint: 'Use a minus sign if overdrawn.',
       threshold: (currency: string) => `Warn me below (${currency})`,
-      thresholdHint: 'Optional. You are warned when the projected balance drops below it.',
+      thresholdPlaceholder: 'Optional',
+      thresholdEmpty: 'No warning. Enter an amount to be told before cash runs low.',
+      thresholdPreview: (amount: string) =>
+        `You will be warned if the projected balance drops below ${amount}.`,
+      headroom: (amount: string) => `${amount} of room before the warning.`,
+      alreadyBelow: 'Your balance is already below this level, so the warning shows right away.',
+      meterWarning: (amount: string) => `Warning ${amount}`,
+      meterBalance: (amount: string) => `Balance ${amount}`,
+      lastSaved: (amount: string, date: string) => `Last saved: ${amount} on ${date}`,
+      neverSaved: 'Not saved before',
       save: 'Save',
       saving: 'Saving…',
       cancel: 'Cancel',
@@ -112,14 +122,24 @@ export const cashFlowMessages = defineMessages(
     },
     settings: {
       title: 'Наличност в банката',
-      description:
-        'Това, което файлът с транзакции не може да каже на Montra. Прогнозите започват от него.',
+      description: 'Колко има по фирмените ви сметки днес, общо.',
       balance: (currency: string) => `Наличност в банката днес (${currency})`,
-      balanceHint:
-        'Всички фирмени сметки заедно. Използвайте знак минус при овърдрафт. Оставете празно, за да започнете от 0.',
+      balancePreview: (amount: string) => `Прогнозите започват от ${amount} днес.`,
+      balanceEmpty: 'Празно: балансите започват от 0.',
+      balanceHint: 'Използвайте знак минус при овърдрафт.',
       threshold: (currency: string) => `Предупреди ме под (${currency})`,
-      thresholdHint:
-        'По избор. Получавате предупреждение, когато прогнозният баланс падне под него.',
+      thresholdPlaceholder: 'По избор',
+      thresholdEmpty:
+        'Без предупреждение. Въведете сума, за да научите навреме, преди парите да намалеят.',
+      thresholdPreview: (amount: string) =>
+        `Ще получите предупреждение, ако прогнозният баланс падне под ${amount}.`,
+      headroom: (amount: string) => `${amount} запас до предупреждението.`,
+      alreadyBelow:
+        'Наличността ви вече е под това ниво, така че предупреждението се показва веднага.',
+      meterWarning: (amount: string) => `Предупреждение ${amount}`,
+      meterBalance: (amount: string) => `Наличност ${amount}`,
+      lastSaved: (amount: string, date: string) => `Последно запазено: ${amount} на ${date}`,
+      neverSaved: 'Не е запазвано досега',
       save: 'Запази',
       saving: 'Запазване…',
       cancel: 'Отказ',

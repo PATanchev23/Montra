@@ -240,14 +240,18 @@ describe('moving between steps', () => {
           currency: 'EUR',
           timezone: defaultTimeZone(),
         },
-        financialPreferences: { fiscalYearStartMonth: 1, lowBalanceThresholdCents: null },
+        financialPreferences: {
+          fiscalYearStartMonth: 1,
+          bankBalanceCents: null,
+          lowBalanceThresholdCents: null,
+        },
       },
     });
     expect(screen.getByText('Progress saved')).toBeInTheDocument();
     expect(server.progress.currentStep).toBe('FINANCIAL_PREFERENCES');
   });
 
-  it('saves the chosen month and threshold in cents', async () => {
+  it('saves the chosen month, bank balance and threshold in cents', async () => {
     const api = mockApi(
       onboardingServer(
         newProgress({
@@ -261,16 +265,48 @@ describe('moving between steps', () => {
     const u = user();
 
     await u.click(await screen.findByRole('radio', { name: 'July' }));
+    const balance = screen.getByLabelText('How much is in the bank today?');
+    await u.type(balance, '12500');
+    expect(
+      screen.getByText('Your balances and projections will start from €12,500.00 today.'),
+    ).toBeInTheDocument();
     await u.type(screen.getByLabelText('Low-balance warning'), '2500,50');
     await u.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(await screen.findByRole('heading', { name: 'Review and create' })).toBeInTheDocument();
     expect(bodyOf(api.calls(SAVE)[0]!).draft.financialPreferences).toEqual({
       fiscalYearStartMonth: 7,
+      bankBalanceCents: 1_250_000,
       lowBalanceThresholdCents: 250_050,
     });
     expect(screen.getByText('July')).toBeInTheDocument();
+    expect(screen.getByText('€12,500.00')).toBeInTheDocument();
     expect(screen.getByText('€2,500.50')).toBeInTheDocument();
+  });
+
+  it('leaves the bank balance for later when it is skipped', async () => {
+    const api = mockApi(
+      onboardingServer(
+        newProgress({
+          status: 'IN_PROGRESS',
+          currentStep: 'FINANCIAL_PREFERENCES',
+          draft: { businessDetails: completeDraft.businessDetails },
+        }),
+      ).routes,
+    );
+    renderApp('/onboarding');
+    const u = user();
+
+    expect(
+      await screen.findByText(
+        'Not given: balances start from 0 until you enter it. You can add it later on Cash flow.',
+      ),
+    ).toBeInTheDocument();
+    await u.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(await screen.findByRole('heading', { name: 'Review and create' })).toBeInTheDocument();
+    expect(bodyOf(api.calls(SAVE)[0]!).draft.financialPreferences.bankBalanceCents).toBeNull();
+    expect(screen.getByText('Not given (add it later on Cash flow)')).toBeInTheDocument();
   });
 
   it('goes back to a step from the review to change it', async () => {
@@ -748,6 +784,7 @@ describe('answering each question', () => {
       'Home & living',
       'EUR (default)',
       expect.stringMatching(/ \(default\)$/),
+      '—Not answered yet',
       '—Not answered yet',
       '—Not answered yet',
     ]);
