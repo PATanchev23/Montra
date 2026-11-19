@@ -44,6 +44,7 @@ const SERVER_MESSAGES = [
   'The threshold cannot be negative.',
   'The threshold is too large.',
   'The balance is too large.',
+  'Choose today or an earlier date.',
   'Choose income or expense.',
   'Enter a date.',
   'Enter a real date as YYYY-MM-DD.',

@@ -6,6 +6,7 @@ import {
   type ColumnMapping,
   type ImportDetail,
   type ImportSource,
+  removeImportResponseSchema,
 } from '@montra/shared';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { ApiError, apiUrl } from './client';
@@ -125,6 +126,26 @@ export function useConfirmImport(businessId: string) {
       void queryClient.invalidateQueries({ queryKey: transactionKeys.all(businessId) });
     },
     onError: (err) => refreshIfStale(queryClient, businessId, err),
+  });
+}
+
+/**
+ * Removes an import and every transaction it created. Everything computed
+ * from the transactions (history, dashboard, cash flow, budgets) refreshes.
+ */
+export function useRemoveImport(businessId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (importId: string) =>
+      authorizedRequest(`${importPath(businessId, importId)}/transactions`, {
+        method: 'DELETE',
+        schema: removeImportResponseSchema,
+      }),
+    onSuccess: (_result, importId) => {
+      queryClient.removeQueries({ queryKey: importKeys.detail(businessId, importId) });
+      void queryClient.invalidateQueries({ queryKey: importKeys.list(businessId), exact: true });
+      void queryClient.invalidateQueries({ queryKey: transactionKeys.all(businessId) });
+    },
   });
 }
 

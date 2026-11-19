@@ -173,6 +173,41 @@ describe('finance API', () => {
       expect(flow.settings).toEqual(saved);
     });
 
+    it('records a balance from the start of the records, which the transactions carry forward', async () => {
+      await seedShop();
+      const firstDay = isoShiftMonth(today, -4);
+      const dayBefore = isoAddDays(firstDay, -1);
+
+      const saved = await ok(
+        await call('PUT', '/cash-settings', owner.token, {
+          balanceCents: 1_000_000,
+          balanceDate: dayBefore,
+          lowBalanceThresholdCents: null,
+        }),
+        cashSettingsSchema,
+      );
+      expect(saved).toMatchObject({ balanceCents: 1_000_000, balanceDate: dayBefore });
+
+      const flow = await ok(await call('GET', '/cash-flow'), cashFlowResponseSchema);
+      expect(flow.ledgerStart?.cents).toBe(1_000_000);
+      const net = await db.transaction.findMany({ select: { type: true, amountCents: true } });
+      const sum = net.reduce(
+        (s, t) => s + (t.type === 'INCOME' ? t.amountCents : -t.amountCents),
+        0,
+      );
+      expect(flow.stats.closingCents).toBe(1_000_000 + sum);
+    });
+
+    it('refuses a balance dated in the future', async () => {
+      const res = await call('PUT', '/cash-settings', owner.token, {
+        balanceCents: 1_000,
+        balanceDate: isoAddDays(today, 1),
+        lowBalanceThresholdCents: null,
+      });
+      expect(res.statusCode).toBe(400);
+      expect(code(res)).toBe('VALIDATION_ERROR');
+    });
+
     it('forgets the balance when sent null', async () => {
       await call('PUT', '/cash-settings', owner.token, {
         balanceCents: 1_000,

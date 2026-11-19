@@ -335,6 +335,7 @@ describe('write surface of the API', () => {
     expect(writeRoutes(app)).toEqual([
       'DELETE /api/v1/auth/me',
       'DELETE /api/v1/businesses/{businessId}/imports/{importId}',
+      'DELETE /api/v1/businesses/{businessId}/imports/{importId}/transactions',
       'DELETE /api/v1/businesses/{businessId}/transactions/{transactionId}',
       'PATCH /api/v1/businesses/{businessId}/transactions/{transactionId}',
       'POST /api/v1/auth/login',

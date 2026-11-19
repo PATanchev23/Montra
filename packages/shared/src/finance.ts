@@ -66,11 +66,14 @@ export type UpcomingPayment = z.infer<typeof upcomingPaymentSchema>;
 // ── Cash settings ───────────────────────────────────────────────────────
 
 /**
- * PUT /businesses/:businessId/cash-settings. The bank balance is as of today
- * in the business's time zone; null forgets it. Negative means overdrawn.
+ * PUT /businesses/:businessId/cash-settings. The bank balance on
+ * `balanceDate` (today in the business's time zone when omitted, never
+ * later); null forgets it. Negative means overdrawn. A balance from the start
+ * of the records works as well as today's: the transactions carry it either way.
  */
 export const cashSettingsRequestSchema = z.object({
   balanceCents: signedCentsSchema.nullable(),
+  balanceDate: transactionDateSchema.optional(),
   lowBalanceThresholdCents: z
     .int('Enter a whole amount in cents.')
     .min(0, 'The threshold cannot be negative.')
@@ -101,7 +104,10 @@ export const cashFlowResponseSchema = z.object({
   /** Weekly for the last 22 weeks, then weekly for FORECAST_DAYS. */
   balance: z.array(balancePointSchema),
   stats: z.object({
-    /** The balance the day before the 12-month window starts. */
+    /**
+     * The balance where the figures start: the day before the 12-month
+     * window, or the day before the first transaction when that is later.
+     */
     openingDate: z.iso.date(),
     openingCents: z.int(),
     incomeCents: z.int(),
@@ -111,6 +117,14 @@ export const cashFlowResponseSchema = z.object({
     lowestCents: z.int(),
     lowestDate: z.iso.date(),
   }),
+  /**
+   * Where the ledger starts: the day of the first transaction and the balance
+   * just before it, worked back from the bank balance the owner entered (0
+   * without one). Below zero with a balance entered, the two disagree: money
+   * left that the transactions do not show, or the balance is out of date.
+   * Null without transactions.
+   */
+  ledgerStart: z.object({ date: z.iso.date(), cents: z.int() }).nullable(),
   upcoming: z.array(upcomingPaymentSchema),
 });
 export type CashFlowResponse = z.infer<typeof cashFlowResponseSchema>;

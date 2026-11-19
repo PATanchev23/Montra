@@ -78,6 +78,8 @@ export function CashFlowPage() {
           businessId={business.id}
           currency={data.currency}
           settings={data.settings}
+          today={data.today}
+          ledgerStart={data.ledgerStart}
           onOpenChange={setEditing}
         />
       )}
@@ -97,10 +99,42 @@ function BalanceNote({
 }) {
   const m = useMessages(cashFlowMessages).note;
   const { balanceCents, balanceDate } = data.settings;
+  const fmt = amount(data);
+  const start = data.ledgerStart;
+  if (balanceCents !== null && balanceDate !== null && start !== null && start.cents < 0) {
+    // The entered balance is less than the history says should be there.
+    return (
+      <Panel
+        role="note"
+        className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-warning/30 bg-warning-soft/40 px-5 py-3.5 sm:px-6"
+      >
+        <div className="max-w-3xl text-body-sm text-ink-2">
+          <p className="font-medium text-ink">{m.mismatchTitle}</p>
+          <p className="mt-1">
+            {m.mismatch(
+              formatDate(start.date, 'd MMM yyyy'),
+              fmt(balanceCents - start.cents),
+              fmt(balanceCents),
+              formatDate(balanceDate, 'd MMM'),
+              fmt(start.cents),
+            )}{' '}
+            {canEdit
+              ? m.mismatchOwner(fmt(balanceCents), formatDate(start.date, 'd MMM yyyy'))
+              : m.mismatchViewer}
+          </p>
+        </div>
+        {canEdit && (
+          <Button size="sm" onClick={onEdit}>
+            {m.update}
+          </Button>
+        )}
+      </Panel>
+    );
+  }
   if (balanceCents !== null && balanceDate !== null) {
     return (
       <p className="-mt-3 text-[13px] text-muted">
-        {m.from(amount(data)(balanceCents, { decimals: 2 }), formatDate(balanceDate, 'd MMM yyyy'))}
+        {m.from(fmt(balanceCents, { decimals: 2 }), formatDate(balanceDate, 'd MMM yyyy'))}
       </p>
     );
   }

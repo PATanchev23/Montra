@@ -250,4 +250,14 @@ export const confirmImportRequestSchema = z.object({
 export type ConfirmImportRequest = z.infer<typeof confirmImportRequestSchema>;
 
 export const importListResponseSchema = z.object({ items: z.array(importBatchSchema) });
+
+/**
+ * DELETE /businesses/:businessId/imports/:importId/transactions: the import
+ * is gone, with every transaction it created (including any edited since).
+ * Transactions entered by hand or from other files are untouched.
+ */
+export const removeImportResponseSchema = z.object({
+  removedTransactions: z.int().min(0),
+});
+export type RemoveImportResponse = z.infer<typeof removeImportResponseSchema>;
 export type ImportListResponse = z.infer<typeof importListResponseSchema>;

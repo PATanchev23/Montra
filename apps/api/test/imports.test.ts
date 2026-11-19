@@ -5,6 +5,7 @@ import {
   importListResponseSchema,
   type ColumnMapping,
   type ImportSource,
+  removeImportResponseSchema,
 } from '@montra/shared';
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -680,6 +681,78 @@ describe('imports API', () => {
         '0.csv',
       ]);
       expect(list.items.at(-1)!.status).toBe('CANCELLED');
+    });
+  });
+
+  describe('removing', () => {
+    const remove = (id: string, token = owner.token) =>
+      app.inject({ method: 'DELETE', url: `${base()}/${id}/transactions`, headers: auth(token) });
+
+    it('deletes the import and every transaction from it, and nothing else', async () => {
+      const { batch } = await uploaded(fixture('template.csv'), 'MONTRA_TEMPLATE', 'a.csv');
+      await confirmed(batch.id);
+      const imported = await db.transaction.findFirstOrThrow({
+        where: { importBatchId: batch.id },
+      });
+      // Edited after the import: still came from the file, so it goes too.
+      await db.transaction.update({ where: { id: imported.id }, data: { description: 'Edited' } });
+      // Entered by hand, and from another file: both stay.
+      await db.transaction.create({
+        data: {
+          businessId: business.id,
+          type: 'EXPENSE',
+          amountCents: 1_234,
+          description: 'By hand',
+          category: 'Other',
+          date: new Date('2026-10-05T00:00:00Z'),
+        },
+      });
+      const second = await uploaded(
+        'Date,Type,Amount,Description,Category\n2026-10-09,Income,77.00,Other file,Sales\n',
+        'MONTRA_TEMPLATE',
+        'b.csv',
+      );
+      await confirmed(second.batch.id);
+      expect(await db.transaction.count()).toBe(4 + 1 + 1);
+
+      const res = await remove(batch.id);
+
+      expect(res.statusCode, res.body).toBe(200);
+      expect(removeImportResponseSchema.parse(res.json())).toEqual({ removedTransactions: 4 });
+      expect(await db.importBatch.findUnique({ where: { id: batch.id } })).toBeNull();
+      expect(
+        (await db.transaction.findMany({ select: { description: true } }))
+          .map((t) => t.description)
+          .sort(),
+      ).toEqual(['By hand', 'Other file']);
+      expect((await get(batch.id)).statusCode).toBe(404);
+    });
+
+    it('discards an unconfirmed upload, which has no transactions yet', async () => {
+      const { batch } = await uploaded(fixture('template.csv'), 'MONTRA_TEMPLATE', 'a.csv');
+      const res = await remove(batch.id);
+      expect(removeImportResponseSchema.parse(res.json())).toEqual({ removedTransactions: 0 });
+      expect(await db.importBatch.count()).toBe(0);
+    });
+
+    it('lets the same file be imported again afterwards, without duplicate warnings', async () => {
+      const { batch } = await uploaded(fixture('template.csv'), 'MONTRA_TEMPLATE', 'a.csv');
+      await confirmed(batch.id);
+      await remove(batch.id);
+
+      const again = await uploaded(fixture('template.csv'), 'MONTRA_TEMPLATE', 'a.csv');
+      expect(again.previousImportId).toBeNull();
+      expect(again.preview?.summary.duplicates).toBe(0);
+    });
+
+    it('refuses viewers and outsiders, and leaves the import in place', async () => {
+      const { batch } = await uploaded(fixture('template.csv'), 'MONTRA_TEMPLATE', 'a.csv');
+      await confirmed(batch.id);
+
+      expect((await remove(batch.id, viewer.token)).statusCode).toBe(403);
+      expect((await remove(batch.id, outsider.token)).statusCode).toBe(404);
+      expect((await remove('no-such-import')).statusCode).toBe(404);
+      expect(await db.transaction.count({ where: { importBatchId: batch.id } })).toBe(4);
     });
   });
 

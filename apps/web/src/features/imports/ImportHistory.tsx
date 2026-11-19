@@ -1,9 +1,13 @@
 import type { ImportBatch } from '@montra/shared';
-import { FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { useImportList } from '../../api/imports';
+import { errorMessage } from '../../api/client';
+import { useImportList, useRemoveImport } from '../../api/imports';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { IconButton } from '../../components/ui/IconButton';
+import { showToast } from '../../stores/toasts';
 import { Panel, PanelHeader } from '../../components/ui/Panel';
 import { ErrorState } from '../../components/ui/States';
 import { formatDate } from '../../lib/format';
@@ -18,10 +22,12 @@ function ImportRow({
   batch,
   canEdit,
   onOpen,
+  onRemove,
 }: {
   batch: ImportBatch;
   canEdit: boolean;
   onOpen: () => void;
+  onRemove: () => void;
 }) {
   const status = statusLabel(batch.status);
   const pending = isPending(batch.status);
@@ -45,6 +51,11 @@ function ImportRow({
         {pending && canEdit ? m.review : m.view}
         <span className="sr-only"> {batch.fileName}</span>
       </Button>
+      {canEdit && (
+        <IconButton label={m.remove(batch.fileName)} size="sm" onClick={onRemove}>
+          <Trash2 />
+        </IconButton>
+      )}
     </li>
   );
 }
@@ -60,8 +71,21 @@ export function ImportHistory({
   onOpen: (importId: string) => void;
 }) {
   const imports = useImportList(businessId);
+  const remove = useRemoveImport(businessId);
   const [expanded, setExpanded] = useState(false);
+  const [removing, setRemoving] = useState<ImportBatch | null>(null);
   const m = useMessages(importMessages).history;
+
+  function confirmRemove() {
+    if (!removing) return;
+    const { id, fileName } = removing;
+    remove.mutate(id, {
+      onSuccess: ({ removedTransactions }) => {
+        showToast({ tone: 'positive', title: m.removed(fileName, removedTransactions) });
+        setRemoving(null);
+      },
+    });
+  }
 
   if (imports.isPending) return null;
   if (imports.isError) {
@@ -92,6 +116,10 @@ export function ImportHistory({
             batch={batch}
             canEdit={canEdit}
             onOpen={() => onOpen(batch.id)}
+            onRemove={() => {
+              remove.reset();
+              setRemoving(batch);
+            }}
           />
         ))}
       </ul>
@@ -102,6 +130,17 @@ export function ImportHistory({
           </Button>
         </div>
       )}
+      <ConfirmDialog
+        open={removing !== null}
+        onOpenChange={(open) => !open && setRemoving(null)}
+        title={m.removeTitle}
+        description={removing ? m.removeBody(removing.fileName, removing.importedRecords) : ''}
+        confirmLabel={m.removeConfirm}
+        busyLabel={m.removing}
+        busy={remove.isPending}
+        error={remove.error ? errorMessage(remove.error) : null}
+        onConfirm={confirmRemove}
+      />
     </Panel>
   );
 }

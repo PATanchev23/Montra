@@ -110,6 +110,7 @@ describe('Ledger', () => {
       balanceDate: '2026-11-05',
     });
     expect(ledger.openingCents).toBe(50_000);
+    expect(ledger.firstDate).toBe('2026-11-01');
     expect(ledger.balanceAt('2026-11-05')).toBe(100_000);
     expect(ledger.balanceAt(TODAY)).toBe(80_000);
   });
@@ -228,11 +229,39 @@ describe('buildCashFlow', () => {
     expect(flow.stats.closingCents).toBe(new Ledger(shop(), TODAY, noSettings).balanceAt(TODAY));
   });
 
+  it('shows where the ledger starts, below zero when the balance and the history disagree', () => {
+    // The history earns 300 €, but the owner says only 100 € is in the bank.
+    const entries = [entry({ date: '2026-11-01', type: 'INCOME', amountCents: 30_000 })];
+    const ledger = new Ledger(entries, TODAY, {
+      ...noSettings,
+      balanceCents: 10_000,
+      balanceDate: TODAY,
+    });
+    expect(buildCashFlow(ledger).ledgerStart).toEqual({ date: '2026-11-01', cents: -20_000 });
+  });
+
+  it('opens just before the first transaction when the records are younger than a year', () => {
+    const entries = [entry({ date: '2026-08-01', amountCents: 180_000, category: 'Rent' })];
+    // 10 000 € at the end of 1 August, after that day's rent.
+    const ledger = new Ledger(entries, TODAY, {
+      ...noSettings,
+      balanceCents: 1_000_000,
+      balanceDate: '2026-08-01',
+    });
+    expect(buildCashFlow(ledger).stats).toMatchObject({
+      openingDate: '2026-07-31',
+      openingCents: 1_180_000,
+    });
+    // With nothing recorded, the year's window decides.
+    expect(buildCashFlow(new Ledger([], TODAY, noSettings)).stats.openingDate).toBe('2025-11-30');
+  });
+
   it('is flat at zero for a business with no transactions', () => {
     const flow = buildCashFlow(new Ledger([], TODAY, noSettings));
     expect(flow.months.every((m) => m.incomeCents === 0 && m.expenseCents === 0)).toBe(true);
     expect(flow.balance.every((p) => p.balanceCents === 0)).toBe(true);
     expect(flow.upcoming).toEqual([]);
+    expect(flow.ledgerStart).toBeNull();
     expect(flow.stats).toMatchObject({ closingCents: 0, projectedCents: 0, lowestCents: 0 });
   });
 });

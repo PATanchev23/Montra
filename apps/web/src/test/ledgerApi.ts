@@ -318,7 +318,8 @@ export function ledgerServer(options: LedgerOptions = {}) {
         if (!body.success) return invalid();
         state.cashSettings = {
           balanceCents: body.data.balanceCents,
-          balanceDate: body.data.balanceCents === null ? null : FAKE_TODAY,
+          balanceDate:
+            body.data.balanceCents === null ? null : (body.data.balanceDate ?? FAKE_TODAY),
           lowBalanceThresholdCents: body.data.lowBalanceThresholdCents,
         };
         return jsonResponse(state.cashSettings);
@@ -506,6 +507,19 @@ export function ledgerServer(options: LedgerOptions = {}) {
         const next = confirmImport(detail, body.includePossibleDuplicates);
         state.imports.set(id, next);
         return jsonResponse(next);
+      },
+    ],
+    [
+      'DELETE',
+      new RegExp(`^${BASE}/imports/([^/]+)/transactions$`),
+      (url) => {
+        if (!canWrite()) return forbidden();
+        const id = url.pathname.split('/').at(-2)!;
+        if (!state.imports.has(id)) return apiError(404, 'NOT_FOUND', 'Import not found.');
+        const before = state.transactions.length;
+        state.transactions = state.transactions.filter((t) => t.importBatchId !== id);
+        state.imports.delete(id);
+        return jsonResponse({ removedTransactions: before - state.transactions.length });
       },
     ],
     [

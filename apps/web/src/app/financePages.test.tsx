@@ -159,6 +159,92 @@ describe('cash flow', () => {
     expect(within(headroom).getByText(/^€[\d,]+$/)).toBeInTheDocument();
   });
 
+  it('explains when the bank balance and the transactions do not add up', async () => {
+    // The shop's history earns €6,350 more than it spends, yet only €1,000 is in the bank.
+    ledgerServer({
+      transactions: shop(),
+      cashSettings: {
+        balanceCents: 100_000,
+        balanceDate: '2026-11-09',
+        lowBalanceThresholdCents: null,
+      },
+    });
+    renderTransactions('/cash-flow');
+
+    const note = await screen.findByRole('note');
+    expect(note).toHaveTextContent('Your bank balance and your transactions don’t add up');
+    expect(note).toHaveTextContent(
+      'Since 1 Jul 2026 your transactions bring in €6,350 more than they pay out, but the bank held €1,000 on 9 Nov. For both to be true, you would have started at −€5,350.',
+    );
+    expect(within(note).getByRole('button', { name: 'Update bank balance' })).toBeInTheDocument();
+  });
+
+  it('takes a balance from when the records start, which the transactions carry to today', async () => {
+    const api = ledgerServer({
+      transactions: shop(),
+      cashSettings: {
+        balanceCents: 100_000,
+        balanceDate: '2026-11-09',
+        lowBalanceThresholdCents: null,
+      },
+    });
+    renderTransactions('/cash-flow');
+    const u = userEvent.setup();
+
+    const note = await screen.findByRole('note');
+    expect(note).toHaveTextContent(
+      'If €1,000 was what you had before 1 Jul 2026, choose “When my records start”',
+    );
+    // The figures open just before the records, not a year back.
+    expect(screen.getByText('Opening balance').parentElement).toHaveTextContent('30 Jun 2026');
+    await u.click(within(note).getByRole('button', { name: 'Update bank balance' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Bank balance' });
+    await u.click(within(dialog).getByRole('radio', { name: 'When my records start' }));
+    expect(within(dialog).getByLabelText('Bank balance before 1 Jul 2026 (EUR)')).toHaveValue(
+      '1000',
+    );
+    expect(dialog).toHaveTextContent(
+      'Your records start from €1,000 before 1 Jul 2026; your transactions carry it forward to today.',
+    );
+    await u.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    // €1,000 on 30 June, plus the €6,350 the shop earned since: the two agree now.
+    expect(
+      await screen.findByText(
+        'Balances start from €1,000.00 in the bank on 30 Jun 2026, then follow your transactions.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    expect(api.state.cashSettings).toMatchObject({
+      balanceCents: 100_000,
+      balanceDate: '2026-06-30',
+    });
+    const today = screen.getByText('Balance today').parentElement!;
+    expect(within(today).getByText('€7,350')).toBeInTheDocument();
+  });
+
+  it('asks for the date when the balance is from another day', async () => {
+    ledgerServer({ transactions: shop() });
+    renderTransactions('/cash-flow');
+    const u = userEvent.setup();
+
+    await u.click(await screen.findByRole('button', { name: 'Bank balance' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Bank balance' });
+    await u.type(within(dialog).getByLabelText('Bank balance today (EUR)'), '5000');
+    await u.click(within(dialog).getByRole('radio', { name: 'Another date' }));
+    await u.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(within(dialog).getByText('Choose the date this balance was true.')).toBeInTheDocument();
+
+    // The first day of the records has transactions of its own: say which side the balance is on.
+    await u.type(within(dialog).getByLabelText('Date of the balance'), '2026-07-01');
+    expect(dialog).toHaveTextContent(
+      '€5,000 at the end of 1 Jul 2026, after that day’s transactions',
+    );
+    expect(dialog).toHaveTextContent(
+      'Your records start on 1 Jul. If this was the balance before that day’s transactions, choose “When my records start”.',
+    );
+  });
+
   it('accepts an overdrawn balance and refuses one it cannot read', async () => {
     ledgerServer({ transactions: shop() });
     renderTransactions('/cash-flow');
@@ -173,7 +259,10 @@ describe('cash flow', () => {
     await u.clear(field);
     await u.type(field, '-300');
     await u.click(screen.getByRole('button', { name: 'Save' }));
-    expect(await screen.findByText(/Balances start from −€300.00 in the bank/)).toBeInTheDocument();
+    const today = (await screen.findByText('Balance today')).parentElement!;
+    await waitFor(() => expect(within(today).getByText('−€300')).toBeInTheDocument());
+    // Overdrawn after a history that earned money: the note explains the gap.
+    expect(screen.getByRole('note')).toHaveTextContent('you would have started at −€6,650');
   });
 
   it('lets a viewer read the figures but not change the bank balance', async () => {

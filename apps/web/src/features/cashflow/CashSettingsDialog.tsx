@@ -1,10 +1,11 @@
-import type { CashSettings } from '@montra/shared';
+import { isoAddDays, type CashFlowResponse, type CashSettings } from '@montra/shared';
 import { X } from 'lucide-react';
 import { Dialog } from 'radix-ui';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { errorMessage } from '../../api/client';
 import { useUpdateCashSettings } from '../../api/finance';
 import { Button } from '../../components/ui/Button';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { useMessages } from '../../i18n';
 import { common } from '../../i18n/common';
 import { amountInputText, parseAmount } from '../../lib/amountInput';
@@ -21,17 +22,26 @@ import { cashFlowMessages } from './messages';
  * changes written out underneath. The warning level is shown against it as a
  * capsule, the chart's own shape.
  *
+ * The balance can be today's, or the one just before the first transaction
+ * (often what an owner knows when importing past months), or one from any
+ * day in between: the transactions carry it forward to today either way.
+ *
  * Mounted only while open, so every opening starts from the saved values.
  */
 export function CashSettingsDialog({
   businessId,
   currency,
   settings,
+  today,
+  ledgerStart,
   onOpenChange,
 }: {
   businessId: string;
   currency: string;
   settings: CashSettings;
+  /** Today where the business is. */
+  today: string;
+  ledgerStart: CashFlowResponse['ledgerStart'];
   onOpenChange: (open: boolean) => void;
 }) {
   const m = useMessages(cashFlowMessages).settings;
@@ -41,7 +51,14 @@ export function CashSettingsDialog({
   const [thresholdText, setThresholdText] = useState(
     amountInputText(settings.lowBalanceThresholdCents),
   );
-  const [errors, setErrors] = useState<{ balance?: string; threshold?: string }>({});
+  // The day the balance was true: today, just before the first transaction, or another day.
+  const startDate = ledgerStart ? isoAddDays(ledgerStart.date, -1) : null;
+  const saved = settings.balanceDate;
+  const [asOf, setAsOf] = useState<AsOf>(
+    saved === null || saved === today ? 'today' : saved === startDate ? 'start' : 'other',
+  );
+  const [otherDate, setOtherDate] = useState(saved !== null && saved !== today ? saved : '');
+  const [errors, setErrors] = useState<{ balance?: string; threshold?: string; date?: string }>({});
   const symbol = currencySymbol(currency);
   const fmt = (cents: number) => money(cents, { decimals: 0, currency });
 
@@ -57,14 +74,22 @@ export function CashSettingsDialog({
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    const balanceDate =
+      asOf === 'today' ? undefined : asOf === 'start' ? (startDate ?? undefined) : otherDate;
+    const dateMissing = asOf === 'other' && balance.ok && balance.cents !== null && !otherDate;
     const nextErrors = {
       balance: balance.ok ? undefined : balance.message,
       threshold: threshold.ok ? undefined : threshold.message,
+      date: dateMissing ? m.pickDate : undefined,
     };
     setErrors(nextErrors);
-    if (!balance.ok || !threshold.ok) return;
+    if (!balance.ok || !threshold.ok || dateMissing) return;
     save.mutate(
-      { balanceCents: balance.cents, lowBalanceThresholdCents: threshold.cents },
+      {
+        balanceCents: balance.cents,
+        ...(balance.cents !== null && balanceDate && { balanceDate }),
+        lowBalanceThresholdCents: threshold.cents,
+      },
       {
         onSuccess: () => {
           showToast({ tone: 'positive', title: m.saved });
@@ -97,9 +122,53 @@ export function CashSettingsDialog({
 
             {/* The balance: the figure everything else is measured from. */}
             <div className="px-6 pt-6">
-              <label htmlFor="cash-balance" className="text-body-sm font-medium text-ink-2">
-                {m.balance(currency)}
-              </label>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <label htmlFor="cash-balance" className="text-body-sm font-medium text-ink-2">
+                  {asOf === 'today'
+                    ? m.balance(currency)
+                    : asOf === 'start' && ledgerStart
+                      ? m.balanceBefore(currency, formatDate(ledgerStart.date, 'd MMM yyyy'))
+                      : m.balanceOn(currency)}
+                </label>
+                <SegmentedControl
+                  label={m.asOf}
+                  size="sm"
+                  value={asOf}
+                  onChange={(next) => {
+                    setAsOf(next);
+                    setErrors((current) => ({ ...current, date: undefined }));
+                  }}
+                  options={[
+                    { value: 'today', label: m.asOfToday },
+                    ...(ledgerStart ? [{ value: 'start' as const, label: m.asOfStart }] : []),
+                    { value: 'other', label: m.asOfOther },
+                  ]}
+                />
+              </div>
+              {asOf === 'other' && (
+                <div className="mt-3">
+                  <label htmlFor="cash-balance-date" className="sr-only">
+                    {m.dateLabel}
+                  </label>
+                  <input
+                    id="cash-balance-date"
+                    type="date"
+                    max={today}
+                    value={otherDate}
+                    aria-invalid={errors.date ? true : undefined}
+                    onChange={(e) => {
+                      setOtherDate(e.target.value);
+                      setErrors((current) => ({ ...current, date: undefined }));
+                    }}
+                    className={cn(
+                      'tabular h-9 rounded-control border bg-raised px-3 text-body-sm text-ink transition-colors focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1',
+                      errors.date
+                        ? 'border-negative focus-visible:outline-negative'
+                        : 'border-control hover:border-ink-2 focus-visible:border-accent focus-visible:outline-accent',
+                    )}
+                  />
+                </div>
+              )}
               <div
                 className={cn(
                   'mt-1.5 flex items-baseline gap-2 border-b pb-2 transition-colors',
@@ -128,8 +197,22 @@ export function CashSettingsDialog({
                   className="tabular min-w-0 flex-1 bg-transparent text-figure text-ink caret-ink placeholder:text-faint focus:outline-none"
                 />
               </div>
-              <Note id="cash-balance-note" error={errors.balance}>
-                {balanceCents === null ? m.balanceEmpty : m.balancePreview(fmt(balanceCents))}{' '}
+              <Note id="cash-balance-note" error={errors.balance ?? errors.date}>
+                {balanceCents === null
+                  ? m.balanceEmpty
+                  : asOf === 'today'
+                    ? m.balancePreview(fmt(balanceCents))
+                    : asOf === 'start' && ledgerStart
+                      ? m.startPreview(
+                          fmt(balanceCents),
+                          formatDate(ledgerStart.date, 'd MMM yyyy'),
+                        )
+                      : otherDate
+                        ? m.otherPreview(fmt(balanceCents), formatDate(otherDate, 'd MMM yyyy'))
+                        : m.pickDate}{' '}
+                {asOf === 'other' && ledgerStart && otherDate === ledgerStart.date && (
+                  <>{m.firstDayHint(formatDate(ledgerStart.date, 'd MMM'))} </>
+                )}
                 <span className="text-muted">{m.balanceHint}</span>
               </Note>
             </div>
@@ -166,13 +249,17 @@ export function CashSettingsDialog({
                   className="tabular min-w-0 flex-1 bg-transparent text-body-sm text-ink placeholder:text-muted focus:outline-none"
                 />
               </div>
-              {thresholdCents !== null && balanceCents !== null && balanceCents > 0 && (
-                <Headroom balance={balanceCents} threshold={thresholdCents} fmt={fmt} />
-              )}
+              {/* Against today's balance only: an older one is not what the warning watches. */}
+              {asOf === 'today' &&
+                thresholdCents !== null &&
+                balanceCents !== null &&
+                balanceCents > 0 && (
+                  <Headroom balance={balanceCents} threshold={thresholdCents} fmt={fmt} />
+                )}
               <Note id="cash-threshold-note" error={errors.threshold}>
                 {thresholdCents === null
                   ? m.thresholdEmpty
-                  : balanceCents === null
+                  : balanceCents === null || asOf !== 'today'
                     ? m.thresholdPreview(fmt(thresholdCents))
                     : balanceCents < thresholdCents
                       ? m.alreadyBelow
@@ -210,6 +297,8 @@ export function CashSettingsDialog({
     </Dialog.Root>
   );
 }
+
+type AsOf = 'today' | 'start' | 'other';
 
 /** The line under a field: what the value means, or why it cannot be saved. */
 function Note({ id, error, children }: { id: string; error?: string; children: ReactNode }) {

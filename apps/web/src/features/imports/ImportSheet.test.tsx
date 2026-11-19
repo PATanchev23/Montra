@@ -5,7 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { resetSessionForTests } from '../../api/session';
 import { useToastStore } from '../../stores/toasts';
 import { apiError } from '../../test/authApi';
-import { ledgerServer } from '../../test/ledgerApi';
+import { ledgerServer, transaction } from '../../test/ledgerApi';
 import { polyfillRadix, renderTransactions } from '../../test/renderTransactions';
 
 const batch = (overrides: Partial<ImportBatch> = {}): ImportBatch => ({
@@ -254,6 +254,70 @@ describe('importing a file', () => {
     expect(toastTitles()).toContain('Import cancelled');
     expect(await within(history).findByText('Cancelled')).toBeInTheDocument();
     expect(api.state.transactions).toHaveLength(0);
+  });
+
+  it('removes a finished import with its transactions, after confirmation', async () => {
+    const completed: ImportDetail = {
+      ...ready(),
+      batch: batch({
+        status: 'COMPLETED',
+        totalRecords: 2,
+        importedRecords: 2,
+        completedAt: '2026-11-09T09:05:00.000Z',
+        expiresAt: null,
+      }),
+      preview: null,
+    };
+    const fromFile = (id: string) =>
+      transaction({
+        id,
+        description: `From file ${id}`,
+        importSource: 'GENERIC_CSV',
+        importBatchId: 'imp-1',
+      });
+    const api = ledgerServer({
+      imports: [completed],
+      transactions: [
+        fromFile('f1'),
+        fromFile('f2'),
+        transaction({ id: 'h1', description: 'Entered by hand' }),
+      ],
+    });
+    renderTransactions();
+    const u = userEvent.setup();
+
+    const history = await screen.findByRole('region', { name: 'Imports' });
+    await u.click(within(history).getByRole('button', { name: 'Remove statement.csv' }));
+    let confirm = await screen.findByRole('alertdialog', { name: 'Remove this import?' });
+    expect(confirm).toHaveTextContent(
+      'statement.csv and the 2 transactions it added will be deleted',
+    );
+    await u.click(within(confirm).getByRole('button', { name: 'Cancel' }));
+    expect(api.requests().some((r) => r.startsWith('DELETE'))).toBe(false);
+
+    await u.click(within(history).getByRole('button', { name: 'Remove statement.csv' }));
+    confirm = await screen.findByRole('alertdialog', { name: 'Remove this import?' });
+    await u.click(within(confirm).getByRole('button', { name: 'Remove import' }));
+
+    await waitFor(() =>
+      expect(toastTitles()).toContain('Removed statement.csv and 2 transactions'),
+    );
+    expect(api.requests()).toContain('DELETE /api/v1/businesses/biz-1/imports/imp-1/transactions');
+    expect(api.state.transactions.map((t) => t.id)).toEqual(['h1']);
+    // The list of transactions and the history both refresh.
+    await waitFor(() => expect(screen.queryByText('From file f1')).not.toBeInTheDocument());
+    expect(screen.getByText('Entered by hand')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'Imports' })).not.toBeInTheDocument(),
+    );
+  });
+
+  it('offers no way to remove an import to a viewer', async () => {
+    ledgerServer({ imports: [ready()], role: 'VIEWER' });
+    renderTransactions();
+
+    const history = await screen.findByRole('region', { name: 'Imports' });
+    expect(within(history).queryByRole('button', { name: /^Remove/ })).not.toBeInTheDocument();
   });
 
   it('refuses unsupported files before uploading, and shows the API’s reasons', async () => {

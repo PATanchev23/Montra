@@ -22,11 +22,34 @@ export const cashFlowMessages = defineMessages(
         'Balances start from 0 until you enter what is in the bank today. Your transactions then carry it forward.',
       unsetViewer: 'Balances start from 0: the owner has not entered the bank balance yet.',
       set: 'Enter bank balance',
+      mismatchTitle: 'Your bank balance and your transactions don’t add up',
+      mismatch: (since: string, net: string, balance: string, on: string, start: string) =>
+        `Since ${since} your transactions bring in ${net} more than they pay out, but the bank held ${balance} on ${on}. For both to be true, you would have started at ${start}.`,
+      mismatchOwner: (balance: string, since: string) =>
+        `If ${balance} was what you had before ${since}, choose “When my records start” in Update bank balance. Otherwise some money left that isn’t in your transactions (owner withdrawals, transfers to savings, loan payments), or the balance needs updating.`,
+      mismatchViewer:
+        'Usually some money left that isn’t in the transactions, or the owner needs to update the balance.',
+      update: 'Update bank balance',
     },
     settings: {
       title: 'Bank balance',
       description: 'What is in your business accounts today, all together.',
       balance: (currency: string) => `Bank balance today (${currency})`,
+      balanceBefore: (currency: string, first: string) =>
+        `Bank balance before ${first} (${currency})`,
+      balanceOn: (currency: string) => `Bank balance on a date (${currency})`,
+      asOf: 'When the balance was true',
+      asOfToday: 'Today',
+      asOfStart: 'When my records start',
+      asOfOther: 'Another date',
+      dateLabel: 'Date of the balance',
+      pickDate: 'Choose the date this balance was true.',
+      startPreview: (amount: string, first: string) =>
+        `Your records start from ${amount} before ${first}; your transactions carry it forward to today.`,
+      otherPreview: (amount: string, date: string) =>
+        `${amount} at the end of ${date}, after that day’s transactions; everything before and after is counted from there.`,
+      firstDayHint: (date: string) =>
+        `Your records start on ${date}. If this was the balance before that day’s transactions, choose “When my records start”.`,
       balancePreview: (amount: string) => `Projections start from ${amount} today.`,
       balanceEmpty: 'Empty: balances start from 0.',
       balanceHint: 'Use a minus sign if overdrawn.',
@@ -119,11 +142,34 @@ export const cashFlowMessages = defineMessages(
         'Балансът започва от 0, докато не въведете колко има в банката днес. След това транзакциите ви го продължават.',
       unsetViewer: 'Балансът започва от 0: собственикът още не е въвел наличността в банката.',
       set: 'Въведи наличност',
+      mismatchTitle: 'Наличността в банката и транзакциите ви не се връзват',
+      mismatch: (since: string, net: string, balance: string, on: string, start: string) =>
+        `От ${since} транзакциите ви носят с ${net} повече, отколкото плащат, но в банката е имало ${balance} на ${on}. За да са верни и двете, бихте започнали от ${start}.`,
+      mismatchOwner: (balance: string, since: string) =>
+        `Ако ${balance} е била наличността ви преди ${since}, изберете „Началото на записите“ в „Обнови наличността“. Иначе са излезли пари, които ги няма в транзакциите (тегления от собственика, преводи към спестовна сметка, вноски по заем), или наличността трябва да се обнови.`,
+      mismatchViewer:
+        'Обикновено това означава, че са излезли пари, които ги няма в транзакциите, или че собственикът трябва да обнови наличността.',
+      update: 'Обнови наличността',
     },
     settings: {
       title: 'Наличност в банката',
       description: 'Колко има по фирмените ви сметки днес, общо.',
       balance: (currency: string) => `Наличност в банката днес (${currency})`,
+      balanceBefore: (currency: string, first: string) =>
+        `Наличност в банката преди ${first} (${currency})`,
+      balanceOn: (currency: string) => `Наличност в банката на дата (${currency})`,
+      asOf: 'Към кога е наличността',
+      asOfToday: 'Днес',
+      asOfStart: 'Началото на записите',
+      asOfOther: 'Друга дата',
+      dateLabel: 'Дата на наличността',
+      pickDate: 'Изберете датата, към която е тази наличност.',
+      startPreview: (amount: string, first: string) =>
+        `Записите ви започват от ${amount} преди ${first}; транзакциите ви я пренасят до днес.`,
+      otherPreview: (amount: string, date: string) =>
+        `${amount} в края на ${date}, след транзакциите от този ден; всичко преди и след това се отчита оттам.`,
+      firstDayHint: (date: string) =>
+        `Записите ви започват на ${date}. Ако това е била наличността преди транзакциите от този ден, изберете „Началото на записите“.`,
       balancePreview: (amount: string) => `Прогнозите започват от ${amount} днес.`,
       balanceEmpty: 'Празно: балансите започват от 0.',
       balanceHint: 'Използвайте знак минус при овърдрафт.',

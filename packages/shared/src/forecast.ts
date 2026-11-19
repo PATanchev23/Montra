@@ -191,6 +191,11 @@ export class Ledger {
     return found < 0 ? 0 : this.cumulative[found]!;
   }
 
+  /** The first transaction's date, if there is one. */
+  get firstDate(): string | null {
+    return this.past[0]?.date ?? this.future[0]?.date ?? null;
+  }
+
   /** The balance at the end of a day up to today. */
   balanceAt(day: string): number {
     return this.openingCents + this.netUpTo(day > this.today ? this.today : day);
@@ -465,7 +470,11 @@ export function buildCashFlow(ledger: Ledger) {
 
   const t = ledger.totals(windowStart, today);
   const low = lowest(forecast);
-  const openingDate = isoAddDays(windowStart, -1);
+  // Where the figures start: a year back, or just before the records when they are younger.
+  const beforeWindow = isoAddDays(windowStart, -1);
+  const beforeRecords = ledger.firstDate === null ? null : isoAddDays(ledger.firstDate, -1);
+  const openingDate =
+    beforeRecords !== null && beforeRecords > beforeWindow ? beforeRecords : beforeWindow;
   return {
     today,
     settings: ledger.settings,
@@ -482,6 +491,8 @@ export function buildCashFlow(ledger: Ledger) {
       lowestCents: Math.round(low.balance),
       lowestDate: low.date,
     },
+    ledgerStart:
+      ledger.firstDate === null ? null : { date: ledger.firstDate, cents: ledger.openingCents },
     upcoming,
   };
 }

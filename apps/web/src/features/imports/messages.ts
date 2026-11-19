@@ -88,6 +88,18 @@ export const importMessages = defineMessages(
       view: 'View',
       showFewer: 'Show fewer',
       showAll: (n: number) => `Show all ${n} imports`,
+      remove: (fileName: string) => `Remove ${fileName}`,
+      removeTitle: 'Remove this import?',
+      removeBody: (fileName: string, n: number) =>
+        n === 0
+          ? `${fileName} added no transactions, so only the import is removed.`
+          : `${fileName} and the ${n === 1 ? 'transaction' : `${n} transactions`} it added will be deleted, including any you edited since. Transactions you entered by hand or imported from other files stay. This cannot be undone.`,
+      removeConfirm: 'Remove import',
+      removing: 'Removing…',
+      removed: (fileName: string, n: number) =>
+        n === 0
+          ? `Removed ${fileName}`
+          : `Removed ${fileName} and ${n === 1 ? '1 transaction' : `${n} transactions`}`,
     },
     upload: {
       what: 'What are you importing?',
@@ -278,6 +290,18 @@ export const importMessages = defineMessages(
       view: 'Виж',
       showFewer: 'Покажи по-малко',
       showAll: (n: number) => `Покажи всички ${n} импорта`,
+      remove: (fileName: string) => `Премахни ${fileName}`,
+      removeTitle: 'Да премахнем ли този импорт?',
+      removeBody: (fileName: string, n: number) =>
+        n === 0
+          ? `${fileName} не е добавил транзакции, затова се премахва само импортът.`
+          : `${fileName} и ${n === 1 ? 'транзакцията, която е добавил' : `${n}-те транзакции, които е добавил`}, ще бъдат изтрити, включително редактираните след това. Транзакциите, въведени ръчно или импортирани от други файлове, остават. Това действие е необратимо.`,
+      removeConfirm: 'Премахни импорта',
+      removing: 'Премахване…',
+      removed: (fileName: string, n: number) =>
+        n === 0
+          ? `${fileName} е премахнат`
+          : `${fileName} е премахнат заедно с ${n === 1 ? '1 транзакция' : `${n} транзакции`}`,
     },
     upload: {
       what: 'Какво импортирате?',

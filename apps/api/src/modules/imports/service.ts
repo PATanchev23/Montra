@@ -10,6 +10,7 @@ import {
   type ImportDetail,
   type ImportListResponse,
   type ImportSource,
+  type RemoveImportResponse,
 } from '@montra/shared';
 import { createHash } from 'node:crypto';
 import { extname } from 'node:path';
@@ -348,6 +349,27 @@ export async function cancelImport(
     });
   });
   return describe(db, row);
+}
+
+/**
+ * Takes an import back out: deletes every transaction it created (edited or
+ * not) and then the import itself, in one database transaction under the
+ * import lock, so a confirmation cannot add rows halfway through. An
+ * unconfirmed import has no transactions yet; removing it just discards it.
+ */
+export async function removeImport(
+  db: Db,
+  businessId: string,
+  importId: string,
+): Promise<RemoveImportResponse> {
+  return withImportLock(db, businessId, async (tx) => {
+    const batch = await findBatch(tx, businessId, importId);
+    const { count } = await tx.transaction.deleteMany({
+      where: { businessId, importBatchId: batch.id },
+    });
+    await tx.importBatch.delete({ where: { id: batch.id } });
+    return { removedTransactions: count };
+  });
 }
 
 /**

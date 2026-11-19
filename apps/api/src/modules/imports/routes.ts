@@ -6,6 +6,7 @@ import {
   importDetailSchema,
   importListResponseSchema,
   MONTRA_TEMPLATE_COLUMNS,
+  removeImportResponseSchema,
   updateImportMappingRequestSchema,
   uploadImportQuerySchema,
 } from '@montra/shared';
@@ -17,6 +18,7 @@ import { authOf } from '../../plugins/auth';
 import { ownerOnly as ownerOnlyHook, requireMembership } from '../businesses/access';
 import {
   cancelImport,
+  removeImport,
   confirmImport,
   getImport,
   listImports,
@@ -206,6 +208,26 @@ export const importRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const { businessId, importId } = request.params;
       return cancelImport(app.db, businessId, importId);
+    },
+  );
+
+  app.delete(
+    '/:importId/transactions',
+    {
+      onRequest: ownerOnly,
+      schema: {
+        tags,
+        summary: 'Remove an import and every transaction it created (OWNER)',
+        description:
+          'Deletes the transactions that came from this file, including any edited since, then the import record itself. Transactions entered by hand or from other files are untouched. Works for an import in any state; an unconfirmed one has no transactions yet.',
+        security,
+        params: importParamsSchema,
+        response: { 200: removeImportResponseSchema, ...writeErrors },
+      },
+    },
+    async (request) => {
+      const { businessId, importId } = request.params;
+      return removeImport(app.db, businessId, importId);
     },
   );
 };
