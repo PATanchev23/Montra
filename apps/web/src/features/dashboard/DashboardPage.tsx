@@ -1,10 +1,10 @@
-import { TRANSACTION_DATE_MAX, TRANSACTION_DATE_MIN, type DashboardPeriod } from '@montra/shared';
+import type { DashboardPeriod } from '@montra/shared';
 import { CalendarRange, Plus, Upload } from 'lucide-react';
 import { Link } from 'react-router';
 import { errorMessage } from '../../api/client';
 import { useDashboardSummary } from '../../api/dashboard';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { DatePicker } from '../../components/ui/DatePicker';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Panel } from '../../components/ui/Panel';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
@@ -110,25 +110,19 @@ export function DashboardPage() {
             )}
             {params.period === 'custom' && (
               <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:flex sm:w-auto">
-                <Input
-                  type="date"
-                  aria-label={m.header.fromDate}
-                  aria-invalid={rangeProblem ? true : undefined}
-                  min={TRANSACTION_DATE_MIN}
-                  max={TRANSACTION_DATE_MAX}
+                <DatePicker
+                  label={m.header.fromDate}
+                  invalid={Boolean(rangeProblem)}
                   value={params.from ?? ''}
-                  onChange={(e) => setPeriod({ ...params, from: e.target.value || undefined })}
+                  onChange={(from) => setPeriod({ ...params, from: from || undefined })}
                   className="sm:w-[150px]"
                 />
                 <span className="text-body-sm text-muted">{m.header.to}</span>
-                <Input
-                  type="date"
-                  aria-label={m.header.toDate}
-                  aria-invalid={rangeProblem ? true : undefined}
-                  min={TRANSACTION_DATE_MIN}
-                  max={TRANSACTION_DATE_MAX}
+                <DatePicker
+                  label={m.header.toDate}
+                  invalid={Boolean(rangeProblem)}
                   value={params.to ?? ''}
-                  onChange={(e) => setPeriod({ ...params, to: e.target.value || undefined })}
+                  onChange={(to) => setPeriod({ ...params, to: to || undefined })}
                   className="sm:w-[150px]"
                 />
               </div>

@@ -5,6 +5,7 @@ import { resetSessionForTests } from '../api/session';
 import { useUiStore } from '../stores/ui';
 import { useToastStore } from '../stores/toasts';
 import { ledgerServer, transaction } from '../test/ledgerApi';
+import { pickDate } from '../test/datePicker';
 import { polyfillRadix, renderTransactions } from '../test/renderTransactions';
 import { TopBar } from './TopBar';
 
@@ -236,7 +237,7 @@ describe('cash flow', () => {
     expect(within(dialog).getByText('Choose the date this balance was true.')).toBeInTheDocument();
 
     // The first day of the records has transactions of its own: say which side the balance is on.
-    await u.type(within(dialog).getByLabelText('Date of the balance'), '2026-07-01');
+    await pickDate(u, within(dialog).getByLabelText('Date of the balance'), '2026-07-01');
     expect(dialog).toHaveTextContent(
       '€5,000 at the end of 1 Jul 2026, after that day’s transactions',
     );

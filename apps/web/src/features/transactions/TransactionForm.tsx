@@ -1,13 +1,9 @@
-import {
-  TRANSACTION_DATE_MAX,
-  TRANSACTION_DATE_MIN,
-  type Transaction,
-  type TransactionType,
-} from '@montra/shared';
+import { type Transaction, type TransactionType } from '@montra/shared';
 import { useId, useState } from 'react';
 import { ApiError, errorMessage } from '../../api/client';
 import { useCreateTransaction, useUpdateTransaction } from '../../api/transactions';
 import { Button } from '../../components/ui/Button';
+import { DatePicker } from '../../components/ui/DatePicker';
 import { fieldErrorId, fieldHintId } from '../../components/ui/fieldIds';
 import { Field, Input } from '../../components/ui/Input';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
@@ -59,6 +55,7 @@ export function TransactionForm({
     errors: Partial<Record<FieldName, string>>;
   } | null>(null);
   const amountId = useId();
+  const dateId = useId();
   const categoryListId = useId();
   const t = useMessages(transactionMessages);
   const m = t.form;
@@ -171,14 +168,16 @@ export function TransactionForm({
         ))}
       </datalist>
 
-      <TextField
-        label={m.date}
-        type="date"
-        min={TRANSACTION_DATE_MIN}
-        max={TRANSACTION_DATE_MAX}
-        error={errorOf('date')}
-        {...form.register('date')}
-      />
+      <Field label={m.date} htmlFor={dateId} error={errorOf('date')}>
+        <DatePicker
+          id={dateId}
+          size="lg"
+          value={form.values.date}
+          invalid={Boolean(errorOf('date'))}
+          describedBy={errorOf('date') ? fieldErrorId(dateId) : undefined}
+          onChange={(date) => form.setValue('date', date)}
+        />
+      </Field>
 
       <div className="mt-2 flex justify-end gap-2 border-t border-line-soft pt-5">
         <Button onClick={onCancel} disabled={busy}>

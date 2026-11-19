@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { resetSessionForTests } from '../../api/session';
@@ -6,6 +6,7 @@ import { useToastStore } from '../../stores/toasts';
 import { useUiStore } from '../../stores/ui';
 import { apiError } from '../../test/authApi';
 import { ledgerServer, transaction } from '../../test/ledgerApi';
+import { pickDate } from '../../test/datePicker';
 import { polyfillRadix, renderTransactions } from '../../test/renderTransactions';
 import { PeriodPicker } from './PeriodPicker';
 
@@ -205,11 +206,12 @@ describe('dashboard figures', () => {
     await u.click(screen.getByRole('button', { name: 'Reporting period: Last 30 days' }));
     await u.click(await screen.findByRole('menuitemradio', { name: /Custom range/ }));
     // It starts from the dates that were on screen.
-    expect(screen.getByLabelText('From date')).toHaveValue('2026-10-11');
-    expect(screen.getByLabelText('To date')).toHaveValue('2026-11-09');
+    expect(screen.getByLabelText('From date')).toHaveAttribute('data-value', '2026-10-11');
+    expect(screen.getByLabelText('From date')).toHaveTextContent('11 Oct 2026');
+    expect(screen.getByLabelText('To date')).toHaveAttribute('data-value', '2026-11-09');
 
     const before = api.dashboardQueries().length;
-    fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-12-01' } });
+    await pickDate(u, screen.getByLabelText('From date'), '2026-12-01');
     expect(await screen.findByText('Check the date range')).toBeInTheDocument();
     expect(screen.getByText('The start date is after the end date.')).toBeInTheDocument();
     expect(
@@ -219,7 +221,7 @@ describe('dashboard figures', () => {
         .every((q) => q.from !== '2026-12-01'),
     ).toBe(true);
 
-    fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-09-01' } });
+    await pickDate(u, screen.getByLabelText('From date'), '2026-09-01');
     await waitFor(() =>
       expect(api.dashboardQueries().at(-1)).toEqual({
         period: 'custom',
@@ -403,7 +405,7 @@ describe('after changes', () => {
     await u.type(within(dialog).getByLabelText('Amount'), '250');
     await u.type(within(dialog).getByLabelText('Description'), 'Consulting');
     await u.type(within(dialog).getByLabelText(/^Category/), 'Services');
-    fireEvent.change(within(dialog).getByLabelText('Date'), { target: { value: '2026-11-08' } });
+    await pickDate(u, within(dialog).getByLabelText('Date'), '2026-11-08');
     await u.click(within(dialog).getByRole('button', { name: 'Add transaction' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 

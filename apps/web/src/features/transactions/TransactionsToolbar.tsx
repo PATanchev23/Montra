@@ -1,11 +1,7 @@
-import {
-  TRANSACTION_DATE_MAX,
-  TRANSACTION_DATE_MIN,
-  type TransactionCategory,
-} from '@montra/shared';
+import { type TransactionCategory } from '@montra/shared';
 import { ChevronDown, RotateCcw, Tags } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { DatePicker } from '../../components/ui/DatePicker';
 import {
   Menu,
   MenuContent,
@@ -129,25 +125,19 @@ export function TransactionsToolbar({
         />
         {filters.range === 'custom' && (
           <div className="flex items-center gap-2">
-            <Input
-              type="date"
-              aria-label={t.fromDate}
-              aria-invalid={rangeError ? true : undefined}
-              min={TRANSACTION_DATE_MIN}
-              max={TRANSACTION_DATE_MAX}
+            <DatePicker
+              label={t.fromDate}
+              invalid={Boolean(rangeError)}
               value={filters.from}
-              onChange={(e) => update({ from: e.target.value })}
+              onChange={(from) => update({ from })}
               className="w-[150px]"
             />
             <span className="text-[13px] text-muted">{t.to}</span>
-            <Input
-              type="date"
-              aria-label={t.toDate}
-              aria-invalid={rangeError ? true : undefined}
-              min={TRANSACTION_DATE_MIN}
-              max={TRANSACTION_DATE_MAX}
+            <DatePicker
+              label={t.toDate}
+              invalid={Boolean(rangeError)}
               value={filters.to}
-              onChange={(e) => update({ to: e.target.value })}
+              onChange={(to) => update({ to })}
               className="w-[150px]"
             />
           </div>

@@ -1,10 +1,11 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { resetSessionForTests } from '../../api/session';
 import { useToastStore } from '../../stores/toasts';
 import { apiError } from '../../test/authApi';
 import { ledgerServer, transaction } from '../../test/ledgerApi';
+import { pickDate } from '../../test/datePicker';
 import { polyfillRadix, renderTransactions } from '../../test/renderTransactions';
 
 const history = () => [
@@ -119,8 +120,8 @@ describe('transaction history', () => {
     await u.click(screen.getByRole('combobox', { name: 'Date range' }));
     await u.click(await screen.findByRole('option', { name: 'Custom range' }));
     const requestsBefore = api.listQueries().length;
-    fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-10-05' } });
-    fireEvent.change(screen.getByLabelText('To date'), { target: { value: '2026-10-01' } });
+    await pickDate(u, screen.getByLabelText('From date'), '2026-10-05');
+    await pickDate(u, screen.getByLabelText('To date'), '2026-10-01');
     expect(await screen.findByText('The start date is after the end date.')).toBeInTheDocument();
     expect(screen.getByText('Check the date range')).toBeInTheDocument();
     // A backwards range is never sent.
@@ -131,7 +132,7 @@ describe('transaction history', () => {
         .every((q) => q.to !== '2026-10-01'),
     ).toBe(true);
 
-    fireEvent.change(screen.getByLabelText('To date'), { target: { value: '2026-10-31' } });
+    await pickDate(u, screen.getByLabelText('To date'), '2026-10-31');
     await waitFor(() =>
       expect(lastQuery(api)).toMatchObject({
         category: 'Advertising',
@@ -214,7 +215,7 @@ describe('recording and changing transactions', () => {
     await u.type(within(dialog).getByLabelText('Amount'), '1 250,50');
     await u.type(within(dialog).getByLabelText('Description'), 'Consulting');
     await u.type(within(dialog).getByLabelText(/^Category/), 'Services');
-    fireEvent.change(within(dialog).getByLabelText('Date'), { target: { value: '2026-10-10' } });
+    await pickDate(u, within(dialog).getByLabelText('Date'), '2026-10-10');
     await u.click(within(dialog).getByRole('button', { name: 'Add transaction' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -247,7 +248,8 @@ describe('recording and changing transactions', () => {
     expect(within(form).getByLabelText('Amount')).toHaveValue('89.99');
     expect(within(form).getByLabelText('Description')).toHaveValue('Website hosting');
     expect(within(form).getByLabelText(/^Category/)).toHaveValue('Software');
-    expect(within(form).getByLabelText('Date')).toHaveValue('2026-10-04');
+    expect(within(form).getByLabelText('Date')).toHaveAttribute('data-value', '2026-10-04');
+    expect(within(form).getByLabelText('Date')).toHaveTextContent('4 Oct 2026');
     expect(within(form).getByRole('radio', { name: 'Expense' })).toHaveAttribute(
       'aria-checked',
       'true',

@@ -5,6 +5,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { errorMessage } from '../../api/client';
 import { useUpdateCashSettings } from '../../api/finance';
 import { Button } from '../../components/ui/Button';
+import { DatePicker } from '../../components/ui/DatePicker';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { useMessages } from '../../i18n';
 import { common } from '../../i18n/common';
@@ -150,22 +151,16 @@ export function CashSettingsDialog({
                   <label htmlFor="cash-balance-date" className="sr-only">
                     {m.dateLabel}
                   </label>
-                  <input
+                  <DatePicker
                     id="cash-balance-date"
-                    type="date"
                     max={today}
                     value={otherDate}
-                    aria-invalid={errors.date ? true : undefined}
-                    onChange={(e) => {
-                      setOtherDate(e.target.value);
+                    invalid={Boolean(errors.date)}
+                    onChange={(next) => {
+                      setOtherDate(next);
                       setErrors((current) => ({ ...current, date: undefined }));
                     }}
-                    className={cn(
-                      'tabular h-9 rounded-control border bg-raised px-3 text-body-sm text-ink transition-colors focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1',
-                      errors.date
-                        ? 'border-negative focus-visible:outline-negative'
-                        : 'border-control hover:border-ink-2 focus-visible:border-accent focus-visible:outline-accent',
-                    )}
+                    className="w-52"
                   />
                 </div>
               )}

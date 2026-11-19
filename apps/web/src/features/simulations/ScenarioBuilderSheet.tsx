@@ -2,6 +2,7 @@ import type { ScenarioRule, TransactionType } from '@montra/shared';
 import { useState, type FormEvent } from 'react';
 import { useTransactionCategories } from '../../api/transactions';
 import { Button } from '../../components/ui/Button';
+import { DatePicker } from '../../components/ui/DatePicker';
 import { fieldErrorId } from '../../components/ui/fieldIds';
 import { Field, Input } from '../../components/ui/Input';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
@@ -206,11 +207,11 @@ export function ScenarioBuilderSheet({
               />
             </Field>
             <Field label={m.oneOffDate} htmlFor="scenario-one-off-date">
-              <Input
+              <DatePicker
                 id="scenario-one-off-date"
-                type="date"
                 value={values.oneOffDate}
-                onChange={(e) => set('oneOffDate', e.target.value)}
+                clearable
+                onChange={(date) => set('oneOffDate', date)}
               />
             </Field>
           </div>
