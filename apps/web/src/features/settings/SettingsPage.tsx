@@ -1,14 +1,13 @@
 import { ArrowUpRight, Check, Monitor, Moon, Sun, Trash2 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
-import { business } from '../../api/finance';
+import { useBusinessProfile } from '../../api/business';
 import { useHealth } from '../../api/health';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Field, Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Panel, PanelHeader } from '../../components/ui/Panel';
-import { Select } from '../../components/ui/Select';
 import { StatusDot } from '../../components/ui/StatusDot';
 import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
@@ -98,6 +97,7 @@ export function SettingsPage() {
   const { user, memberships } = useSignedInUser();
   const membership = memberships[0];
   const m = useMessages(settingsMessages);
+  const profile = useBusinessProfile(membership?.business.id ?? '').data?.business;
   const [deleting, setDeleting] = useState(false);
   const ownedBusinesses = memberships
     .filter((entry) => entry.role === 'OWNER')
@@ -173,32 +173,23 @@ export function SettingsPage() {
             description={m.business.description}
             footer={<PendingFooter note={m.business.pending} />}
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            {/* Keyed so the fields fill in once the profile arrives. */}
+            <div key={profile ? 'loaded' : 'loading'} className="grid gap-4 sm:grid-cols-2">
               <Field label={m.business.name} htmlFor="business-name">
-                <Input id="business-name" defaultValue={business.name} />
+                <Input id="business-name" readOnly defaultValue={profile?.name ?? ''} />
               </Field>
               <Field label={m.business.type} htmlFor="business-type">
-                <Input id="business-type" defaultValue={business.kind} />
+                <Input id="business-type" readOnly defaultValue={profile?.industry ?? ''} />
               </Field>
-              <Field label={m.business.currency} htmlFor="currency" hint={m.business.currencyHint}>
-                <Select
-                  id="currency"
-                  label={m.business.currency}
-                  value="EUR"
-                  onChange={() => {}}
-                  options={[{ value: 'EUR', label: m.business.euro }]}
-                  className="w-full"
-                />
+              <Field
+                label={m.business.currency}
+                htmlFor="currency"
+                hint={profile?.currency === 'EUR' ? m.business.currencyHint : undefined}
+              >
+                <Input id="currency" readOnly defaultValue={profile?.currency ?? ''} />
               </Field>
               <Field label={m.business.timeZone} htmlFor="timezone">
-                <Select
-                  id="timezone"
-                  label={m.business.timeZone}
-                  value="Europe/Sofia"
-                  onChange={() => {}}
-                  options={[{ value: 'Europe/Sofia', label: 'Europe/Sofia (EET)' }]}
-                  className="w-full"
-                />
+                <Input id="timezone" readOnly defaultValue={profile?.timezone ?? ''} />
               </Field>
             </div>
           </Section>

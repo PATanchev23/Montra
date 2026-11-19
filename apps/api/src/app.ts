@@ -19,6 +19,7 @@ import { AppError } from './lib/app-error';
 import { authRoutes } from './modules/auth/routes';
 import { businessRoutes } from './modules/businesses/routes';
 import { dashboardRoutes } from './modules/dashboard/routes';
+import { financeRoutes } from './modules/finance/routes';
 import { healthRoutes } from './modules/health/routes';
 import { importRoutes, importTemplateRoutes } from './modules/imports/routes';
 import { onboardingRoutes } from './modules/onboarding/routes';
@@ -126,6 +127,7 @@ export async function buildApp(env: Env) {
   await app.register(dashboardRoutes, {
     prefix: `${API_PREFIX}/businesses/:businessId/dashboard`,
   });
+  await app.register(financeRoutes, { prefix: `${API_PREFIX}/businesses/:businessId` });
   await app.register(importTemplateRoutes, { prefix: `${API_PREFIX}/imports` });
 
   return app;

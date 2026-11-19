@@ -28,7 +28,7 @@ export const settingsMessages = defineMessages(
     },
     business: {
       description: 'Used for reports, exports and currency formatting.',
-      pending: 'Business details are stored once accounts are connected.',
+      pending: 'Changing these after setup arrives in a later release.',
       name: 'Business name',
       type: 'Business type',
       currency: 'Currency',
@@ -71,7 +71,7 @@ export const settingsMessages = defineMessages(
       status: 'Status',
       apiVersion: 'API version',
       financialData: 'Financial data',
-      sampleData: 'TechStore sample data',
+      sampleData: 'Your transactions',
       open: 'Open system status',
     },
     deleteAccount: {
@@ -116,7 +116,7 @@ export const settingsMessages = defineMessages(
     },
     business: {
       description: 'Използва се за отчети, експорти и форматиране на валутата.',
-      pending: 'Данните за бизнеса се запазват, след като профилите бъдат свързани.',
+      pending: 'Промяната им след първоначалната настройка идва в следваща версия.',
       name: 'Име на бизнеса',
       type: 'Вид бизнес',
       currency: 'Валута',
@@ -160,7 +160,7 @@ export const settingsMessages = defineMessages(
       status: 'Състояние',
       apiVersion: 'Версия на API',
       financialData: 'Финансови данни',
-      sampleData: 'Примерни данни на TechStore',
+      sampleData: 'Вашите транзакции',
       open: 'Отвори състоянието на системата',
     },
     deleteAccount: {

@@ -1,15 +1,9 @@
-import type { DashboardResponse } from '@montra/shared';
+import { FORECAST_DAYS, type DashboardResponse } from '@montra/shared';
 import { parseISO } from 'date-fns';
-import { ArrowRight, FlaskConical, Play } from 'lucide-react';
+import { ArrowRight, Play } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import {
-  DEMO_TODAY,
-  FORECAST_DAYS,
-  useScenarioResult,
-  useScenarios,
-  useUpcomingPayments,
-} from '../../api/finance';
+import { useCashFlow, useScenarioPresets, useSimulation } from '../../api/finance';
 import { DonutChart } from '../../components/charts/DonutChart';
 import { Sparkline } from '../../components/charts/Sparkline';
 import { Amount } from '../../components/finance/Amount';
@@ -18,12 +12,13 @@ import { LedgerRow, LedgerSkeleton } from '../../components/finance/LedgerRow';
 import { Button } from '../../components/ui/Button';
 import { Panel, PanelHeader } from '../../components/ui/Panel';
 import { ErrorState, Skeleton } from '../../components/ui/States';
-import { Tooltip } from '../../components/ui/Tooltip';
 import { cn } from '../../lib/cn';
 import { useMessages } from '../../i18n';
-import { formatDate, formatDay, money, relativeDay } from '../../lib/format';
+import { money, relativeDay } from '../../lib/format';
 import { entryType } from '../transactions/display';
 import { TypeIcon } from '../transactions/TypeIcon';
+import { useCurrentMembership } from '../auth/currentUser';
+import { describeScenario } from '../simulations/describe';
 import { dashboardMessages } from './messages';
 import { shareLabel } from './period';
 
@@ -50,28 +45,6 @@ function PanelNote({ children }: { children: ReactNode }) {
     <p className="mt-4 rounded-control bg-sunken px-4 py-6 text-center text-body-sm text-muted">
       {children}
     </p>
-  );
-}
-
-/**
- * Marks a panel whose figures come from the sample layer rather than the
- * API, and names the date that data is anchored to. It sits on the header's
- * description line, so sample and live panels share one header height.
- */
-function SampleDataLabel() {
-  const m = useMessages(dashboardMessages).panels;
-  // The day the sample layer treats as today; its dates are measured from it, not from the real date.
-  return (
-    <Tooltip content={m.sampleNote}>
-      <span
-        tabIndex={0}
-        aria-label={m.sampleAsOfLong(formatDay(DEMO_TODAY, 'd MMMM yyyy'), m.sampleNote)}
-        className="inline-flex h-5 items-center gap-1.5 rounded-sm align-top font-medium text-ink-2"
-      >
-        <FlaskConical aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
-        {m.sampleAsOf(formatDay(DEMO_TODAY, 'd MMM'))}
-      </span>
-    </Tooltip>
   );
 }
 
@@ -286,57 +259,56 @@ export function NotYetPanel({
   );
 }
 
-// ── Upcoming payments (sample data) ──────────────────────────────────────
+// ── Upcoming payments ────────────────────────────────────────────────────
 
-/**
- * What is due next. The API does not schedule payments yet, so this panel
- * reads the TechStore sample layer and says so.
- */
+/** What is due next: the business's own recurring payments and transactions dated ahead. */
 export function UpcomingPaymentsPanel({ className }: { className?: string }) {
-  const { data, isError, refetch } = useUpcomingPayments();
+  const { business } = useCurrentMembership();
+  const { data, isError, refetch } = useCashFlow(business.id);
   const m = useMessages(dashboardMessages).panels;
+  const items = data?.upcoming.slice(0, 5);
+  const today = data ? parseISO(data.today) : new Date();
   return (
     <Panel className={cn('p-5 sm:p-6', className)} aria-labelledby="upcoming-title">
       <PanelHeader
         id="upcoming-title"
         className="items-start"
         title={m.upcoming}
-        description={<SampleDataLabel />}
+        description={m.upcomingHint}
         actions={<ViewAll to="/cash-flow#upcoming" label={m.viewAllUpcoming} />}
       />
       <div className="mt-2">
         {isError ? (
           <ErrorState title={m.upcomingError} onRetry={() => refetch()} />
-        ) : !data ? (
+        ) : !data || !items ? (
           <LedgerSkeleton />
-        ) : data.length === 0 ? (
+        ) : items.length === 0 ? (
           <PanelNote>{m.nothingDue}</PanelNote>
         ) : (
           <ul aria-label={m.upcoming} className="divide-y divide-line">
-            {data.map((u) => {
-              return (
-                <LedgerRow
-                  key={u.id}
-                  icon={<TypeIcon type={u.type === 'income' ? 'INCOME' : 'EXPENSE'} />}
-                  title={u.description}
-                  subtitle={u.detail}
-                  amount={
-                    u.type === 'income' ? (
-                      <Amount cents={u.amountCents} type="income" />
-                    ) : (
-                      <span className="tabular font-medium text-ink">{money(u.amountCents)}</span>
-                    )
-                  }
-                  // Plain dates: the sample layer's "today" is not the real one.
-                  meta={
-                    <>
-                      {u.certainty === 'estimated' && m.estimated}
-                      {formatDate(u.dueDate)}
-                    </>
-                  }
-                />
-              );
-            })}
+            {items.map((u) => (
+              <LedgerRow
+                key={u.id}
+                icon={<TypeIcon type={u.type} />}
+                title={u.description}
+                subtitle={u.category}
+                amount={
+                  u.type === 'INCOME' ? (
+                    <Amount cents={u.amountCents} type="income" currency={data.currency} />
+                  ) : (
+                    <span className="tabular font-medium text-ink">
+                      {money(u.amountCents, { currency: data.currency })}
+                    </span>
+                  )
+                }
+                meta={
+                  <>
+                    {u.certainty === 'estimated' && m.estimated}
+                    {relativeDay(u.dueDate, today, 'd MMM')}
+                  </>
+                }
+              />
+            ))}
           </ul>
         )}
       </div>
@@ -344,22 +316,31 @@ export function UpcomingPaymentsPanel({ className }: { className?: string }) {
   );
 }
 
-// ── Scenario preview (sample data) ───────────────────────────────────────
+// ── Scenario preview ─────────────────────────────────────────────────────
 
 /**
  * One what-if beside the current plan: where the balance ends in 90 days
- * either way. Simulations still run on the TechStore sample layer, so the
- * panel is labelled as sample data; the projection is drawn dashed.
+ * either way, from the business's own forecast. The projection is drawn dashed.
  */
 export function ScenarioPreviewPanel({ className }: { className?: string }) {
-  const scenarios = useScenarios();
-  const scenario = scenarios.data?.[0];
-  const result = useScenarioResult(scenario?.id);
+  const { business } = useCurrentMembership();
+  const presets = useScenarioPresets(business.id);
+  const preset = presets.data?.presets[0];
+  const result = useSimulation(business.id, preset?.rule);
   const preview = result.data;
-  const failed = scenarios.isError || result.isError;
+  const failed = presets.isError || result.isError;
   const delta = preview ? preview.scenarioEndCents - preview.baselineEndCents : 0;
   const m = useMessages(dashboardMessages).panels;
   const horizon = m.balanceIn(FORECAST_DAYS);
+  const text =
+    preset && preview
+      ? describeScenario(preset.id, preset.rule, {
+          currency: preview.currency,
+          today: preview.today,
+        })
+      : undefined;
+  const fmt = (cents: number, sign: 'auto' | 'always' = 'auto') =>
+    money(cents, { decimals: 0, sign, currency: preview?.currency });
 
   return (
     <Panel className={cn('flex flex-col p-5 sm:p-6', className)} aria-labelledby="scenario-title">
@@ -367,15 +348,17 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
         id="scenario-title"
         className="items-start"
         title={m.scenario}
-        description={<SampleDataLabel />}
+        description={m.scenarioHint}
         actions={<ViewAll to="/simulations" label={m.viewAllScenarios} />}
       />
       {failed ? (
         <ErrorState
           title={m.scenarioError}
-          onRetry={() => (scenarios.isError ? scenarios.refetch() : result.refetch())}
+          onRetry={() => (presets.isError ? presets.refetch() : result.refetch())}
         />
-      ) : !preview ? (
+      ) : presets.data && !preset ? (
+        <PanelNote>{m.noScenario}</PanelNote>
+      ) : !preview || !text || !preset ? (
         <>
           <Skeleton className="mt-4 h-4 w-4/5" />
           <Skeleton className="mt-4 h-[156px] w-full rounded-field" />
@@ -383,12 +366,12 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
         </>
       ) : (
         <>
-          <p className="mt-4 text-body-sm text-ink-2">{preview.scenario.description}</p>
+          <p className="mt-4 text-body-sm text-ink-2">{text.description}</p>
           <div className="mt-4 grid grid-cols-2 divide-x divide-line rounded-field bg-sunken">
             <div className="min-w-0 p-4" role="group" aria-label={m.currentPlan}>
               <p className="min-h-10 text-body-sm text-ink-2">{m.currentPlan}</p>
               <p className="tabular mt-1 text-figure-sm text-ink">
-                {money(preview.baselineEndCents, { decimals: 0 })}
+                {fmt(preview.baselineEndCents)}
               </p>
               <p className="text-caption text-muted">{horizon}</p>
               <Sparkline
@@ -399,15 +382,12 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
                 className="mt-3 h-9 w-full"
               />
             </div>
-            <div className="min-w-0 p-4" role="group" aria-label={preview.scenario.name}>
-              <p
-                className="line-clamp-2 min-h-10 text-body-sm text-ink-2"
-                title={preview.scenario.name}
-              >
-                {preview.scenario.name}
+            <div className="min-w-0 p-4" role="group" aria-label={text.name}>
+              <p className="line-clamp-2 min-h-10 text-body-sm text-ink-2" title={text.name}>
+                {text.name}
               </p>
               <p className="tabular mt-1 text-figure-sm text-ink">
-                {money(preview.scenarioEndCents, { decimals: 0 })}
+                {fmt(preview.scenarioEndCents)}
               </p>
               <p className="tabular text-caption text-muted">
                 <span
@@ -416,7 +396,7 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
                     delta < 0 ? 'text-negative' : delta > 0 ? 'text-positive' : 'text-ink-2',
                   )}
                 >
-                  {money(delta, { decimals: 0, sign: 'always' })}
+                  {fmt(delta, 'always')}
                 </span>{' '}
                 {m.vsPlan}
               </p>
@@ -431,14 +411,14 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
             </div>
           </div>
           <ul aria-label={m.assumptions} className="mt-3 mb-5 divide-y divide-line">
-            {preview.scenario.assumptions.map((assumption) => (
+            {text.assumptions.map((assumption) => (
               <li key={assumption} className="py-2.5 text-body-sm text-ink-2">
                 {assumption}
               </li>
             ))}
           </ul>
           <Button asChild variant="primary" size="lg" className="mt-auto w-full">
-            <Link to={`/simulations?scenario=${preview.scenario.id}`}>
+            <Link to={`/simulations?scenario=${preset.id}`}>
               <Play className="fill-current" />
               {m.run}
             </Link>

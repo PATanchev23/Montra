@@ -1,26 +1,24 @@
-import { format } from 'date-fns';
-import { ChevronDown } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { DEMO_TODAY, useCashFlow } from '../../api/finance';
-import { useHasTransactions } from '../../api/transactions';
+import type { CashFlowResponse } from '@montra/shared';
+import { ChevronDown, Landmark } from 'lucide-react';
+import { useState } from 'react';
+import { useCashFlow } from '../../api/finance';
 import { CapsuleBarChart } from '../../components/charts/CapsuleBarChart';
 import { Legend, TooltipRow, TooltipTitle } from '../../components/charts/ChartTooltip';
 import { LineChart } from '../../components/charts/LineChart';
 import { Amount } from '../../components/finance/Amount';
-import { CategoryIcon } from '../../components/finance/CategoryIcon';
 import { EmptyChartNote } from '../../components/finance/EmptyChartNote';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Panel, PanelHeader } from '../../components/ui/Panel';
 import { ErrorState, Skeleton } from '../../components/ui/States';
-import type { CashFlowData } from '../../demo/api';
 import { useMessages } from '../../i18n';
 import { common } from '../../i18n/common';
 import { cn } from '../../lib/cn';
-import { formatDate, formatDay, money, relativeDay } from '../../lib/format';
+import { formatDate, money, relativeDay, type MoneyOptions } from '../../lib/format';
 import { useCurrentMembership } from '../auth/currentUser';
-import { emptyCashFlow } from '../noData';
+import { TypeIcon } from '../transactions/TypeIcon';
+import { CashSettingsSheet } from './CashSettingsSheet';
 import { cashFlowMessages } from './messages';
 
 /** Set for a business with no transactions: the page shows its layout empty, at zero. */
@@ -29,58 +27,105 @@ interface Empty {
   canEdit: boolean;
 }
 
+type Data = CashFlowResponse;
+
+const amount =
+  (data: Data | undefined) =>
+  (cents: number, options: MoneyOptions = {}) =>
+    money(cents, { decimals: 0, ...options, currency: data?.currency });
+
 export function CashFlowPage() {
-  // The figures come from the TechStore sample layer, which must not stand in for a
-  // business that has recorded nothing: that business sees the same page, at zero.
   const { business, role } = useCurrentMembership();
-  const gate = useHasTransactions(business.id);
-  const noData = gate.hasTransactions === false;
-  const sample = useCashFlow({ enabled: gate.hasTransactions === true });
-  const zero = useMemo(() => (noData ? emptyCashFlow() : undefined), [noData]);
-  const data = zero ?? sample.data;
-  const loading = !data;
-  const empty: Empty = { noData, canEdit: role === 'OWNER' };
+  const { data, isError, refetch } = useCashFlow(business.id);
+  const [editing, setEditing] = useState(false);
+  const canEdit = role === 'OWNER';
+  const noData = data?.transactionCount === 0;
+  const empty: Empty = { noData, canEdit };
   const m = useMessages(cashFlowMessages).page;
 
   return (
     <div className="flex flex-col gap-7">
-      <PageHeader eyebrow={m.eyebrow} title={m.title} description={m.description} />
+      <PageHeader
+        eyebrow={m.eyebrow}
+        title={m.title}
+        description={m.description}
+        actions={
+          canEdit && (
+            <Button onClick={() => setEditing(true)} disabled={!data}>
+              <Landmark />
+              {m.bankBalance}
+            </Button>
+          )
+        }
+      />
 
-      {!noData && (gate.isError || sample.isError) ? (
+      {isError ? (
         <Panel>
-          <ErrorState
-            title={m.loadError}
-            onRetry={() => (gate.isError ? gate.refetch() : sample.refetch())}
-          />
+          <ErrorState title={m.loadError} onRetry={() => refetch()} />
         </Panel>
       ) : (
         <>
-          <StatStrip stats={data?.stats} noData={noData} />
-          <MonthlyComparison data={data} loading={loading} empty={empty} />
-          <BalanceProjection data={data} loading={loading} empty={empty} />
-          <UpcomingTable data={data} loading={loading} noData={noData} />
+          {data && <BalanceNote data={data} canEdit={canEdit} onEdit={() => setEditing(true)} />}
+          <StatStrip data={data} noData={noData} />
+          <MonthlyComparison data={data} empty={empty} />
+          <BalanceProjection data={data} empty={empty} />
+          <UpcomingTable data={data} />
         </>
+      )}
+
+      {editing && data && (
+        <CashSettingsSheet
+          businessId={business.id}
+          currency={data.currency}
+          settings={data.settings}
+          open
+          onOpenChange={setEditing}
+        />
       )}
     </div>
   );
 }
 
-function StatStrip({
-  stats,
-  noData,
+/** Where the balances start: the owner's bank balance, or zero until they enter it. */
+function BalanceNote({
+  data,
+  canEdit,
+  onEdit,
 }: {
-  stats: CashFlowData['stats'] | undefined;
-  noData: boolean;
+  data: Data;
+  canEdit: boolean;
+  onEdit: () => void;
 }) {
+  const m = useMessages(cashFlowMessages).note;
+  const { balanceCents, balanceDate } = data.settings;
+  if (balanceCents !== null && balanceDate !== null) {
+    return (
+      <p className="-mt-3 text-[13px] text-muted">
+        {m.from(amount(data)(balanceCents, { decimals: 2 }), formatDate(balanceDate, 'd MMM yyyy'))}
+      </p>
+    );
+  }
+  return (
+    <Panel className="flex flex-wrap items-center justify-between gap-3 border-warning/30 bg-warning-soft/40 px-5 py-3.5 sm:px-6">
+      <p className="text-[13px] text-ink-2">{canEdit ? m.unsetOwner : m.unsetViewer}</p>
+      {canEdit && (
+        <Button size="sm" variant="primary" onClick={onEdit}>
+          {m.set}
+        </Button>
+      )}
+    </Panel>
+  );
+}
+
+function StatStrip({ data, noData }: { data: Data | undefined; noData: boolean }) {
   const m = useMessages(cashFlowMessages).stats;
   const noDataYet = useMessages(common).delta.noData;
+  const stats = data?.stats;
+  const fmt = amount(data);
   const items = [
     {
       label: m.opening,
-      hint: formatDay(
-        new Date(DEMO_TODAY.getFullYear() - 1, DEMO_TODAY.getMonth(), 1),
-        'd MMM yyyy',
-      ),
+      hint: stats ? formatDate(stats.openingDate, 'd MMM yyyy') : '',
       value: stats?.openingCents,
     },
     {
@@ -95,7 +140,11 @@ function StatStrip({
       hint: m.last12, // 0 - x, not -x: no expenses is €0, never a negative zero ("−€0").
       value: stats ? 0 - stats.expenseCents : undefined,
     },
-    { label: m.today, hint: formatDay(DEMO_TODAY, 'd MMM yyyy'), value: stats?.closingCents },
+    {
+      label: m.today,
+      hint: data ? formatDate(data.today, 'd MMM yyyy') : '',
+      value: stats?.closingCents,
+    },
     {
       label: m.projected,
       hint: m.in90,
@@ -120,10 +169,9 @@ function StatStrip({
                 !noData && item.className,
               )}
             >
-              {money(item.value, { decimals: 0, sign: item.sign ?? 'auto' })}
+              {fmt(item.value, { sign: item.sign ?? 'auto' })}
             </p>
           )}
-          {/* With nothing recorded, the sample's dates and spans mean nothing: say so instead. */}
           <p className={cn('mt-0.5 truncate text-[12px]', noData ? 'text-muted' : 'text-faint')}>
             {noData ? noDataYet : item.hint}
           </p>
@@ -133,18 +181,11 @@ function StatStrip({
   );
 }
 
-function MonthlyComparison({
-  data,
-  loading,
-  empty,
-}: {
-  data: CashFlowData | undefined;
-  loading: boolean;
-  empty: Empty;
-}) {
+function MonthlyComparison({ data, empty }: { data: Data | undefined; empty: Empty }) {
   const t = useMessages(cashFlowMessages).monthly;
   const page = useMessages(cashFlowMessages).page;
   const none = useMessages(common).noTransactions.title;
+  const fmt = amount(data);
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="monthly-comparison">
       <PanelHeader
@@ -162,7 +203,7 @@ function MonthlyComparison({
         }
       />
       <div className="relative mt-6">
-        {loading || !data ? (
+        {!data ? (
           <Skeleton className="h-[300px] w-full" />
         ) : (
           <>
@@ -172,8 +213,8 @@ function MonthlyComparison({
                 height={300}
                 ariaLabel={t.chart}
                 categories={data.months.map((m) => ({
-                  key: m.key,
-                  label: m.label,
+                  key: m.month,
+                  label: formatDate(`${m.month}-01`, 'LLL'),
                   projected: m.projected,
                 }))}
                 series={[
@@ -195,25 +236,21 @@ function MonthlyComparison({
                   return (
                     <>
                       <TooltipTitle>
-                        {formatDate(`${m.key}-01`, 'LLLL yyyy')}
+                        {formatDate(`${m.month}-01`, 'LLLL yyyy')}
                         {m.projected && (
                           <span className="font-normal text-chart-1">{t.projectedSuffix}</span>
                         )}
                       </TooltipTitle>
-                      <TooltipRow
-                        swatch="bg-chart-1"
-                        label={t.income}
-                        value={money(m.incomeCents, { decimals: 0 })}
-                      />
+                      <TooltipRow swatch="bg-chart-1" label={t.income} value={fmt(m.incomeCents)} />
                       <TooltipRow
                         swatch="bg-chart-2"
                         label={t.expenses}
-                        value={money(m.expenseCents, { decimals: 0 })}
+                        value={fmt(m.expenseCents)}
                       />
                       <div className="mt-1.5 border-t border-line pt-1.5">
                         <TooltipRow
                           label={t.net}
-                          value={money(m.netCents, { decimals: 0, sign: 'always' })}
+                          value={fmt(m.netCents, { sign: 'always' })}
                           emphasis
                         />
                       </div>
@@ -230,21 +267,15 @@ function MonthlyComparison({
   );
 }
 
-function BalanceProjection({
-  data,
-  loading,
-  empty,
-}: {
-  data: CashFlowData | undefined;
-  loading: boolean;
-  empty: Empty;
-}) {
-  const todayIso = format(DEMO_TODAY, 'yyyy-MM-dd');
+function BalanceProjection({ data, empty }: { data: Data | undefined; empty: Empty }) {
   const t = useMessages(cashFlowMessages).balance;
   const page = useMessages(cashFlowMessages).page;
   const projectedSuffix = useMessages(cashFlowMessages).monthly.projectedSuffix;
   const c = useMessages(common);
   const { noData } = empty;
+  const fmt = amount(data);
+  const threshold = data?.settings.lowBalanceThresholdCents ?? null;
+  const missing = <span className="font-normal text-muted">{c.delta.noData}</span>;
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="balance-projection">
       <PanelHeader
@@ -262,7 +293,7 @@ function BalanceProjection({
         }
       />
       <div className="relative mt-6">
-        {loading || !data ? (
+        {!data ? (
           <Skeleton className="h-[280px] w-full" />
         ) : (
           <>
@@ -286,15 +317,11 @@ function BalanceProjection({
                 band={data.balance
                   .filter((p) => p.projected && p.lowCents !== undefined)
                   .map((p) => ({ date: p.date, low: p.lowCents!, high: p.highCents! }))}
-                // The marker and the buffer belong to the sample's calendar and settings.
-                markers={noData ? [] : [{ date: todayIso, label: t.today }]}
+                markers={noData ? [] : [{ date: data.today, label: t.today }]}
                 threshold={
-                  noData
+                  noData || threshold === null
                     ? undefined
-                    : {
-                        value: data.thresholdCents,
-                        label: t.buffer(money(data.thresholdCents, { decimals: 0 })),
-                      }
+                    : { value: threshold, label: t.buffer(fmt(threshold)) }
                 }
                 renderTooltip={(date) => {
                   const p = data.balance.find((b) => b.date === date)!;
@@ -309,13 +336,13 @@ function BalanceProjection({
                       <TooltipRow
                         swatch="bg-chart-1"
                         label={t.balance}
-                        value={money(p.balanceCents, { decimals: 0 })}
+                        value={fmt(p.balanceCents)}
                         emphasis
                       />
                       {p.projected && p.lowCents !== undefined && (
                         <TooltipRow
                           label={t.range}
-                          value={`${money(p.lowCents, { decimals: 0 })} – ${money(p.highCents!, { decimals: 0 })}`}
+                          value={`${fmt(p.lowCents)} – ${fmt(p.highCents!)}`}
                         />
                       )}
                     </>
@@ -339,10 +366,10 @@ function BalanceProjection({
             <dt className="text-muted">{t.lowest}</dt>
             <dd className="tabular mt-0.5 text-[15px] font-medium text-ink">
               {noData ? (
-                <span className="font-normal text-muted">{c.delta.noData}</span>
+                missing
               ) : (
                 <>
-                  {money(data.stats.lowestCents, { decimals: 0 })}{' '}
+                  {fmt(data.stats.lowestCents)}{' '}
                   <span className="font-normal text-muted">
                     {t.on(formatDate(data.stats.lowestDate, 'd MMM'))}
                   </span>
@@ -352,25 +379,29 @@ function BalanceProjection({
           </div>
           <div>
             <dt className="text-muted">{t.headroom}</dt>
-            <dd className="tabular mt-0.5 text-[15px] font-medium text-positive">
+            <dd
+              className={cn(
+                'tabular mt-0.5 text-[15px] font-medium',
+                threshold !== null && data.stats.lowestCents < threshold
+                  ? 'text-negative'
+                  : 'text-positive',
+              )}
+            >
               {noData ? (
-                <span className="font-normal text-muted">{c.delta.noData}</span>
+                missing
+              ) : threshold === null ? (
+                <span className="font-normal text-muted">{t.noBuffer}</span>
               ) : (
-                money(data.stats.lowestCents - data.thresholdCents, { decimals: 0 })
+                fmt(data.stats.lowestCents - threshold)
               )}
             </dd>
           </div>
           <div>
             <dt className="text-muted">{t.change}</dt>
             <dd className="tabular mt-0.5 text-[15px] font-medium text-ink">
-              {noData ? (
-                <span className="font-normal text-muted">{c.delta.noData}</span>
-              ) : (
-                money(data.stats.projectedCents - data.stats.closingCents, {
-                  decimals: 0,
-                  sign: 'always',
-                })
-              )}
+              {noData
+                ? missing
+                : fmt(data.stats.projectedCents - data.stats.closingCents, { sign: 'always' })}
             </dd>
           </div>
         </dl>
@@ -381,23 +412,17 @@ function BalanceProjection({
 
 const COLLAPSED_ROWS = 10;
 
-function UpcomingTable({
-  data,
-  loading,
-  noData,
-}: {
-  data: CashFlowData | undefined;
-  loading: boolean;
-  noData: boolean;
-}) {
+function UpcomingTable({ data }: { data: Data | undefined }) {
   const [expanded, setExpanded] = useState(false);
   const t = useMessages(cashFlowMessages).upcoming;
   const page = useMessages(cashFlowMessages).page;
+  const fmt = amount(data);
   const rows = data ? (expanded ? data.upcoming : data.upcoming.slice(0, COLLAPSED_ROWS)) : [];
   const inflow =
-    data?.upcoming.filter((u) => u.type === 'income').reduce((s, u) => s + u.amountCents, 0) ?? 0;
+    data?.upcoming.filter((u) => u.type === 'INCOME').reduce((s, u) => s + u.amountCents, 0) ?? 0;
   const outflow =
-    data?.upcoming.filter((u) => u.type === 'expense').reduce((s, u) => s + u.amountCents, 0) ?? 0;
+    data?.upcoming.filter((u) => u.type === 'EXPENSE').reduce((s, u) => s + u.amountCents, 0) ?? 0;
+  const today = data ? new Date(`${data.today}T00:00:00`) : new Date();
 
   return (
     <Panel id="upcoming" className="scroll-mt-6 overflow-hidden" aria-labelledby="upcoming-heading">
@@ -411,20 +436,19 @@ function UpcomingTable({
               <div className="tabular flex gap-4 text-[13px]">
                 <span className="text-muted">
                   {t.in}{' '}
-                  <span className={cn('font-medium', noData ? 'text-ink' : 'text-positive')}>
-                    {money(inflow, { decimals: 0 })}
+                  <span className={cn('font-medium', inflow ? 'text-positive' : 'text-ink')}>
+                    {fmt(inflow)}
                   </span>
                 </span>
                 <span className="text-muted">
-                  {t.out}{' '}
-                  <span className="font-medium text-ink">{money(outflow, { decimals: 0 })}</span>
+                  {t.out} <span className="font-medium text-ink">{fmt(outflow)}</span>
                 </span>
               </div>
             )
           }
         />
       </div>
-      {loading || !data ? (
+      {!data ? (
         <div className="space-y-3 px-6 pb-6">
           {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} className="h-10 w-full" />
@@ -463,21 +487,21 @@ function UpcomingTable({
                       colSpan={5}
                       className="px-5 py-8 text-center text-[13px] text-muted sm:px-6"
                     >
-                      {page.noUpcoming}
+                      {data.transactionCount === 0 ? page.noUpcoming : page.noneRecurring}
                     </td>
                   </tr>
                 )}
                 {rows.map((u) => (
                   <tr key={u.id} className="border-t border-line-soft hover:bg-hover/60">
                     <td className="tabular py-3 pr-3 pl-5 whitespace-nowrap text-ink-2 sm:pl-6">
-                      {relativeDay(u.dueDate, DEMO_TODAY, 'EEE d MMM')}
+                      {relativeDay(u.dueDate, today, 'EEE d MMM')}
                     </td>
                     <td className="w-full max-w-0 px-3 py-2.5">
                       <div className="flex items-center gap-3">
-                        <CategoryIcon categoryId={u.categoryId} size="sm" />
+                        <TypeIcon type={u.type} size="sm" />
                         <div className="min-w-0 leading-tight">
                           <p className="truncate text-[14px] text-ink">{u.description}</p>
-                          <p className="mt-1 truncate text-[12px] text-muted">{u.detail}</p>
+                          <p className="mt-1 truncate text-[12px] text-muted">{u.category}</p>
                         </div>
                       </div>
                     </td>
@@ -489,10 +513,15 @@ function UpcomingTable({
                       )}
                     </td>
                     <td className="px-3 text-right text-[14px]">
-                      <Amount cents={u.amountCents} type={u.type} quietExpense />
+                      <Amount
+                        cents={u.amountCents}
+                        type={u.type === 'INCOME' ? 'income' : 'expense'}
+                        currency={data.currency}
+                        quietExpense
+                      />
                     </td>
                     <td className="tabular hidden pr-5 pl-3 text-right text-muted sm:table-cell sm:pr-6">
-                      {money(u.balanceAfterCents, { decimals: 0 })}
+                      {fmt(u.balanceAfterCents)}
                     </td>
                   </tr>
                 ))}

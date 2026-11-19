@@ -163,7 +163,7 @@ apps/
         ui/            design-system primitives (Button, Panel, Select, Menu…)
         charts/        CapsuleBarChart, LineChart, DonutChart, Sparkline
         finance/       Amount, CategoryIcon, CapsuleProgress, LedgerRow
-      demo/            deterministic TechStore sample data (temporary)
+      demo/            TechStore sample data for the sign-in illustration
       stores/          Zustand (UI state only)
       styles/          design tokens
 packages/
@@ -186,11 +186,32 @@ signature theme and the light theme stay in sync.
   horizontal capsules.
 - Every chart has a keyboard-accessible readout (arrow keys) and a screen-reader data table.
 
-## Sample data
+## Cash flow, budgets, simulations and reports
 
-Until the financial REST endpoints exist, pages read from `apps/web/src/demo`: a
-deterministic TechStore dataset generated from documented business rules plus seeded noise, and
-anchored to 25 October 2026. The UI marks it with a **Sample data** badge. Pages consume it
-through the hooks in `src/api/finance.ts`. Moving to the real API only means replacing those
-query functions with `apiRequest` calls. The aggregation and forecasting logic in
-`demo/api.ts` then moves to the backend.
+Every figure on these pages is computed by the API from the business's own transactions, by the
+shared engine in `packages/shared/src/forecast.ts` (the web tests run the same engine):
+
+- **Recurring payments**: a description paid once a month in at least three of the last six full
+  months, and still paid last month or this one (rent, salaries, subscriptions). Each is projected
+  on its usual day at the median of its last three amounts.
+- **Transactions dated after today** are projected as they are.
+- **Everything else** is spread over the coming days at its daily rate over the last 90 days, per
+  category. The likely range widens with the square root of time, scaled by how much the weekly
+  net has varied.
+
+A transaction file cannot say two things, so the owner enters them in the app: the **bank balance
+today** (Cash flow → Bank balance; without it balances start from 0) and a **monthly limit per
+expense category** (Budgets → Edit budgets, pre-filled from the last three months' averages).
+
+| Endpoint (`/businesses/:id/…`) | What it does                                                        |
+| ------------------------------ | ------------------------------------------------------------------- |
+| `GET cash-flow`                | 12 months of history, 3 projected, the 90-day balance and upcoming  |
+| `PUT cash-settings`            | Bank balance today and the low-balance warning (OWNER)              |
+| `GET budgets?month=YYYY-MM`    | Spending against each limit, plus every category for the editor     |
+| `PUT budgets`                  | Replaces every monthly limit (OWNER)                                |
+| `GET simulations`              | Ready-made what-ifs sized to the business                           |
+| `GET simulations/run?<rule>`   | The plan with and without a rule; read-only, so viewers can run it  |
+| `GET reports?year=YYYY`        | Profit and loss by category and quarter, monthly totals, top income |
+| `GET alerts`                   | Payments due within three days, overspent budgets, a low balance    |
+
+`apps/web/src/demo` now only feeds the illustration on the sign-in page.

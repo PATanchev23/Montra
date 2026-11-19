@@ -4,7 +4,7 @@ import { eachMonthOfInterval, parseISO } from 'date-fns';
 import { motion, useReducedMotion } from 'motion/react';
 import type { ReactNode } from 'react';
 import { Outlet } from 'react-router';
-import { DEMO_TODAY, useCashFlow } from '../../api/finance';
+import { SAMPLE_TODAY as DEMO_TODAY, useSampleCashFlow } from '../../api/finance';
 import { useElementSize } from '../../components/charts/useElementSize';
 import { LanguageSwitch } from '../../components/LanguageSwitch';
 import { Logo } from '../../components/Logo';
@@ -25,7 +25,7 @@ const ease = [0.22, 1, 0.36, 1] as const;
  * Decorative here; the readout above it carries the figures.
  */
 function ForecastChart({ className }: { className?: string }) {
-  const { data } = useCashFlow();
+  const { data } = useSampleCashFlow();
   const reduceMotion = useReducedMotion();
   const m = useMessages(authMessages).layout;
   const [ref, { width, height }] = useElementSize<HTMLDivElement>();
@@ -171,7 +171,7 @@ function ForecastChart({ className }: { className?: string }) {
 /** The two figures the chart is drawn between. */
 function ForecastFigures() {
   const m = useMessages(authMessages).layout;
-  const { data } = useCashFlow();
+  const { data } = useSampleCashFlow();
   const now = data?.stats.closingCents;
   const ahead = data?.stats.projectedCents;
   const aheadDate = data?.balance.at(-1)?.date;

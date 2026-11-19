@@ -1,4 +1,19 @@
 import {
+  budgetQuerySchema,
+  buildAlerts,
+  buildBudgetMonth,
+  buildCashFlow,
+  buildReport,
+  cashSettingsRequestSchema,
+  categoryKey,
+  Ledger,
+  reportQuerySchema,
+  scenarioPresets,
+  scenarioQuerySchema,
+  simulate,
+  updateBudgetsRequestSchema,
+  type BudgetLimit,
+  type CashSettings,
   columnMappingSchema,
   confirmImportRequestSchema,
   createTransactionRequestSchema,
@@ -56,6 +71,9 @@ export interface LedgerOptions {
   onUpload?: (file: File, source: ImportSource, fileName: string) => ImportDetail | Response;
   /** The detail after the mapping changes. */
   onMapping?: (detail: ImportDetail, mapping: ColumnMapping) => ImportDetail;
+  /** The bank balance and warning level, as the owner saved them. */
+  cashSettings?: CashSettings;
+  budgets?: BudgetLimit[];
 }
 
 type Handler = (url: URL, init: RequestInit) => Response | Promise<Response>;
@@ -72,7 +90,27 @@ export function ledgerServer(options: LedgerOptions = {}) {
     refuseWrites: false,
     /** Answers a request instead of the fake when it returns a response. */
     override: null as ((method: string, url: URL) => Response | undefined) | null,
+    cashSettings: options.cashSettings ?? {
+      balanceCents: null,
+      balanceDate: null,
+      lowBalanceThresholdCents: null,
+    },
+    budgets: [...(options.budgets ?? [])],
   };
+  /** The shared forecasting engine over the fake's transactions, as the API runs it. */
+  const ledger = () =>
+    new Ledger(
+      state.transactions.map(({ date, type, amountCents, category, description }) => ({
+        date,
+        type,
+        amountCents,
+        category,
+        description,
+      })),
+      FAKE_TODAY,
+      state.cashSettings,
+    );
+  const invalid = () => apiError(400, 'VALIDATION_ERROR', 'The request is invalid.');
   let nextId = 1;
 
   const me = profile({
@@ -250,6 +288,94 @@ export function ledgerServer(options: LedgerOptions = {}) {
     ['GET', new RegExp(`^${BASE}/transactions$`), (url) => list(url)],
     ['GET', new RegExp(`^${BASE}/transactions/categories$`), () => categories()],
     ['GET', new RegExp(`^${BASE}/dashboard$`), (url) => dashboard(url)],
+    [
+      'GET',
+      new RegExp(`^${BASE}$`),
+      () =>
+        jsonResponse({
+          role,
+          business: {
+            ...me.memberships[0]!.business,
+            industry: 'Consumer electronics',
+            fiscalYearStartMonth: 1,
+            lowBalanceThresholdCents: state.cashSettings.lowBalanceThresholdCents,
+          },
+        }),
+    ],
+    [
+      'GET',
+      new RegExp(`^${BASE}/cash-flow$`),
+      () => jsonResponse({ currency, ...buildCashFlow(ledger()) }),
+    ],
+    [
+      'PUT',
+      new RegExp(`^${BASE}/cash-settings$`),
+      (_url, init) => {
+        if (!canWrite()) return forbidden();
+        const body = cashSettingsRequestSchema.safeParse(bodyOf(init));
+        if (!body.success) return invalid();
+        state.cashSettings = {
+          balanceCents: body.data.balanceCents,
+          balanceDate: body.data.balanceCents === null ? null : FAKE_TODAY,
+          lowBalanceThresholdCents: body.data.lowBalanceThresholdCents,
+        };
+        return jsonResponse(state.cashSettings);
+      },
+    ],
+    [
+      'GET',
+      new RegExp(`^${BASE}/budgets$`),
+      (url) => {
+        const query = budgetQuerySchema.safeParse(Object.fromEntries(url.searchParams));
+        if (!query.success) return invalid();
+        const month = query.data.month ?? FAKE_TODAY.slice(0, 7);
+        return jsonResponse({ currency, ...buildBudgetMonth(ledger(), state.budgets, month) });
+      },
+    ],
+    [
+      'PUT',
+      new RegExp(`^${BASE}/budgets$`),
+      (_url, init) => {
+        if (!canWrite()) return forbidden();
+        const body = updateBudgetsRequestSchema.safeParse(bodyOf(init));
+        if (!body.success) return invalid();
+        state.budgets = body.data.limits.map((l) => ({ ...l, category: l.category.trim() }));
+        return jsonResponse({
+          limits: [...state.budgets].sort((a, b) =>
+            categoryKey(a.category).localeCompare(categoryKey(b.category)),
+          ),
+        });
+      },
+    ],
+    [
+      'GET',
+      new RegExp(`^${BASE}/simulations$`),
+      () => jsonResponse({ presets: scenarioPresets(ledger()) }),
+    ],
+    [
+      'GET',
+      new RegExp(`^${BASE}/simulations/run$`),
+      (url) => {
+        const rule = scenarioQuerySchema.safeParse(Object.fromEntries(url.searchParams));
+        if (!rule.success) return invalid();
+        return jsonResponse({ currency, ...simulate(ledger(), rule.data) });
+      },
+    ],
+    [
+      'GET',
+      new RegExp(`^${BASE}/reports$`),
+      (url) => {
+        const query = reportQuerySchema.safeParse(Object.fromEntries(url.searchParams));
+        if (!query.success) return invalid();
+        const year = query.data.year ?? Number(FAKE_TODAY.slice(0, 4));
+        return jsonResponse({ currency, ...buildReport(ledger(), year) });
+      },
+    ],
+    [
+      'GET',
+      new RegExp(`^${BASE}/alerts$`),
+      () => jsonResponse({ today: FAKE_TODAY, alerts: buildAlerts(ledger(), state.budgets) }),
+    ],
     [
       'POST',
       new RegExp(`^${BASE}/transactions$`),

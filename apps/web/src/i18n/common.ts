@@ -41,9 +41,16 @@ export const common = defineMessages(
       searchLabel: 'Search transactions',
       notifications: 'Notifications',
       noNotifications: 'No notifications yet',
-      sampleData: 'Sample data',
-      sampleNote:
-        'Figures on this page are deterministic TechStore sample data. Live data arrives with the financial API.',
+      alerts: {
+        due: (description: string) => `${description} is due soon`,
+        dueBody: (amount: string) => `${amount} expected to go out`,
+        overBudget: (category: string) => `${category} is over budget`,
+        overBudgetBody: (spent: string, limit: string) => `${spent} spent of ${limit}`,
+        thisMonth: 'This month',
+        lowBalance: 'Balance projected below your warning level',
+        lowBalanceBody: (balance: string, threshold: string) =>
+          `Down to ${balance}, under the ${threshold} you set`,
+      },
     },
     notFound: {
       title: 'Page not found',
@@ -128,9 +135,16 @@ export const common = defineMessages(
       searchLabel: 'Търсене на транзакции',
       notifications: 'Известия',
       noNotifications: 'Все още няма известия',
-      sampleData: 'Примерни данни',
-      sampleNote:
-        'Сумите на тази страница са постоянни примерни данни на TechStore. Реалните данни идват с финансовия API.',
+      alerts: {
+        due: (description: string) => `Скоро предстои: ${description}`,
+        dueBody: (amount: string) => `Очаква се плащане от ${amount}`,
+        overBudget: (category: string) => `${category} е над бюджета`,
+        overBudgetBody: (spent: string, limit: string) => `Изхарчени ${spent} от ${limit}`,
+        thisMonth: 'Този месец',
+        lowBalance: 'Прогнозният баланс пада под нивото за предупреждение',
+        lowBalanceBody: (balance: string, threshold: string) =>
+          `До ${balance}, под зададените ${threshold}`,
+      },
     },
     notFound: {
       title: 'Страницата не е намерена',

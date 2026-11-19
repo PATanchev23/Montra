@@ -66,24 +66,29 @@ enum MembershipRole {
 }
 
 model Business {
-  id                       String   @id @default(cuid())
-  slug                     String   @unique
+  id                       String    @id @default(cuid())
+  slug                     String    @unique
   name                     String
-  currency                 String   @default("EUR") @db.Char(3)
-  timezone                 String   @default("Europe/Sofia")
+  currency                 String    @default("EUR") @db.Char(3)
+  timezone                 String    @default("Europe/Sofia")
   /// Free-form business type collected during onboarding, e.g. "Consumer electronics".
   industry                 String?
   /// Month the financial year starts, 1–12 (CHECK constraint).
-  fiscalYearStartMonth     Int      @default(1)
+  fiscalYearStartMonth     Int       @default(1)
   /// Optional safety buffer for cash-flow warnings, in cents (CHECK >= 0).
   lowBalanceThresholdCents Int?
-  createdAt                DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt                DateTime @updatedAt @db.Timestamptz(3)
+  /// The bank balance the owner entered, and the day it was true; set together
+  /// or not at all (CHECK constraint). Forecasts start from it.
+  cashBalanceCents         Int?
+  cashBalanceDate          DateTime? @db.Date
+  createdAt                DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime  @updatedAt @db.Timestamptz(3)
 
   memberships  Membership[]
   onboarding   OnboardingProgress?
   transactions Transaction[]
   imports      ImportBatch[]
+  budgets      Budget[]
 }
 
 /// Grants a user access to a business. Every business-scoped API request is
@@ -181,6 +186,25 @@ model Transaction {
   @@index([businessId, type, date])
   @@index([businessId, category])
   @@index([importBatchId])
+}
+
+// ── Budgets ──────────────────────────────────────────────────────────────
+
+/// A monthly spending limit for one expense category. Categories are free-form
+/// labels matched case-insensitively, so the key is the trimmed, lower-cased
+/// name and `category` keeps the spelling the owner chose.
+model Budget {
+  businessId  String
+  categoryKey String
+  category    String
+  /// Positive cents (CHECK constraint).
+  limitCents  Int
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@id([businessId, categoryKey])
 }
 
 // ── Imports ──────────────────────────────────────────────────────────────

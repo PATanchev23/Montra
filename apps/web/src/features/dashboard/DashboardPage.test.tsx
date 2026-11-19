@@ -120,24 +120,38 @@ describe('dashboard figures', () => {
     expect(screen.queryByText('Montra insight')).not.toBeInTheDocument();
   });
 
-  it('labels the two forward-looking panels as sample data, and nothing else', async () => {
-    ledgerServer({ transactions: history() });
+  it('fills the forward-looking panels from the business’s own transactions', async () => {
+    ledgerServer({
+      transactions: [
+        ...history(),
+        // Rent on the 1st of every month: a recurring payment, due again on 1 December.
+        ...['2026-08-01', '2026-09-01', '2026-10-01', '2026-11-01'].map((date, i) =>
+          transaction({
+            id: `rent-${i}`,
+            type: 'EXPENSE',
+            amountCents: 120_000,
+            description: 'Shop rent',
+            category: 'Rent',
+            date,
+          }),
+        ),
+      ],
+    });
     renderTransactions('/');
 
-    // Scheduled payments and scenarios are not served by the API yet.
     const upcoming = await screen.findByRole('region', { name: 'Upcoming payments' });
-    expect(within(upcoming).getByText('Sample data · as of 25 Oct')).toBeInTheDocument();
-    // Its dates are the sample layer's own, so none is called "Today" or "Tomorrow".
-    expect(within(upcoming).queryByText(/Today|Tomorrow|Yesterday/)).not.toBeInTheDocument();
-    expect(await within(upcoming).findAllByRole('listitem')).not.toHaveLength(0);
+    expect(await within(upcoming).findByText('Shop rent')).toBeInTheDocument();
+    expect(
+      within(upcoming).getByText('Recurring payments from your transactions'),
+    ).toBeInTheDocument();
     const scenario = screen.getByRole('region', { name: 'Scenario preview' });
-    expect(within(scenario).getByText('Sample data · as of 25 Oct')).toBeInTheDocument();
-    expect(await within(scenario).findByRole('link', { name: 'Run simulation' })).toHaveAttribute(
+    expect(await within(scenario).findByText('Sales slow down')).toBeInTheDocument();
+    expect(within(scenario).getByRole('link', { name: 'Run simulation' })).toHaveAttribute(
       'href',
-      expect.stringMatching(/^\/simulations\?scenario=/),
+      '/simulations?scenario=income-drop',
     );
-    // Everything fed by the API stays unmarked.
-    expect(screen.getAllByText(/^Sample data/)).toHaveLength(2);
+    // No sample data anywhere.
+    expect(screen.queryByText(/Sample data|TechStore sample/)).not.toBeInTheDocument();
   });
 
   it('reloads for another reporting period', async () => {

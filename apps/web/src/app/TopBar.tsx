@@ -1,19 +1,19 @@
-import { Bell, FlaskConical, Menu as MenuIcon, Search } from 'lucide-react';
+import { parseISO } from 'date-fns';
+import { Bell, Menu as MenuIcon, Search } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { useNotifications } from '../api/finance';
-import { useHasTransactions } from '../api/transactions';
+import { useAlerts } from '../api/finance';
 import { Logo } from '../components/Logo';
 import { IconButton } from '../components/ui/IconButton';
 import { SearchField } from '../components/ui/Input';
 import { Menu, MenuContent, MenuLabel, MenuTrigger } from '../components/ui/Menu';
-import { Tooltip } from '../components/ui/Tooltip';
 import { useCurrentMembership } from '../features/auth/currentUser';
 import { PeriodPicker } from '../features/dashboard/PeriodPicker';
 import { useMessages } from '../i18n';
 import { common } from '../i18n/common';
 import { cn } from '../lib/cn';
+import { money, relativeDay } from '../lib/format';
 
 function GlobalSearch() {
   const navigate = useNavigate();
@@ -71,15 +71,61 @@ function GlobalSearch() {
   );
 }
 
-const toneDot = { neutral: 'bg-ink-2', warning: 'bg-warning', negative: 'bg-negative' } as const;
+const toneDot = { warning: 'bg-warning', negative: 'bg-negative' } as const;
 
-/**
- * Notifications come from the TechStore sample layer, so a business with no
- * transactions of its own gets none (and a plain line saying so).
- */
-function Notifications({ sample }: { sample: boolean }) {
+interface Notice {
+  id: string;
+  title: string;
+  body: string;
+  time: string;
+  tone: keyof typeof toneDot;
+  to: string;
+}
+
+/** The API's alerts, in words: a payment due soon, an overspent budget, a low balance ahead. */
+function useNotices(): Notice[] {
+  const { business } = useCurrentMembership();
+  const { data } = useAlerts(business.id);
+  const m = useMessages(common).topBar.alerts;
+  if (!data) return [];
+  const today = parseISO(data.today);
+  const fmt = (cents: number) => money(cents, { decimals: 0, currency: business.currency });
+  return data.alerts.map((alert): Notice => {
+    switch (alert.kind) {
+      case 'due-soon':
+        return {
+          id: alert.kind,
+          title: m.due(alert.description),
+          body: m.dueBody(fmt(alert.amountCents)),
+          time: relativeDay(alert.dueDate, today, 'EEE d MMM'),
+          tone: 'warning',
+          to: '/cash-flow#upcoming',
+        };
+      case 'over-budget':
+        return {
+          id: alert.kind,
+          title: m.overBudget(alert.category),
+          body: m.overBudgetBody(fmt(alert.spentCents), fmt(alert.limitCents)),
+          time: m.thisMonth,
+          tone: 'negative',
+          to: '/budgets',
+        };
+      case 'low-balance':
+        return {
+          id: alert.kind,
+          title: m.lowBalance,
+          body: m.lowBalanceBody(fmt(alert.balanceCents), fmt(alert.thresholdCents)),
+          time: relativeDay(alert.date, today, 'd MMM'),
+          tone: 'negative',
+          to: '/cash-flow',
+        };
+    }
+  });
+}
+
+function Notifications() {
   const navigate = useNavigate();
-  const { data = [] } = useNotifications({ enabled: sample });
+  const data = useNotices();
   const m = useMessages(common).topBar;
 
   return (
@@ -116,41 +162,15 @@ function Notifications({ sample }: { sample: boolean }) {
   );
 }
 
-/** Pages whose figures come from the API; the sample-data marker stays off them. */
-const LIVE_DATA_PATHS = ['/', '/transactions', '/status'];
-
-/**
- * Marks pages that still show sample data, at every width: a labelled badge
- * from 1280px, the same mark as an icon below it.
- */
-function SampleDataMarker() {
-  const m = useMessages(common).topBar;
-  return (
-    <Tooltip content={m.sampleNote}>
-      <span
-        tabIndex={0}
-        aria-label={`${m.sampleData}. ${m.sampleNote}`}
-        className="inline-flex h-8 items-center gap-1.5 rounded-full bg-hover px-2.5 text-caption font-medium text-ink-2 xl:px-3"
-      >
-        <FlaskConical aria-hidden className="size-3.5" strokeWidth={2} />
-        <span className="hidden xl:inline">{m.sampleData}</span>
-      </span>
-    </Tooltip>
-  );
-}
-
 /**
  * One line above every page: navigation access where the sidebar is hidden,
- * search, the sample-data mark and notifications. On the dashboard it also
+ * search and notifications. On the dashboard it also
  * carries the date range the dashboard reports on.
  */
 export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const m = useMessages(common);
-  // Sample figures, and the badge that labels them, only for a business with transactions of its own.
-  const { business } = useCurrentMembership();
-  const sample = useHasTransactions(business.id).hasTransactions === true;
   return (
     <div className="flex h-[72px] items-center gap-3 sm:gap-4">
       <IconButton
@@ -167,7 +187,6 @@ export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
         <GlobalSearch />
       </div>
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
-        {sample && !LIVE_DATA_PATHS.includes(location.pathname) && <SampleDataMarker />}
         {location.pathname === '/' && <PeriodPicker />}
         <IconButton
           label={m.topBar.searchLabel}
@@ -178,7 +197,7 @@ export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
         >
           <Search />
         </IconButton>
-        <Notifications sample={sample} />
+        <Notifications />
       </div>
     </div>
   );

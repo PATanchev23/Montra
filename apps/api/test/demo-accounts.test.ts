@@ -166,6 +166,20 @@ describe('demo accounts', () => {
       const own = completeOnboardingResponseSchema.parse(completed.json()).membership.business;
       expect(own.id).not.toBe(techstoreId);
 
+      // Nor the budgets or the bank balance the forecasts start from.
+      for (const [url, payload] of [
+        ['budgets', { limits: [] }],
+        ['cash-settings', { balanceCents: 0, lowBalanceThresholdCents: null }],
+      ] as const) {
+        const res = await app.inject({
+          method: 'PUT',
+          url: `/api/v1/businesses/${techstoreId}/${url}`,
+          headers: bearer(accessToken),
+          payload,
+        });
+        expect(res.statusCode, url).toBe(403);
+      }
+
       expect(await db.business.findUniqueOrThrow({ where: { id: techstoreId } })).toEqual(before);
       expect(
         await db.membership.findMany({
@@ -331,6 +345,8 @@ describe('write surface of the API', () => {
       'POST /api/v1/businesses/{businessId}/imports/{importId}/confirm',
       'POST /api/v1/businesses/{businessId}/transactions',
       'POST /api/v1/onboarding/complete',
+      'PUT /api/v1/businesses/{businessId}/budgets',
+      'PUT /api/v1/businesses/{businessId}/cash-settings',
       'PUT /api/v1/businesses/{businessId}/imports/{importId}/mapping',
       'PUT /api/v1/onboarding',
     ]);
