@@ -209,7 +209,7 @@ expense category** (Budgets → Edit budgets, pre-filled from the last three mon
 | `PUT cash-settings`            | Bank balance today and the low-balance warning (OWNER)              |
 | `GET budgets?month=YYYY-MM`    | Spending against each limit, plus every category for the editor     |
 | `PUT budgets`                  | Replaces every monthly limit (OWNER)                                |
-| `GET simulations`              | Ready-made what-ifs sized to the business                           |
+| `GET simulations`              | Ready-made what-ifs built from the business's own figures           |
 | `GET simulations/run?<rule>`   | The plan with and without a rule; read-only, so viewers can run it  |
 | `GET reports?year=YYYY`        | Profit and loss by category and quarter, monthly totals, top income |
 | `GET alerts`                   | Payments due within three days, overspent budgets, a low balance    |

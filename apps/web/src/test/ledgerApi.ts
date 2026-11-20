@@ -76,6 +76,8 @@ export interface LedgerOptions {
   /** The bank balance and warning level, as the owner saved them. */
   cashSettings?: CashSettings;
   budgets?: BudgetLimit[];
+  /** What the business sells, as answered in onboarding. */
+  industry?: string | null;
 }
 
 type Handler = (url: URL, init: RequestInit) => Response | Promise<Response>;
@@ -361,7 +363,11 @@ export function ledgerServer(options: LedgerOptions = {}) {
         });
       },
     ],
-    ['GET', new RegExp(`^${BASE}/simulations$`), () => jsonResponse(scenarioPresets(ledger()))],
+    [
+      'GET',
+      new RegExp(`^${BASE}/simulations$`),
+      () => jsonResponse(scenarioPresets(ledger(), { industry: options.industry ?? null })),
+    ],
     [
       'GET',
       new RegExp(`^${BASE}/simulations/run$`),

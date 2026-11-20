@@ -146,11 +146,16 @@ describe('dashboard figures', () => {
       within(upcoming).getByText('Recurring payments from your transactions'),
     ).toBeInTheDocument();
     const scenario = screen.getByRole('region', { name: 'Scenario preview' });
-    // The scenario that matters most to this business: it spends more than it earns.
-    expect(await within(scenario).findByText('Spend less on Advertising')).toBeInTheDocument();
+    // Its largest cost at its own dearest month: September's rent ran 42% above usual.
+    expect(await within(scenario).findByText('Rent costs rise')).toBeInTheDocument();
+    expect(
+      within(scenario).getByText(
+        'Rent is your largest cost. In September it ran 42% above usual. What if every month cost that much?',
+      ),
+    ).toBeInTheDocument();
     expect(within(scenario).getByRole('link', { name: 'Run simulation' })).toHaveAttribute(
       'href',
-      '/simulations?scenario=trim-cost',
+      '/simulations?scenario=top-cost-up',
     );
     // No sample data anywhere.
     expect(screen.queryByText(/Sample data|TechStore sample/)).not.toBeInTheDocument();

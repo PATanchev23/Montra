@@ -4,6 +4,7 @@ export * from './business';
 export * from './dashboard';
 export * from './health';
 export * from './imports';
+export * from './industry';
 export * from './money';
 export * from './onboarding';
 export * from './transactions';

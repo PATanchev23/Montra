@@ -104,7 +104,8 @@ export const dashboardMessages = defineMessages(
       viewAllScenarios: 'View all scenarios',
       scenarioError: 'Could not load the scenario',
       scenarioHint: 'Tested against your own forecast',
-      noScenario: 'Scenarios appear once there are transactions to forecast from.',
+      noScenario:
+        'Scenarios appear once there are a few months of transactions to build them from.',
       currentPlan: 'Current plan',
       balanceIn: (days: number) => `Balance in ${days} days`,
       vsPlan: 'vs. plan',
@@ -216,7 +217,8 @@ export const dashboardMessages = defineMessages(
       viewAllScenarios: 'Виж всички сценарии',
       scenarioError: 'Сценарият не може да се зареди',
       scenarioHint: 'Изпробван спрямо собствената ви прогноза',
-      noScenario: 'Сценариите се появяват, щом има транзакции, от които да се прогнозира.',
+      noScenario:
+        'Сценариите се появяват, щом има транзакции за няколко месеца, от които да се изградят.',
       currentPlan: 'Текущ план',
       balanceIn: (days: number) => `Баланс след ${days} дни`,
       vsPlan: 'спрямо плана',

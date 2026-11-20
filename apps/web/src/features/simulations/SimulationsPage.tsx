@@ -63,7 +63,10 @@ export function SimulationsPage() {
   const text: ScenarioText | undefined = noData
     ? { name: m.noScenario, description: '', assumptions: [] }
     : selectedId && rule
-      ? describeScenario(selectedId, rule, context)
+      ? describeScenario(
+          { id: selectedId, rule, basis: custom ? undefined : preset?.basis },
+          context,
+        )
       : undefined;
 
   const run = (next: ScenarioRule) => {
@@ -102,10 +105,7 @@ export function SimulationsPage() {
                 ...(custom ? [{ id: 'custom' as const, rule: custom }] : []),
                 ...(picked ? [picked] : []),
                 ...list,
-              ].map((p) => ({
-                id: p.id,
-                text: describeScenario(p.id, p.rule, context),
-              }))
+              ].map((p) => ({ id: p.id, text: describeScenario(p, context) }))
             }
             selectedId={selectedId}
             onSelect={(id) => setParams({ scenario: id }, { replace: true })}
@@ -133,7 +133,7 @@ export function SimulationsPage() {
           initial={custom ?? {}}
           suggestions={(suggested ?? []).map((p) => ({
             ...p,
-            text: describeScenario(p.id, p.rule, context),
+            text: describeScenario(p, context),
           }))}
           onRun={run}
           onRunSuggestion={runSuggestion}
@@ -277,7 +277,7 @@ function ScenarioDetail({
       <Panel className="p-5 sm:p-6">
         <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-ink">{text.name}</h2>
         <p className="mt-1 text-[14px] text-ink-2">
-          {noData ? c.noTransactions.title : text.description}
+          {noData ? t.page.noScenariosHint : text.description}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {text.assumptions.map((a) => (
@@ -311,7 +311,7 @@ function ScenarioDetail({
         <PanelHeader
           id="scenario-chart"
           title={t.chart.title}
-          description={noData ? c.noTransactions.title : t.chart.description}
+          description={noData ? t.page.noScenario : t.chart.description}
           actions={
             <Legend
               items={[

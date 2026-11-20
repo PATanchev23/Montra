@@ -23,6 +23,7 @@ import {
   type SimulationResponse,
   type UpcomingPayment,
 } from './finance';
+import { INDUSTRY_PEAK_MONTHS, industryKind } from './industry';
 import type { TransactionType } from './transactions';
 
 /*
@@ -729,18 +730,48 @@ export function recommendBudget(ledger: Ledger, goal: BudgetGoal) {
 
 const roundUp = (cents: number, step: number) => Math.ceil(cents / step) * step;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-/** Percentages in steps of five, the way people talk about change. */
-const stepOf5 = (pct: number) => Math.round(pct / 5) * 5;
 const mean = (values: number[]) =>
   values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+/** A change read from the ledger, in whole percent. */
+const wholePct = (ratio: number) => Math.round(ratio * 100);
+/** That change as a scenario's size, within what a rule allows (a cut is at most 100%). */
+const sized = (ratio: number) => clamp(wholePct(ratio), 1, 500);
 
-/** Scenarios on the Simulations list; the next best are suggested in "New scenario". */
+/**
+ * At most this many scenarios on the Simulations list, and this many of the
+ * next best suggested in "New scenario". With fewer to go round, they are
+ * shared between the two.
+ */
 export const LISTED_SCENARIOS = 5;
 export const SUGGESTED_SCENARIOS = 4;
 const SCENARIO_HISTORY_MONTHS = 6;
+/** A month this close to usual is ordinary, not a pattern to plan for. */
+const MIN_SWING = 0.05;
+/** Full months needed before a usual month, and a month unlike it, can be told apart. */
+const MIN_PATTERN_MONTHS = 3;
+/** Without them, a newer business is read week by week: up to this many full weeks… */
+const SCENARIO_HISTORY_WEEKS = 12;
+/** …and at least this many. */
+const MIN_PATTERN_WEEKS = 4;
+/** A single payment below this share of a month's costs is too small to plan around. */
+const MIN_ONE_OFF_SHARE = 0.1;
+/** A sale is a big one at this many times the usual one. */
+const BIG_SALE_FACTOR = 2;
+/** Sales needed before a usual one can be told from a big one. */
+const MIN_SALES = 3;
+/** How long before a busy month stock is bought. */
+const STOCK_LEAD_DAYS = 14;
+
+/** What the account told us about itself, beyond its ledger. */
+export interface ScenarioProfile {
+  /** The onboarding answer to "What do you sell?", as saved. */
+  industry: string | null;
+}
 
 interface MonthlyHistory {
-  /** One total per month, oldest first. */
+  /** The months read, YYYY-MM, oldest first. */
+  months: string[];
+  /** One total per month. */
   totals: number[];
   byCategory: Map<string, number[]>;
 }
@@ -763,21 +794,78 @@ function monthlyHistory(ledger: Ledger, type: TransactionType): MonthlyHistory {
   }
   const to = starts.length ? isoAddDays(thisMonth, -1) : ledger.today;
   if (!starts.length) starts.push(thisMonth);
-  const keys = starts.map(month);
+  const months = starts.map(month);
 
-  const totals = keys.map(() => 0);
+  const totals = months.map(() => 0);
   const byCategory = new Map<string, number[]>();
   for (const e of ledger.entriesBetween(starts[0]!, to)) {
     if (e.type !== type) continue;
-    const i = keys.indexOf(month(e.date));
+    const i = months.indexOf(month(e.date));
     const key = categoryKey(e.category);
-    const values = byCategory.get(key) ?? keys.map(() => 0);
+    const values = byCategory.get(key) ?? months.map(() => 0);
     values[i]! += e.amountCents;
     totals[i]! += e.amountCents;
     byCategory.set(key, values);
   }
-  return { totals, byCategory };
+  return { months, totals, byCategory };
 }
+
+/** The Monday of `date`'s week. */
+function isoStartOfWeek(date: string): string {
+  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return isoAddDays(date, -((weekday + 6) % 7));
+}
+
+/**
+ * The periods a usual one, and one unlike it, are read from: full months
+ * where there are enough of them, otherwise full weeks (Monday to Sunday,
+ * from the first full week with this side of the ledger to last week), so a
+ * business a few weeks old already has a pattern. Null when it has neither.
+ */
+interface Pattern {
+  unit: 'month' | 'week';
+  /** Each period: YYYY-MM for a month, its Monday for a week; oldest first. */
+  periods: string[];
+  totals: number[];
+  byCategory: Map<string, number[]>;
+}
+
+function pattern(ledger: Ledger, type: TransactionType, monthly: MonthlyHistory): Pattern | null {
+  if (monthly.totals.length >= MIN_PATTERN_MONTHS) {
+    const { months, totals, byCategory } = monthly;
+    return { unit: 'month', periods: months, totals, byCategory };
+  }
+  const first = ledger
+    .entriesBetween('0000-01-01', ledger.today)
+    .find((e) => e.type === type)?.date;
+  if (!first) return null;
+  const thisWeek = isoStartOfWeek(ledger.today);
+  const firstWeek = isoStartOfWeek(first);
+  const firstFull = firstWeek === first ? first : isoAddDays(firstWeek, 7);
+  const periods: string[] = [];
+  for (let w = SCENARIO_HISTORY_WEEKS; w >= 1; w--) {
+    const start = isoAddDays(thisWeek, -7 * w);
+    if (start >= firstFull) periods.push(start);
+  }
+  if (periods.length < MIN_PATTERN_WEEKS) return null;
+
+  const totals = periods.map(() => 0);
+  const byCategory = new Map<string, number[]>();
+  for (const e of ledger.entriesBetween(periods[0]!, isoAddDays(thisWeek, -1))) {
+    if (e.type !== type) continue;
+    const i = Math.floor(isoDaysBetween(periods[0]!, e.date) / 7);
+    const key = categoryKey(e.category);
+    const values = byCategory.get(key) ?? periods.map(() => 0);
+    values[i]! += e.amountCents;
+    totals[i]! += e.amountCents;
+    byCategory.set(key, values);
+  }
+  return { unit: 'week', periods, totals, byCategory };
+}
+
+/** A period named in a scenario's basis: a month, or the Monday of a week. */
+const periodBasis = (unit: Pattern['unit'], period: string) =>
+  unit === 'month' ? { month: period } : { week: period };
 
 /** The last three months against the ones before them; zero without both. */
 function growth(values: number[]): number {
@@ -786,20 +874,68 @@ function growth(values: number[]): number {
   return prior > 0 ? mean(values.slice(-3)) / prior - 1 : 0;
 }
 
+interface AgainstUsual {
+  /** The period, as `Pattern.periods` names it. */
+  period: string;
+  cents: number;
+  /** How far it was from the usual (median) period, as a share: 0.2 is 20%. */
+  ratio: number;
+}
+
+/**
+ * The period furthest below (or above) the usual one, the latest on a tie;
+ * null without a pattern or when no period stands out. `skipEmpty` passes
+ * over periods with nothing at all: a cost that was simply not bought, or a
+ * week with no sales, which says more about timing than about the business.
+ */
+function standout(
+  values: number[] | undefined,
+  { periods }: Pattern,
+  direction: 'low' | 'high',
+  skipEmpty = false,
+): AgainstUsual | null {
+  if (!values) return null;
+  const usual = median(values);
+  if (usual <= 0) return null;
+  let pick = -1;
+  values.forEach((v, i) => {
+    if (skipEmpty && v === 0) return;
+    if (pick < 0 || (direction === 'low' ? v <= values[pick]! : v >= values[pick]!)) pick = i;
+  });
+  if (pick < 0) return null;
+  const cents = values[pick]!;
+  const ratio = direction === 'low' ? 1 - cents / usual : cents / usual - 1;
+  return ratio >= MIN_SWING ? { period: periods[pick]!, cents, ratio } : null;
+}
+
+/** The same calendar day a year on; 29 February falls on the 28th. */
+function aYearOn(date: string): string {
+  const next = `${Number(date.slice(0, 4)) + 1}${date.slice(4)}`;
+  return next.endsWith('-02-29') ? next.replace(/29$/, '28') : next;
+}
+
 interface Candidate extends ScenarioPreset {
   /** How much this question matters to this business; higher comes first. */
   score: number;
 }
 
 /**
- * Ready-made what-ifs chosen and sized from the business's own ledger: how
- * concentrated its income is, which costs are rising, how thin its margin is
- * and whether the plan already dips below its low-balance line. Every
- * candidate is scored on those signals, so two businesses see different
- * scenarios, in a different order, with different figures. The best few are
- * listed; the next few are suggested when building a new one.
+ * Ready-made what-ifs built only from what this account holds: its own
+ * ledger (its weakest and best months, or weeks while it is too new to have
+ * a usual month, its largest costs and income sources, its monthly
+ * commitments, its largest one-off payment and its biggest sale), its cash
+ * settings (the balance and the low-balance line) and what it sells, from
+ * onboarding (its busy season). Each scenario's size comes from one of those
+ * figures, and its `basis` names that figure so the text can say why it
+ * fits; a scenario the figures cannot support is left out rather than given
+ * a stock number. Nothing is random: the same account always gets the same
+ * scenarios. The best few are listed; the next few are suggested when
+ * building a new one.
  */
-export function scenarioPresets(ledger: Ledger): ScenarioPresetsResponse {
+export function scenarioPresets(
+  ledger: Ledger,
+  profile: ScenarioProfile = { industry: null },
+): ScenarioPresetsResponse {
   if (ledger.transactionCount === 0) return { presets: [], suggested: [] };
   const { today, settings } = ledger;
   const income = monthlyHistory(ledger, 'INCOME');
@@ -810,54 +946,78 @@ export function scenarioPresets(ledger: Ledger): ScenarioPresetsResponse {
   const margin = monthlyIncome > 0 ? (monthlyIncome - monthlyExpense) / monthlyIncome : -1;
   const ranked = ({ byCategory }: MonthlyHistory) =>
     [...byCategory]
-      .map(([key, values]) => ({ key, level: recent(values), growth: growth(values) }))
+      .map(([key, values]) => ({ key, values, level: recent(values), growth: growth(values) }))
       .filter((c) => c.level > 0)
       .sort((a, b) => b.level - a.level || a.key.localeCompare(b.key));
   const incomes = ranked(income);
   const costs = ranked(expense);
+  // Months where there are enough of them, weeks for a newer business.
+  const incomePattern = pattern(ledger, 'INCOME', income);
+  const expensePattern = pattern(ledger, 'EXPENSE', expense);
+
+  // Spending that is a choice, not a commitment: steady monthly payments are commitments.
+  const committed = new Map<string, number>();
+  for (const s of ledger.recurring()) {
+    if (s.type !== 'EXPENSE' || !s.steady) continue;
+    const key = categoryKey(s.category);
+    committed.set(key, (committed.get(key) ?? 0) + s.amountCents);
+  }
+  const flexible = costs.filter((c) => (committed.get(c.key) ?? 0) < c.level * FIXED_SHARE);
 
   const candidates: Candidate[] = [];
   const add = (score: number, preset: ScenarioPreset) => candidates.push({ ...preset, score });
 
   if (monthlyIncome > 0) {
-    // Sized to the business's own worst recent month against its usual one.
-    const usual = median(income.totals);
-    const dip =
-      income.totals.length >= 3 && usual > 0
-        ? Math.max(0, 1 - Math.min(...income.totals) / usual)
-        : 0;
-    add(45 + Math.min(35, dip * 100) + (margin < 0.15 ? 10 : 0), {
-      id: 'income-drop',
-      rule: { incomeChangePct: -clamp(stepOf5(dip * 100), 15, 40) },
-    });
+    // Its own weakest month (or week), as if every one ran like it. A week
+    // with no sales at all is timing, not a pattern.
+    if (incomePattern) {
+      const { unit, totals } = incomePattern;
+      const weakest = standout(totals, incomePattern, 'low', unit === 'week');
+      if (weakest) {
+        add(45 + Math.min(35, weakest.ratio * 100) + (margin < 0.15 ? 10 : 0), {
+          id: 'income-drop',
+          rule: { incomeChangePct: -sized(weakest.ratio) },
+          basis: { ...periodBasis(unit, weakest.period), pct: wholePct(weakest.ratio) },
+        });
+      }
 
-    const trend = growth(income.totals);
-    add(25 + clamp(trend * 150, 0, 35), {
-      id: 'income-growth',
-      rule: { incomeChangePct: clamp(stepOf5(trend * 100), 10, 30) },
-    });
+      // Its own best month (or week), as if it became the usual one.
+      const best = standout(totals, incomePattern, 'high');
+      if (best) {
+        add(25 + clamp(growth(income.totals) * 150, 0, 35), {
+          id: 'income-growth',
+          rule: { incomeChangePct: sized(best.ratio) },
+          basis: { ...periodBasis(unit, best.period), pct: wholePct(best.ratio) },
+        });
+      }
+    }
 
-    // One source carrying much of the income is a risk worth testing.
-    const top = incomes[0]!;
-    const share = top.level / monthlyIncome;
-    if (incomes.length >= 2 && share >= 0.3) {
+    // One source carrying much of the income, beside others: what if it stopped?
+    const top = incomes[0];
+    const share = top ? top.level / monthlyIncome : 0;
+    if (top && incomes.length >= 2 && share >= 0.3 && share <= 0.85) {
       add(share * 90, {
         id: 'top-income-loss',
-        rule: { category: ledger.displayName(top.key), categoryChangePct: -50 },
+        rule: { category: ledger.displayName(top.key), categoryChangePct: -100 },
+        basis: { pct: wholePct(share) },
       });
     }
   }
 
   const top = costs[0];
   if (top && monthlyExpense > 0) {
-    add(30 + (top.level / monthlyExpense) * 40 + clamp(top.growth * 100, 0, 20), {
-      id: 'top-cost-up',
-      rule: {
-        category: ledger.displayName(top.key),
-        categoryChangePct: top.growth >= 0.1 ? clamp(stepOf5(top.growth * 100), 20, 40) : 20,
-      },
-    });
+    // The largest cost at its own most expensive month (or week).
+    const peak =
+      expensePattern && standout(expensePattern.byCategory.get(top.key), expensePattern, 'high');
+    if (expensePattern && peak) {
+      add(30 + (top.level / monthlyExpense) * 40 + clamp(peak.ratio * 100, 0, 20), {
+        id: 'top-cost-up',
+        rule: { category: ledger.displayName(top.key), categoryChangePct: sized(peak.ratio) },
+        basis: { ...periodBasis(expensePattern.unit, peak.period), pct: wholePct(peak.ratio) },
+      });
+    }
 
+    // A cost that has been climbing, rising as much again.
     const rising = costs
       .slice(1)
       .filter((c) => c.growth >= 0.15 && c.level >= monthlyExpense * 0.05)
@@ -867,51 +1027,171 @@ export function scenarioPresets(ledger: Ledger): ScenarioPresetsResponse {
         id: 'rising-cost',
         rule: {
           category: ledger.displayName(rising.key),
-          categoryChangePct: clamp(stepOf5(rising.growth * 100), 10, 50),
+          categoryChangePct: sized(rising.growth),
         },
+        basis: { pct: wholePct(rising.growth) },
       });
     }
 
-    // Trimming only makes sense where the spending is a choice, not a commitment.
-    const committed = new Map<string, number>();
-    for (const s of ledger.recurring()) {
-      if (s.type !== 'EXPENSE' || !s.steady) continue;
-      const key = categoryKey(s.category);
-      committed.set(key, (committed.get(key) ?? 0) + s.amountCents);
-    }
-    const flexible = costs.find((c) => (committed.get(c.key) ?? 0) < c.level * FIXED_SHARE);
-    if (flexible && margin < 0.25) {
-      add(40 + clamp((0.25 - margin) * 100, 0, 40), {
-        id: 'trim-cost',
-        rule: { category: ledger.displayName(flexible.key), categoryChangePct: -25 },
-      });
+    // A cost it can adjust, kept to its own leanest month (or week); most
+    // pressing where the margin is thin.
+    if (expensePattern) {
+      for (const c of flexible) {
+        const values = expensePattern.byCategory.get(c.key);
+        const lean = standout(values, expensePattern, 'low', true);
+        if (!lean) continue;
+        add(margin < 0.25 ? 40 + clamp((0.25 - margin) * 100, 0, 40) : 20, {
+          id: 'trim-cost',
+          rule: { category: ledger.displayName(c.key), categoryChangePct: -sized(lean.ratio) },
+          basis: { ...periodBasis(expensePattern.unit, lean.period), cents: lean.cents },
+        });
+        break;
+      }
     }
 
+    // Everything it pays for, rising as much as it already has; without a
+    // trend, every month costing what its most expensive one did. Weeks are
+    // left out here: a week with the rent in it is not a costly week.
     const costTrend = growth(expense.totals);
-    add(15 + clamp(costTrend * 150, 0, 45), {
-      id: 'costs-rise',
-      rule: { expenseChangePct: clamp(stepOf5(costTrend * 100), 5, 20) },
+    const monthly = expensePattern?.unit === 'month' ? expensePattern : null;
+    const dearest = monthly && standout(monthly.totals, monthly, 'high');
+    if (costTrend >= MIN_SWING) {
+      add(15 + clamp(costTrend * 150, 0, 45), {
+        id: 'costs-rise',
+        rule: { expenseChangePct: sized(costTrend) },
+        basis: { pct: wholePct(costTrend) },
+      });
+    } else if (dearest) {
+      add(10 + clamp(dearest.ratio * 60, 0, 25), {
+        id: 'costs-rise',
+        rule: { expenseChangePct: sized(dearest.ratio) },
+        basis: { month: dearest.period, pct: wholePct(dearest.ratio) },
+      });
+    }
+
+    // Every month costing as little as its leanest one did.
+    const leanest = monthly && standout(monthly.totals, monthly, 'low');
+    if (leanest) {
+      add(15 + clamp(leanest.ratio * 60, 0, 20), {
+        id: 'costs-fall',
+        rule: { expenseChangePct: -sized(leanest.ratio) },
+        basis: { month: leanest.period, pct: wholePct(leanest.ratio) },
+      });
+    }
+  }
+
+  // A second commitment the size of the largest one it already carries.
+  const commitment = ledger
+    .recurring()
+    .filter((s) => s.type === 'EXPENSE' && s.steady)
+    .sort((a, b) => b.amountCents - a.amountCents || a.description.localeCompare(b.description))[0];
+  if (commitment) {
+    add(margin > 0.1 ? 40 + clamp(margin * 50, 0, 25) : 20, {
+      id: 'new-monthly-cost',
+      rule: { monthlyCostCents: commitment.amountCents },
+      basis: { category: ledger.displayName(categoryKey(commitment.category)) },
     });
   }
 
-  add(margin > 0.1 ? 40 + clamp(margin * 50, 0, 25) : 20, {
-    id: 'new-monthly-cost',
-    rule: { monthlyCostCents: roundUp(Math.max(monthlyExpense * 0.15, 10_000), 5_000) },
-  });
-
+  // Its largest single payment of the past year, made again: on its
+  // anniversary when that falls within the plan, otherwise a month from now.
+  const seriesOf = (e: { type: TransactionType; description: string; category: string }) =>
+    `${e.type}|${seriesKey(e.description) || categoryKey(e.category)}`;
+  const pastYear = ledger.entriesBetween(isoAddDays(today, -365), today);
+  const repeats = new Map<string, number>();
+  for (const e of pastYear) repeats.set(seriesOf(e), (repeats.get(seriesOf(e)) ?? 0) + 1);
+  const oneOff = pastYear
+    .filter((e) => e.type === 'EXPENSE' && repeats.get(seriesOf(e))! <= 2)
+    .sort((a, b) => b.amountCents - a.amountCents || b.date.localeCompare(a.date))[0];
   const knownBalance = settings.balanceCents !== null;
-  const cushion = knownBalance && ledger.balanceAt(today) > monthlyExpense * 2;
-  add(30 + (cushion ? 15 : 0), {
-    id: 'one-off-purchase',
-    rule: {
-      oneOffType: 'EXPENSE',
-      oneOffCents: roundUp(Math.max(monthlyIncome * 0.5, 50_000), 10_000),
-      oneOffDate: isoAddDays(today, 30),
-    },
-  });
+  if (oneOff && oneOff.amountCents >= monthlyExpense * MIN_ONE_OFF_SHARE) {
+    const again = aYearOn(oneOff.date);
+    const seasonal = again > today && again <= isoAddDays(today, FORECAST_DAYS);
+    const cushion = knownBalance && ledger.balanceAt(today) > monthlyExpense * 2;
+    add(30 + (cushion ? 15 : 0) + (seasonal ? 10 : 0), {
+      id: 'one-off-purchase',
+      rule: {
+        oneOffType: 'EXPENSE',
+        oneOffCents: oneOff.amountCents,
+        oneOffDate: seasonal ? again : isoAddDays(today, 30),
+      },
+      basis: { description: oneOff.description, date: oneOff.date },
+    });
+  }
+
+  // Its biggest sale of the past year, well above a usual one, coming again:
+  // on its anniversary when that falls within the plan, otherwise a month from
+  // now. A handful of sales is enough, so a new business has it too.
+  const sales = pastYear.filter((e) => e.type === 'INCOME');
+  const usualSale = median(sales.map((e) => e.amountCents));
+  const bigSale = [...sales].sort(
+    (a, b) => b.amountCents - a.amountCents || b.date.localeCompare(a.date),
+  )[0];
+  if (
+    bigSale &&
+    sales.length >= MIN_SALES &&
+    bigSale.amountCents >= usualSale * BIG_SALE_FACTOR &&
+    bigSale.amountCents >= monthlyIncome * MIN_ONE_OFF_SHARE
+  ) {
+    const again = aYearOn(bigSale.date);
+    const seasonal = again > today && again <= isoAddDays(today, FORECAST_DAYS);
+    add(25 + (margin < 0.1 ? 15 : 0) + (seasonal ? 10 : 0), {
+      id: 'big-sale',
+      rule: {
+        oneOffType: 'INCOME',
+        oneOffCents: bigSale.amountCents,
+        oneOffDate: seasonal ? again : isoAddDays(today, 30),
+      },
+      basis: {
+        description: bigSale.description,
+        date: bigSale.date,
+        pct: wholePct(bigSale.amountCents / usualSale),
+      },
+    });
+  }
+
+  // What it sells has a busy season: buying ahead for it, from the cost it
+  // buys as it goes. Its own sales that month last year confirm the season,
+  // or rule it out.
+  const kind = industryKind(profile.industry);
+  const stock = flexible[0];
+  if (kind && stock) {
+    const peakStart = [1, 2, 3]
+      .map((m) => isoShiftMonth(today, m))
+      .find(
+        (start) =>
+          INDUSTRY_PEAK_MONTHS[kind].includes(Number(start.slice(5, 7))) &&
+          isoDaysBetween(today, start) <= FORECAST_DAYS,
+      );
+    const lastYear = peakStart && isoShiftMonth(peakStart, -12);
+    const known = lastYear && ledger.firstDate !== null && ledger.firstDate <= lastYear;
+    const usual = median(income.totals);
+    const lift =
+      known && usual > 0
+        ? ledger.totals(lastYear, isoEndOfMonth(lastYear)).income / usual - 1
+        : null;
+    if (peakStart && (lift === null || lift >= 0)) {
+      const buyOn = isoAddDays(peakStart, -STOCK_LEAD_DAYS);
+      const confirmed = lift !== null && lift >= MIN_SWING;
+      add(50 + (confirmed ? 15 : 0), {
+        id: 'peak-stock-up',
+        rule: {
+          oneOffType: 'EXPENSE',
+          oneOffCents: roundUp(stock.level, 1_000),
+          oneOffDate: buyOn > today ? buyOn : isoAddDays(today, 1),
+        },
+        basis: {
+          industry: kind,
+          month: month(peakStart),
+          category: ledger.displayName(stock.key),
+          ...(confirmed ? { pct: wholePct(lift) } : {}),
+        },
+      });
+    }
+  }
 
   // Money coming in: enough to stay above the line where the plan dips under
-  // it, or three months of the shortfall where the business spends more than it earns.
+  // it, or three months of the gap where the business spends more than it earns.
   const floor = settings.lowBalanceThresholdCents ?? 0;
   const plan = knownBalance ? ledger.project(FORECAST_DAYS) : [];
   const below = plan.find((d) => d.balance < floor);
@@ -925,25 +1205,35 @@ export function scenarioPresets(ledger: Ledger): ScenarioPresetsResponse {
         oneOffCents: roundUp(floor - low.balance, 10_000),
         oneOffDate: date > today ? date : isoAddDays(today, 1),
       },
+      basis: { date: below.date, cents: floor },
     });
   } else if (margin < 0 && monthlyExpense > monthlyIncome) {
+    const gap = monthlyExpense - monthlyIncome;
     add(35, {
       id: 'cash-injection',
       rule: {
         oneOffType: 'INCOME',
-        oneOffCents: roundUp((monthlyExpense - monthlyIncome) * 3, 10_000),
+        oneOffCents: roundUp(gap * 3, 10_000),
         oneOffDate: isoAddDays(today, 14),
       },
+      basis: { cents: Math.round(gap) },
     });
   }
 
   const order = (id: ScenarioPreset['id']) => SCENARIO_PRESET_IDS.indexOf(id);
   const best = candidates
     .sort((a, b) => b.score - a.score || order(a.id) - order(b.id))
-    .map(({ id, rule }): ScenarioPreset => ({ id, rule }));
+    .map(({ id, rule, basis }): ScenarioPreset => ({ id, rule, basis }));
+  // Both places get a share: the list keeps the most relevant two thirds,
+  // and "New scenario" always has one to suggest once there are two or more.
+  const suggestedCount = Math.min(
+    SUGGESTED_SCENARIOS,
+    Math.max(best.length - LISTED_SCENARIOS, Math.floor((best.length + 1) / 3)),
+  );
+  const listedCount = Math.min(LISTED_SCENARIOS, best.length - suggestedCount);
   return {
-    presets: best.slice(0, LISTED_SCENARIOS),
-    suggested: best.slice(LISTED_SCENARIOS, LISTED_SCENARIOS + SUGGESTED_SCENARIOS),
+    presets: best.slice(0, listedCount),
+    suggested: best.slice(listedCount, listedCount + suggestedCount),
   };
 }
 

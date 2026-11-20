@@ -384,18 +384,39 @@ describe('budgets', () => {
 });
 
 describe('simulations', () => {
-  it('offers scenarios sized to the business and runs one the user builds', async () => {
+  it('offers scenarios built from the business’s own figures and runs one the user builds', async () => {
     ledgerServer({ transactions: shop() });
     const router = renderTransactions('/simulations');
     const u = userEvent.setup();
 
     const list = await screen.findByRole('radiogroup', { name: 'Choose a scenario' });
-    // Rent is most of what this profitable shop spends, so that question comes first.
-    expect(await screen.findByRole('heading', { name: 'Rent costs rise' })).toBeInTheDocument();
-    expect(within(list).getByText('Sales slow down')).toBeInTheDocument();
+    // Each one names the figure it came from: its rent, its one-off ad spend, its best month.
+    expect(
+      await screen.findByRole('heading', { name: 'A new monthly commitment' }),
+    ).toBeInTheDocument();
+    expect(
+      within(list).getByText(
+        'Rent is your largest monthly payment, at €1,200. What if another one that size started on 1 December?',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(list).getByText(
+        'Your largest one-off payment this year was €450 for “Search ads” on 3 Nov 2026. What if one like it came on 9 December?',
+      ),
+    ).toBeInTheDocument();
+    // Its sales never dipped below a usual month, so there is no slowdown to size.
+    expect(within(list).queryByText('Sales slow down')).not.toBeInTheDocument();
 
+    // The next best are suggested in "New scenario", from its figures too: its best month.
     await u.click(screen.getByRole('button', { name: 'New scenario' }));
     const sheet = await screen.findByRole('dialog', { name: 'New scenario' });
+    const suggestions = within(sheet).getByRole('region', { name: 'Suggested from your figures' });
+    expect(
+      within(suggestions).getByText(
+        'August brought in 25% more than a usual month. What if that became your usual?',
+      ),
+    ).toBeInTheDocument();
+    expect(within(list).queryByText('Sales grow')).not.toBeInTheDocument();
     await u.type(within(sheet).getByLabelText('New monthly cost (EUR)'), '1000');
     await u.click(within(sheet).getByRole('button', { name: 'Run scenario' }));
 
@@ -407,42 +428,113 @@ describe('simulations', () => {
     expect(within(difference).getByText('−€3,000')).toBeInTheDocument();
   });
 
+  it('builds scenarios for a business a few weeks old from its weeks and its biggest sale', async () => {
+    // Open since Monday 21 September: a sale every Tuesday, one slow week and one big order.
+    const sales = [100_000, 100_000, 100_000, 70_000, 100_000, 100_000, 100_000].map(
+      (amountCents, i) =>
+        transaction({
+          id: `sale-${i}`,
+          type: 'INCOME',
+          amountCents,
+          description: `Order ${i + 1}`,
+          category: 'Sales',
+          date: new Date(Date.UTC(2026, 8, 22 + 7 * i)).toISOString().slice(0, 10),
+        }),
+    );
+    const bigOrder = transaction({
+      id: 'big-order',
+      type: 'INCOME',
+      amountCents: 400_000,
+      description: 'Office fit-out',
+      category: 'Sales',
+      date: '2026-10-29',
+    });
+    ledgerServer({ transactions: [...sales, bigOrder] });
+    renderTransactions('/simulations');
+
+    const list = await screen.findByRole('radiogroup', { name: 'Choose a scenario' });
+    expect(
+      await within(list).findByText(
+        'The week of 12 October brought in 30% less than a usual week. What if every week ran like that?',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(list).getByText(
+        'Your biggest sale this year was €4,000 for “Office fit-out” on 29 Oct 2026, 4 times a usual one. What if another like it came on 9 December?',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('suggests more scenarios in New scenario, run by name or adjusted', async () => {
-    ledgerServer({ transactions: shop() });
+    // Advertising every month, varying and climbing; and the shop sells electronics.
+    const ads = [30_000, 45_000, 20_000, 60_000].map((amountCents, i) =>
+      transaction({
+        id: `ads-${i}`,
+        type: 'EXPENSE',
+        amountCents,
+        description: `Ads ${i + 7}/2026`,
+        category: 'Marketing',
+        date: `2026-${String(i + 7).padStart(2, '0')}-15`,
+      }),
+    );
+    ledgerServer({ transactions: [...shop(), ...ads], industry: 'Electronics' });
     const router = renderTransactions('/simulations');
     const u = userEvent.setup();
     const list = await screen.findByRole('radiogroup', { name: 'Choose a scenario' });
-    expect(within(list).queryByText('Prices go up')).not.toBeInTheDocument();
+    // What it sells has a busy season ahead.
+    expect(
+      within(list).getByText(
+        'December is usually a busy month for electronics shops. What if you spent an extra month’s Marketing, €420, on 17 November to be ready?',
+      ),
+    ).toBeInTheDocument();
+    expect(within(list).queryByText('Sales grow')).not.toBeInTheDocument();
 
     await u.click(screen.getByRole('button', { name: 'New scenario' }));
     let sheet = await screen.findByRole('dialog', { name: 'New scenario' });
-    const suggestions = within(sheet).getByRole('region', { name: 'Suggested for your business' });
-    const prices = within(suggestions).getByRole('button', { name: /Prices go up/ });
-    await u.click(prices);
-    expect(prices).toHaveAttribute('aria-pressed', 'true');
-    expect(within(sheet).getByLabelText('Change in expenses (%)')).toHaveValue('5');
+    const suggestions = within(sheet).getByRole('region', { name: 'Suggested from your figures' });
+    const growth = within(suggestions).getByRole('button', { name: /Sales grow/ });
+    await u.click(growth);
+    expect(growth).toHaveAttribute('aria-pressed', 'true');
+    // Opened, it shows what it changes and what it would do to the next 90 days.
+    expect(growth).toHaveAttribute('aria-expanded', 'true');
+    const details = within(suggestions).getByRole('region', { name: 'Over the next 90 days' });
+    expect(within(suggestions).getByText('Income +25%')).toBeInTheDocument();
+    expect(await within(details).findByText('More cash than planned')).toBeInTheDocument();
+    // While it is open, the fields to build one by hand step aside.
+    await waitFor(() =>
+      expect(within(sheet).queryByLabelText('Change in income (%)')).not.toBeInTheDocument(),
+    );
+    expect(within(sheet).getByRole('button', { name: 'Run scenario' })).toBeInTheDocument();
+
+    // Closed, it stays chosen and the fields come back holding its figures.
+    await u.click(growth);
+    expect(growth).toHaveAttribute('aria-expanded', 'false');
+    expect(growth).toHaveAttribute('aria-pressed', 'true');
+    expect(await within(sheet).findByLabelText('Change in income (%)')).toHaveValue('25');
 
     // Changed, it is no longer the suggestion.
-    const expenses = within(sheet).getByLabelText('Change in expenses (%)');
-    await u.clear(expenses);
-    await u.type(expenses, '8');
-    expect(prices).toHaveAttribute('aria-pressed', 'false');
-    await u.click(prices);
+    const income = within(sheet).getByLabelText('Change in income (%)');
+    await u.clear(income);
+    await u.type(income, '30');
+    expect(growth).toHaveAttribute('aria-pressed', 'false');
+    await u.click(growth);
     await u.click(within(sheet).getByRole('button', { name: 'Run scenario' }));
 
-    expect(await screen.findByRole('heading', { name: 'Prices go up' })).toBeInTheDocument();
-    expect(router.state.location.search).toBe('?scenario=costs-rise');
-    expect(within(list).getByRole('radio', { name: /Prices go up/ })).toBeChecked();
+    expect(await screen.findByRole('heading', { name: 'Sales grow' })).toBeInTheDocument();
+    expect(router.state.location.search).toBe('?scenario=income-growth');
+    expect(within(list).getByRole('radio', { name: /Sales grow/ })).toBeChecked();
 
     // Opened again, the suggestion is still offered and an edit runs as the user's own.
     await u.click(screen.getByRole('button', { name: 'New scenario' }));
     sheet = await screen.findByRole('dialog', { name: 'New scenario' });
-    await u.click(within(sheet).getByRole('button', { name: /Prices go up/ }));
-    await u.clear(within(sheet).getByLabelText('Change in expenses (%)'));
-    await u.type(within(sheet).getByLabelText('Change in expenses (%)'), '8');
+    // Opened and closed again, it fills the fields for the user to adjust.
+    await u.click(within(sheet).getByRole('button', { name: /Sales grow/ }));
+    await u.click(within(sheet).getByRole('button', { name: /Sales grow/ }));
+    await u.clear(await within(sheet).findByLabelText('Change in income (%)'));
+    await u.type(within(sheet).getByLabelText('Change in income (%)'), '30');
     await u.click(within(sheet).getByRole('button', { name: 'Run scenario' }));
     expect(await screen.findByRole('heading', { name: 'Your scenario' })).toBeInTheDocument();
-    expect(router.state.location.search).toBe('?scenario=custom&expenseChangePct=8');
+    expect(router.state.location.search).toBe('?scenario=custom&incomeChangePct=30');
   });
 });
 

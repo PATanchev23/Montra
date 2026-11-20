@@ -324,29 +324,9 @@ describe('buildBudgetMonth', () => {
 });
 
 describe('simulations', () => {
-  it('chooses, orders and sizes the presets from the business’s own ledger', () => {
-    // The shop spends more than it earns: trimming its flexible costs comes first.
-    const shopScenarios = scenarioPresets(new Ledger(shop(), TODAY, noSettings));
-    expect(shopScenarios.presets.map((p) => p.id)).toEqual([
-      'trim-cost',
-      'income-drop',
-      'top-cost-up',
-      'cash-injection',
-      'one-off-purchase',
-    ]);
-    expect(shopScenarios.presets[0]!.rule).toEqual({
-      category: 'supplies',
-      categoryChangePct: -25,
-    });
-    expect(shopScenarios.presets[2]!.rule).toEqual({ category: 'Payroll', categoryChangePct: 20 });
-    expect(shopScenarios.suggested.map((p) => p.id)).toEqual([
-      'income-growth',
-      'new-monthly-cost',
-      'costs-rise',
-    ]);
-
-    // A profitable studio living off one client, with hosting climbing every month.
-    const studio: LedgerEntry[] = ['06', '07', '08', '09', '10', '11'].flatMap((m, i) => [
+  /** A profitable studio living off one client, with hosting climbing every month. */
+  const studio = (): LedgerEntry[] =>
+    ['06', '07', '08', '09', '10', '11'].flatMap((m, i) => [
       entry({
         date: `2026-${m}-03`,
         type: 'INCOME',
@@ -369,21 +349,199 @@ describe('simulations', () => {
         description: `Hosting ${m}`,
       }),
     ]);
-    const studioScenarios = scenarioPresets(new Ledger(studio, TODAY, noSettings));
-    expect(studioScenarios.presets.slice(0, 3)).toEqual([
-      { id: 'rising-cost', rule: { category: 'Cloud', categoryChangePct: 50 } },
-      { id: 'top-income-loss', rule: { category: 'Acme', categoryChangePct: -50 } },
-      { id: 'new-monthly-cost', rule: { monthlyCostCents: 35_000 } },
+
+  it('builds every scenario from the business’s own figures, and the same ones every time', () => {
+    const ledger = () => new Ledger(studio(), TODAY, noSettings);
+    const first = scenarioPresets(ledger());
+    expect(scenarioPresets(ledger())).toEqual(first);
+
+    expect(first.presets.slice(0, 3)).toEqual([
+      // Hosting averaged 650 € over the last three full months against 350 € in July: 86% more.
+      {
+        id: 'rising-cost',
+        rule: { category: 'Cloud', categoryChangePct: 86 },
+        basis: { pct: 86 },
+      },
+      // Acme is 75% of the income: what if it stopped?
+      {
+        id: 'top-income-loss',
+        rule: { category: 'Acme', categoryChangePct: -100 },
+        basis: { pct: 75 },
+      },
+      // Another commitment the size of the rent it already pays.
+      { id: 'new-monthly-cost', rule: { monthlyCostCents: 150_000 }, basis: { category: 'Rent' } },
     ]);
-    const all = [...studioScenarios.presets, ...studioScenarios.suggested].map((p) => p.id);
-    expect(all).not.toContain('trim-cost');
-    expect(all).not.toContain('cash-injection');
+    const all = [...first.presets, ...first.suggested].map((p) => p.id);
+    // Its income never strayed from a usual month, so nothing is sized to a stock percentage.
+    expect(all).not.toContain('income-drop');
+    expect(all).not.toContain('income-growth');
     expect(new Set(all).size).toBe(all.length);
+    // Its cheapest month gives two more, offered in "New scenario".
+    expect(first.suggested).toEqual([
+      {
+        id: 'costs-fall',
+        rule: { expenseChangePct: -11 },
+        basis: { month: '2026-07', pct: 11 },
+      },
+      {
+        id: 'trim-cost',
+        rule: { category: 'Cloud', categoryChangePct: -39 },
+        basis: { month: '2026-07', cents: 35_000 },
+      },
+    ]);
 
     expect(scenarioPresets(new Ledger([], TODAY, noSettings))).toEqual({
       presets: [],
       suggested: [],
     });
+  });
+
+  it('sizes a slowdown to the business’s own weakest month', () => {
+    const entries = studio().map((e) =>
+      e.category === 'Projects' && e.date.startsWith('2026-08') ? { ...e, amountCents: 40_000 } : e,
+    );
+    const { presets, suggested } = scenarioPresets(new Ledger(entries, TODAY, noSettings));
+    // August brought in 6 400 € against a usual 8 000 €: 20% less.
+    expect([...presets, ...suggested].find((p) => p.id === 'income-drop')).toEqual({
+      id: 'income-drop',
+      rule: { incomeChangePct: -20 },
+      basis: { month: '2026-08', pct: 20 },
+    });
+  });
+
+  it('closes the gap where the shop spends more than it earns', () => {
+    const { presets, suggested } = scenarioPresets(new Ledger(shop(), TODAY, noSettings));
+    const injection = presets.find((p) => p.id === 'cash-injection')!;
+    // Three months of its own monthly shortfall, which the basis names.
+    expect(injection.rule.oneOffCents).toBe(
+      Math.ceil((injection.basis.cents! * 3) / 10_000) * 10_000,
+    );
+    expect(injection.basis.cents).toBeGreaterThan(0);
+    // With three to go round, the third is suggested in "New scenario".
+    expect(suggested).toEqual([
+      {
+        id: 'new-monthly-cost',
+        rule: { monthlyCostCents: 300_000 },
+        basis: { category: 'Payroll' },
+      },
+    ]);
+  });
+
+  it('repeats the largest one-off payment of the past year on its anniversary', () => {
+    const entries = [
+      ...studio(),
+      entry({
+        date: '2025-12-08',
+        amountCents: 400_000,
+        category: 'Equipment',
+        description: 'Laptops',
+      }),
+    ];
+    const { presets, suggested } = scenarioPresets(new Ledger(entries, TODAY, noSettings));
+    expect([...presets, ...suggested].find((p) => p.id === 'one-off-purchase')).toEqual({
+      id: 'one-off-purchase',
+      rule: { oneOffType: 'EXPENSE', oneOffCents: 400_000, oneOffDate: '2026-12-08' },
+      basis: { description: 'Laptops', date: '2025-12-08' },
+    });
+  });
+
+  /**
+   * A shop open since Monday 28 September: one full month, so its pattern is
+   * read week by week. A sale a week, a slow week of 19 October and one big
+   * order on 11 November; supplies every week.
+   */
+  const newShop = (): LedgerEntry[] => [
+    ...[100_000, 100_000, 100_000, 70_000, 100_000, 100_000].map((amountCents, i) =>
+      entry({
+        date: isoAddDays('2026-09-29', 7 * i),
+        type: 'INCOME',
+        amountCents,
+        category: 'Sales',
+        description: `Order ${i + 1}`,
+      }),
+    ),
+    entry({
+      date: '2026-11-11',
+      type: 'INCOME',
+      amountCents: 400_000,
+      category: 'Sales',
+      description: 'Office fit-out',
+    }),
+    ...Array.from({ length: 8 }, (_, i) =>
+      entry({
+        date: isoAddDays('2026-09-30', 7 * i),
+        amountCents: 30_000,
+        category: 'Supplies',
+        description: 'Supplies',
+      }),
+    ),
+  ];
+
+  it('reads a business too new for a usual month week by week', () => {
+    const { presets, suggested } = scenarioPresets(new Ledger(newShop(), TODAY, noSettings));
+    const all = [...presets, ...suggested];
+    // The week of 19 October brought in 70 000 against a usual 100 000.
+    expect(all.find((p) => p.id === 'income-drop')).toEqual({
+      id: 'income-drop',
+      rule: { incomeChangePct: -30 },
+      basis: { week: '2026-10-19', pct: 30 },
+    });
+    // The week of 9 November, with the big order, brought in four times a usual week.
+    expect(all.find((p) => p.id === 'income-growth')).toEqual({
+      id: 'income-growth',
+      rule: { incomeChangePct: 300 },
+      basis: { week: '2026-11-09', pct: 300 },
+    });
+    // Its weekly supplies never changed: nothing to size a cost scenario to.
+    expect(all.map((p) => p.id)).not.toContain('top-cost-up');
+
+    // Three weeks are not yet a pattern.
+    const threeWeeks = newShop().filter((e) => e.date >= '2026-10-26');
+    const young = scenarioPresets(new Ledger(threeWeeks, TODAY, noSettings));
+    expect([...young.presets, ...young.suggested].map((p) => p.id)).not.toContain('income-drop');
+  });
+
+  it('offers the biggest sale again, from a handful of sales', () => {
+    const { presets, suggested } = scenarioPresets(new Ledger(newShop(), TODAY, noSettings));
+    // 4 000 € against a usual sale of 1 000 €; its anniversary is beyond the plan.
+    expect([...presets, ...suggested].find((p) => p.id === 'big-sale')).toEqual({
+      id: 'big-sale',
+      rule: { oneOffType: 'INCOME', oneOffCents: 400_000, oneOffDate: '2026-12-19' },
+      basis: { description: 'Office fit-out', date: '2026-11-11', pct: 400 },
+    });
+    // Sales all the same size have no big one.
+    const all = [...scenarioPresets(new Ledger(shop(), TODAY, noSettings)).presets];
+    expect(all.map((p) => p.id)).not.toContain('big-sale');
+  });
+
+  it('stocks up ahead of the busy season of what the business sells', () => {
+    const find = (industry: string | null, entries = shop()) => {
+      const { presets, suggested } = scenarioPresets(new Ledger(entries, TODAY, noSettings), {
+        industry,
+      });
+      return [...presets, ...suggested].find((p) => p.id === 'peak-stock-up');
+    };
+    // December is the gift season for electronics: an extra month of supplies, bought tomorrow.
+    expect(find('Consumer electronics')).toEqual({
+      id: 'peak-stock-up',
+      rule: { oneOffType: 'EXPENSE', oneOffCents: expect.any(Number), oneOffDate: '2026-11-20' },
+      basis: { industry: 'electronics', month: '2026-12', category: 'supplies' },
+    });
+    // Outdoor gear sells in spring; and a business with no industry gets no season.
+    expect(find('Спорт и туризъм')).toBeUndefined();
+    expect(find(null)).toBeUndefined();
+
+    // Its own sales last December say more than the industry does.
+    const quietDecember = [
+      ...shop(),
+      entry({ date: '2025-12-01', type: 'INCOME', amountCents: 10_000, category: 'Sales' }),
+    ];
+    expect(find('Electronics', quietDecember)).toBeUndefined();
+    const busyDecember = [
+      ...shop(),
+      entry({ date: '2025-12-01', type: 'INCOME', amountCents: 450_000, category: 'Sales' }),
+    ];
+    expect(find('Electronics', busyDecember)?.basis.pct).toBe(50);
   });
 
   it('puts the money needed first when the plan dips below the low-balance line', () => {

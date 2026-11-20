@@ -318,13 +318,18 @@ describe('finance API', () => {
   });
 
   describe('simulations', () => {
-    it('offers presets sized to the business and runs a rule from the query string', async () => {
+    it('offers presets built from the business’s figures and runs a rule from the query string', async () => {
       await seedShop();
       const { presets } = await ok(
         await call('GET', '/simulations'),
         scenarioPresetsResponseSchema,
       );
-      expect(presets.map((p) => p.id)).toContain('income-drop');
+      // Built from its own figures: a second commitment the size of its rent.
+      expect(presets).toContainEqual({
+        id: 'new-monthly-cost',
+        rule: { monthlyCostCents: 100_000 },
+        basis: { category: 'Rent' },
+      });
 
       const run = await ok(
         await call('GET', '/simulations/run?monthlyCostCents=100000', viewer.token),

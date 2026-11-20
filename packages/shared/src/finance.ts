@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { currencySchema } from './business';
+import { industryKindSchema } from './industry';
 import { MAX_CENTS } from './money';
 import {
   amountCentsSchema,
@@ -319,20 +320,57 @@ export const SCENARIO_PRESET_IDS = [
   'top-cost-up',
   'rising-cost',
   'trim-cost',
+  'peak-stock-up',
   'new-monthly-cost',
   'one-off-purchase',
   'costs-rise',
+  'costs-fall',
+  'big-sale',
   'income-growth',
 ] as const;
 export const scenarioPresetIdSchema = z.enum(SCENARIO_PRESET_IDS);
 export type ScenarioPresetId = z.infer<typeof scenarioPresetIdSchema>;
 
-const scenarioPresetSchema = z.object({ id: scenarioPresetIdSchema, rule: scenarioRuleSchema });
+/**
+ * The business's own figures a ready-made scenario was built from, so its
+ * text can say why it fits this business. Which fields are set depends on
+ * the scenario; none are invented.
+ */
+export const scenarioBasisSchema = z.object({
+  /** The month a figure comes from, YYYY-MM (a weakest month, a peak month). */
+  month: monthSchema.optional(),
+  /**
+   * The Monday of the week a figure comes from, for a business too new to
+   * have a usual month yet: its weakest or best week.
+   */
+  week: transactionDateSchema.optional(),
+  /** A whole percentage read from the ledger: a share, or a change against usual. */
+  pct: z.int().optional(),
+  /** An amount read from the ledger, in cents. */
+  cents: z.int().optional(),
+  /** A category the scenario is about, when the rule does not already name it. */
+  category: z.string().optional(),
+  /** A past payment's own description. */
+  description: z.string().optional(),
+  /** A date read from the ledger or the forecast. */
+  date: transactionDateSchema.optional(),
+  /** What the business sells, from onboarding, when it shaped the scenario. */
+  industry: industryKindSchema.optional(),
+});
+export type ScenarioBasis = z.infer<typeof scenarioBasisSchema>;
+
+const scenarioPresetSchema = z.object({
+  id: scenarioPresetIdSchema,
+  rule: scenarioRuleSchema,
+  basis: scenarioBasisSchema,
+});
 
 /**
  * GET /businesses/:businessId/simulations: ready-made what-ifs chosen and sized
- * for this business, most relevant first. `presets` are listed; `suggested`
- * are the next best, offered when building a new scenario.
+ * from this business's own ledger, cash settings and industry, most relevant
+ * first. `presets` are listed; `suggested` are the next best, offered when
+ * building a new scenario. A scenario the figures cannot support is left out
+ * rather than filled with a stock number.
  */
 export const scenarioPresetsResponseSchema = z.object({
   presets: z.array(scenarioPresetSchema),

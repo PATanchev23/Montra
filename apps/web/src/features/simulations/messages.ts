@@ -1,3 +1,4 @@
+import type { IndustryKind } from '@montra/shared';
 import { defineMessages } from '../../i18n';
 
 export const simulationMessages = defineMessages(
@@ -8,7 +9,8 @@ export const simulationMessages = defineMessages(
       description:
         'Test a decision before you make it. Each scenario is compared with your current plan over the next 90 days.',
       new: 'New scenario',
-      noScenariosHint: 'Scenarios are sized to your own figures once you add transactions.',
+      noScenariosHint:
+        'Scenarios are built from your own figures. They appear here once there are a few months of transactions to read.',
       loadError: 'Could not load scenarios',
       noScenarios: 'No scenarios yet',
       noScenario: 'No scenario yet',
@@ -45,46 +47,103 @@ export const simulationMessages = defineMessages(
       oneOffIn: (amount: string, date: string) => `One-off income of ${amount} on ${date}`,
       noChange: 'No changes yet',
       presets: {
-        incomeDrop: (change: string) => ({
+        incomeDrop: (month: string, change: string) => ({
           name: 'Sales slow down',
-          description: `What if every income you expect came in ${change} lower?`,
+          description: `In ${month} you brought in ${change} less than in a usual month. What if every month ran like that?`,
         }),
-        incomeGrowth: (change: string) => ({
+        incomeDropWeek: (week: string, change: string) => ({
+          name: 'Sales slow down',
+          description: `The week of ${week} brought in ${change} less than a usual week. What if every week ran like that?`,
+        }),
+        incomeGrowth: (month: string, change: string) => ({
           name: 'Sales grow',
-          description: `What if every income you expect came in ${change} higher?`,
+          description: `${month} brought in ${change} more than a usual month. What if that became your usual?`,
         }),
-        topCostUp: (category: string, change: string) => ({
+        incomeGrowthWeek: (week: string, change: string) => ({
+          name: 'Sales grow',
+          description: `The week of ${week} brought in ${change} more than a usual week. What if that became your usual?`,
+        }),
+        topCostUp: (category: string, month: string, change: string) => ({
           name: `${category} costs rise`,
-          description: `${category} is your largest cost lately. What if it changed by ${change}?`,
+          description: `${category} is your largest cost. In ${month} it ran ${change} above usual. What if every month cost that much?`,
         }),
-        newMonthlyCost: (amount: string, from: string) => ({
-          name: 'A new monthly cost',
-          description: `A hire, a lease or a subscription: ${amount} more every month from ${from}.`,
+        topCostUpWeek: (category: string, week: string, change: string) => ({
+          name: `${category} costs rise`,
+          description: `${category} is your largest cost. The week of ${week} it ran ${change} above a usual week. What if every week cost that much?`,
         }),
-        oneOffPurchase: (amount: string, date: string) => ({
+        newMonthlyCost: (category: string, amount: string, from: string) => ({
+          name: 'A new monthly commitment',
+          description: `${category} is your largest monthly payment, at ${amount}. What if another one that size started on ${from}?`,
+        }),
+        oneOffPurchase: (description: string, amount: string, paid: string, again: string) => ({
           name: 'A large one-off purchase',
-          description: `Equipment or stock worth ${amount}, paid on ${date}.`,
+          description: `Your largest one-off payment this year was ${amount} for “${description}” on ${paid}. What if one like it came on ${again}?`,
         }),
-        topIncomeLoss: (category: string, change: string) => ({
-          name: `Less from ${category}`,
-          description: `${category} brings in much of your income. What if it changed by ${change}?`,
+        topIncomeLoss: (category: string, share: string) => ({
+          name: `Without ${category}`,
+          description: `${category} brings in ${share} of your income. What if it stopped?`,
         }),
         risingCost: (category: string, change: string) => ({
           name: `${category} keeps rising`,
-          description: `${category} has been costing more lately. What if it rose another ${change}?`,
+          description: `${category} cost ${change} more over the last three months than before. What if it rose that much again?`,
         }),
-        trimCost: (category: string, change: string) => ({
+        trimCost: (category: string, month: string, amount: string) => ({
           name: `Spend less on ${category}`,
-          description: `${category} is your largest cost you can adjust. What if you cut it by ${change}?`,
+          description: `In ${month} you spent only ${amount} on ${category}. What if every month looked like that?`,
+        }),
+        trimCostWeek: (category: string, week: string, amount: string) => ({
+          name: `Spend less on ${category}`,
+          description: `The week of ${week} you spent only ${amount} on ${category}. What if every week looked like that?`,
+        }),
+        bigSale: (
+          description: string,
+          amount: string,
+          paid: string,
+          times: string,
+          again: string,
+        ) => ({
+          name: 'Another big sale',
+          description: `Your biggest sale this year was ${amount} for “${description}” on ${paid}, ${times} times a usual one. What if another like it came on ${again}?`,
         }),
         costsRise: (change: string) => ({
           name: 'Prices go up',
-          description: `What if everything you pay for cost ${change} more?`,
+          description: `Your costs ran ${change} higher over the last three months than before. What if they rose that much again?`,
         }),
+        costsRiseMonth: (month: string, change: string) => ({
+          name: 'Prices go up',
+          description: `In ${month} your costs ran ${change} above a usual month. What if every month cost that much?`,
+        }),
+        costsFall: (month: string, change: string) => ({
+          name: 'Leaner months',
+          description: `In ${month} your costs were ${change} below a usual month. What if every month cost that little?`,
+        }),
+        peakStockUp: (month: string, category: string, amount: string, date: string) => ({
+          name: `Stock up for ${month}`,
+          description: `What if you spent an extra month’s ${category}, ${amount}, on ${date} to be ready?`,
+        }),
+        peakSeason: (month: string, industry: string) =>
+          `${month} is usually a busy month for ${industry}.`,
+        peakLastYear: (month: string, change: string) =>
+          `Last ${month} you sold ${change} more than in a usual month.`,
+        industries: {
+          electronics: 'electronics shops',
+          fashion: 'fashion shops',
+          home: 'home and living shops',
+          beauty: 'beauty and health shops',
+          food: 'food and drink sellers',
+          sports: 'sports and outdoor shops',
+          handmade: 'handmade and art sellers',
+        } satisfies Record<IndustryKind, string>,
         cashInjection: (amount: string, date: string) => ({
           name: 'A loan or investment',
           description: `${amount} coming in on ${date} to steady your cash.`,
         }),
+        belowLine: (line: string, crossing: string, amount: string, date: string) =>
+          `Your plan dips below your ${line} low-balance line on ${crossing}. ${amount} coming in on ${date} would keep you above it.`,
+        belowZero: (crossing: string, amount: string, date: string) =>
+          `Your plan runs out of cash on ${crossing}. ${amount} coming in on ${date} would keep you above zero.`,
+        shortfall: (gap: string, amount: string, date: string) =>
+          `You have been spending ${gap} a month more than you bring in. What if ${amount}, three months of that gap, came in on ${date}?`,
         custom: {
           name: 'Your scenario',
           description: 'The changes you chose, applied to your current plan.',
@@ -108,8 +167,13 @@ export const simulationMessages = defineMessages(
       in: 'Money in',
       oneOffAmount: (currency: string) => `Amount (${currency})`,
       oneOffDate: 'Date',
-      suggested: 'Suggested for your business',
-      suggestedHint: 'Pick one to fill in the form, then adjust it if you like.',
+      suggested: 'Suggested from your figures',
+      suggestedHint: 'Open one to see what it would do, or build your own below.',
+      changes: 'What changes',
+      impact: 'Over the next 90 days',
+      planWas: (amount: string) => `Plan: ${amount}`,
+      impactError: 'Its effect could not be worked out just now. You can still run it.',
+      adjustHint: 'Close it to adjust the figures yourself.',
       run: 'Run scenario',
       cancel: 'Cancel',
       wholePercent: 'Enter a whole percentage between −100 and 500.',
@@ -124,7 +188,8 @@ export const simulationMessages = defineMessages(
       description:
         'Изпробвайте решение, преди да го вземете. Всеки сценарий се сравнява с текущия ви план за следващите 90 дни.',
       new: 'Нов сценарий',
-      noScenariosHint: 'Сценариите се оразмеряват спрямо вашите данни, щом добавите транзакции.',
+      noScenariosHint:
+        'Сценариите се изграждат от вашите собствени данни. Появяват се тук, щом има транзакции за няколко месеца.',
       loadError: 'Сценариите не могат да се заредят',
       noScenarios: 'Все още няма сценарии',
       noScenario: 'Все още няма сценарий',
@@ -162,46 +227,103 @@ export const simulationMessages = defineMessages(
       oneOffIn: (amount: string, date: string) => `Еднократен приход от ${amount} на ${date}`,
       noChange: 'Все още няма промени',
       presets: {
-        incomeDrop: (change: string) => ({
+        incomeDrop: (month: string, change: string) => ({
           name: 'Продажбите се забавят',
-          description: `Какво ако всички очаквани приходи паднат с ${change}?`,
+          description: `През ${month} приходите ви бяха с ${change} по-ниски от обичайния месец. Какво ако всеки месец е такъв?`,
         }),
-        incomeGrowth: (change: string) => ({
+        incomeDropWeek: (week: string, change: string) => ({
+          name: 'Продажбите се забавят',
+          description: `През седмицата от ${week} приходите ви бяха с ${change} по-ниски от обичайната седмица. Какво ако всяка седмица е такава?`,
+        }),
+        incomeGrowth: (month: string, change: string) => ({
           name: 'Продажбите растат',
-          description: `Какво ако всички очаквани приходи се увеличат с ${change}?`,
+          description: `През ${month} приходите ви бяха с ${change} по-високи от обичайния месец. Какво ако това стане обичайното?`,
         }),
-        topCostUp: (category: string, change: string) => ({
+        incomeGrowthWeek: (week: string, change: string) => ({
+          name: 'Продажбите растат',
+          description: `През седмицата от ${week} приходите ви бяха с ${change} по-високи от обичайната седмица. Какво ако това стане обичайното?`,
+        }),
+        topCostUp: (category: string, month: string, change: string) => ({
           name: `Разходите за „${category}“ растат`,
-          description: `„${category}“ е най-големият ви разход напоследък. Какво ако се промени с ${change}?`,
+          description: `„${category}“ е най-големият ви разход. През ${month} беше с ${change} над обичайното. Какво ако всеки месец струва толкова?`,
         }),
-        newMonthlyCost: (amount: string, from: string) => ({
-          name: 'Нов месечен разход',
-          description: `Нов служител, наем или абонамент: ${amount} повече всеки месец от ${from}.`,
+        topCostUpWeek: (category: string, week: string, change: string) => ({
+          name: `Разходите за „${category}“ растат`,
+          description: `„${category}“ е най-големият ви разход. През седмицата от ${week} беше с ${change} над обичайната седмица. Какво ако всяка седмица струва толкова?`,
         }),
-        oneOffPurchase: (amount: string, date: string) => ({
+        newMonthlyCost: (category: string, amount: string, from: string) => ({
+          name: 'Нов месечен ангажимент',
+          description: `„${category}“ е най-голямото ви месечно плащане – ${amount}. Какво ако от ${from} започне още едно такова?`,
+        }),
+        oneOffPurchase: (description: string, amount: string, paid: string, again: string) => ({
           name: 'Голяма еднократна покупка',
-          description: `Оборудване или стока за ${amount}, платени на ${date}.`,
+          description: `Най-голямото ви еднократно плащане тази година беше ${amount} за „${description}“ на ${paid}. Какво ако подобно дойде на ${again}?`,
         }),
-        topIncomeLoss: (category: string, change: string) => ({
-          name: `По-малко от „${category}“`,
-          description: `„${category}“ носи голяма част от приходите ви. Какво ако се промени с ${change}?`,
+        topIncomeLoss: (category: string, share: string) => ({
+          name: `Без „${category}“`,
+          description: `„${category}“ носи ${share} от приходите ви. Какво ако спре?`,
         }),
         risingCost: (category: string, change: string) => ({
           name: `„${category}“ продължава да расте`,
-          description: `„${category}“ ви струва все повече напоследък. Какво ако се повиши с още ${change}?`,
+          description: `„${category}“ ви струваше с ${change} повече през последните три месеца, отколкото преди тях. Какво ако се повиши със същото отново?`,
         }),
-        trimCost: (category: string, change: string) => ({
+        trimCost: (category: string, month: string, amount: string) => ({
           name: `По-малко за „${category}“`,
-          description: `„${category}“ е най-големият ви разход, който можете да промените. Какво ако го намалите с ${change}?`,
+          description: `През ${month} похарчихте само ${amount} за „${category}“. Какво ако всеки месец е такъв?`,
+        }),
+        trimCostWeek: (category: string, week: string, amount: string) => ({
+          name: `По-малко за „${category}“`,
+          description: `През седмицата от ${week} похарчихте само ${amount} за „${category}“. Какво ако всяка седмица е такава?`,
+        }),
+        bigSale: (
+          description: string,
+          amount: string,
+          paid: string,
+          times: string,
+          again: string,
+        ) => ({
+          name: 'Още една голяма продажба',
+          description: `Най-голямата ви продажба тази година беше ${amount} за „${description}“ на ${paid} – ${times} пъти повече от обичайната. Какво ако подобна дойде на ${again}?`,
         }),
         costsRise: (change: string) => ({
           name: 'Цените се покачват',
-          description: `Какво ако всичко, за което плащате, поскъпне с ${change}?`,
+          description: `Разходите ви бяха с ${change} по-високи през последните три месеца, отколкото преди тях. Какво ако се покачат със същото отново?`,
         }),
+        costsRiseMonth: (month: string, change: string) => ({
+          name: 'Цените се покачват',
+          description: `През ${month} разходите ви бяха с ${change} над обичайния месец. Какво ако всеки месец струва толкова?`,
+        }),
+        costsFall: (month: string, change: string) => ({
+          name: 'По-икономични месеци',
+          description: `През ${month} разходите ви бяха с ${change} под обичайния месец. Какво ако всеки месец струва толкова малко?`,
+        }),
+        peakStockUp: (month: string, category: string, amount: string, date: string) => ({
+          name: `Запас за ${month}`,
+          description: `Какво ако на ${date} похарчите още един месец „${category}“ – ${amount}, за да сте готови?`,
+        }),
+        peakSeason: (month: string, industry: string) =>
+          `${month} обикновено е натоварен месец за ${industry}.`,
+        peakLastYear: (month: string, change: string) =>
+          `Миналия ${month} продадохте с ${change} повече от обичайния месец.`,
+        industries: {
+          electronics: 'магазините за електроника',
+          fashion: 'модните магазини',
+          home: 'магазините за дома',
+          beauty: 'магазините за красота и здраве',
+          food: 'търговците на храни и напитки',
+          sports: 'магазините за спорт и туризъм',
+          handmade: 'търговците на ръчна изработка',
+        },
         cashInjection: (amount: string, date: string) => ({
           name: 'Заем или инвестиция',
           description: `${amount} постъпват на ${date}, за да укрепят наличните ви пари.`,
         }),
+        belowLine: (line: string, crossing: string, amount: string, date: string) =>
+          `Планът ви пада под границата ви за нисък баланс от ${line} на ${crossing}. ${amount} на ${date} ще ви задържат над нея.`,
+        belowZero: (crossing: string, amount: string, date: string) =>
+          `Според плана парите ви свършват на ${crossing}. ${amount} на ${date} ще ви задържат на плюс.`,
+        shortfall: (gap: string, amount: string, date: string) =>
+          `Харчите с ${gap} на месец повече, отколкото печелите. Какво ако ${amount} – три месеца от тази разлика – постъпят на ${date}?`,
         custom: {
           name: 'Вашият сценарий',
           description: 'Избраните от вас промени, приложени към текущия ви план.',
@@ -225,8 +347,13 @@ export const simulationMessages = defineMessages(
       in: 'Постъпление',
       oneOffAmount: (currency: string) => `Сума (${currency})`,
       oneOffDate: 'Дата',
-      suggested: 'Препоръчани за вашия бизнес',
-      suggestedHint: 'Изберете един, за да попълните формата, и го променете, ако искате.',
+      suggested: 'Препоръчани според вашите данни',
+      suggestedHint: 'Отворете един, за да видите ефекта му, или създайте свой по-долу.',
+      changes: 'Какво се променя',
+      impact: 'През следващите 90 дни',
+      planWas: (amount: string) => `План: ${amount}`,
+      impactError: 'Ефектът му не може да се изчисли в момента. Пак можете да го изчислите.',
+      adjustHint: 'Затворете го, за да промените стойностите сами.',
       run: 'Изчисли сценария',
       cancel: 'Отказ',
       wholePercent: 'Въведете цял процент между −100 и 500.',

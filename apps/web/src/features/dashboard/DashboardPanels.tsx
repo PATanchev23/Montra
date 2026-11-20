@@ -334,7 +334,7 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
   const horizon = m.balanceIn(FORECAST_DAYS);
   const text =
     preset && preview
-      ? describeScenario(preset.id, preset.rule, {
+      ? describeScenario(preset, {
           currency: preview.currency,
           today: preview.today,
         })

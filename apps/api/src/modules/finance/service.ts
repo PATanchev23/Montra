@@ -49,6 +49,8 @@ function today(timeZone: string, now: Date): string {
 interface Loaded {
   ledger: Ledger;
   currency: Currency;
+  /** What the business sells, as answered in onboarding. */
+  industry: string | null;
 }
 
 async function loadLedger(db: Db, businessId: string, now: Date): Promise<Loaded> {
@@ -61,6 +63,7 @@ async function loadLedger(db: Db, businessId: string, now: Date): Promise<Loaded
         cashBalanceCents: true,
         cashBalanceDate: true,
         lowBalanceThresholdCents: true,
+        industry: true,
       },
     }),
     db.transaction.findMany({
@@ -77,6 +80,7 @@ async function loadLedger(db: Db, businessId: string, now: Date): Promise<Loaded
   return {
     ledger: new Ledger(entries, today(business.timezone, now), settings),
     currency: currencySchema.parse(business.currency),
+    industry: business.industry,
   };
 }
 
@@ -180,8 +184,8 @@ export async function getScenarioPresets(
   businessId: string,
   now = new Date(),
 ): Promise<ScenarioPresetsResponse> {
-  const { ledger } = await loadLedger(db, businessId, now);
-  return scenarioPresets(ledger);
+  const { ledger, industry } = await loadLedger(db, businessId, now);
+  return scenarioPresets(ledger, { industry });
 }
 
 export async function runSimulation(
