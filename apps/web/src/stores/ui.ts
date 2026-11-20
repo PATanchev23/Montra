@@ -1,7 +1,21 @@
+import type { ScenarioPresetId, ScenarioRule } from '@montra/shared';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { DashboardParams } from '../api/dashboard';
 import { detectLanguage, isLanguage, type Language } from '../i18n/language';
+
+/**
+ * A business's scenario list as the user shaped it: suggestions added from
+ * "New scenario" (newest first), ready-made ones taken off the list, and the
+ * one the user built, so each stays put while another is viewed.
+ */
+export interface ScenarioChoices {
+  added: ScenarioPresetId[];
+  removed: ScenarioPresetId[];
+  custom?: ScenarioRule;
+}
+
+export const NO_SCENARIO_CHOICES: ScenarioChoices = { added: [], removed: [] };
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -29,6 +43,13 @@ interface UiState {
 
   notifications: NotificationPrefs;
   setNotification: (key: keyof NotificationPrefs, value: boolean) => void;
+
+  /** Each business's scenario list, by business id. */
+  scenarios: Record<string, ScenarioChoices>;
+  addScenario: (businessId: string, id: ScenarioPresetId) => void;
+  /** Takes a ready-made scenario off the list, or forgets the user's own ('custom'). */
+  removeScenario: (businessId: string, id: ScenarioPresetId | 'custom') => void;
+  saveCustomScenario: (businessId: string, rule: ScenarioRule) => void;
 }
 
 /** Where the preferences live; index.html reads the same key before first paint. */
@@ -86,6 +107,33 @@ export const useUiStore = create<UiState>()(
       },
       setNotification: (key, value) =>
         set((s) => ({ notifications: { ...s.notifications, [key]: value } })),
+
+      scenarios: {},
+      addScenario: (businessId, id) =>
+        set((s) => {
+          const c = s.scenarios[businessId] ?? NO_SCENARIO_CHOICES;
+          const added = [id, ...c.added.filter((a) => a !== id)];
+          const removed = c.removed.filter((r) => r !== id);
+          return { scenarios: { ...s.scenarios, [businessId]: { ...c, added, removed } } };
+        }),
+      removeScenario: (businessId, id) =>
+        set((s) => {
+          const c = s.scenarios[businessId] ?? NO_SCENARIO_CHOICES;
+          const next: ScenarioChoices =
+            id === 'custom'
+              ? { added: c.added, removed: c.removed }
+              : {
+                  ...c,
+                  added: c.added.filter((a) => a !== id),
+                  removed: c.removed.includes(id) ? c.removed : [...c.removed, id],
+                };
+          return { scenarios: { ...s.scenarios, [businessId]: next } };
+        }),
+      saveCustomScenario: (businessId, rule) =>
+        set((s) => {
+          const c = s.scenarios[businessId] ?? NO_SCENARIO_CHOICES;
+          return { scenarios: { ...s.scenarios, [businessId]: { ...c, custom: rule } } };
+        }),
     }),
     {
       name: UI_STORAGE_KEY,
@@ -104,11 +152,12 @@ export const useUiStore = create<UiState>()(
         return { ...current, ...rest, ...(isLanguage(language) && { language }) };
       },
       storage,
-      partialize: ({ theme, language, sidebarCollapsed, notifications }) => ({
+      partialize: ({ theme, language, sidebarCollapsed, notifications, scenarios }) => ({
         theme,
         language,
         sidebarCollapsed,
         notifications,
+        scenarios,
       }),
     },
   ),

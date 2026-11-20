@@ -86,7 +86,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   resetSessionForTests();
-  useUiStore.setState({ language: 'en' });
+  useUiStore.setState({ language: 'en', scenarios: {} });
 });
 
 describe.each(pages)('$path with no transactions', ({ path, heading, emptyLine, chartNote }) => {
@@ -524,17 +524,52 @@ describe('simulations', () => {
     expect(router.state.location.search).toBe('?scenario=income-growth');
     expect(within(list).getByRole('radio', { name: /Sales grow/ })).toBeChecked();
 
-    // Opened again, the suggestion is still offered and an edit runs as the user's own.
+    // On the list now, it is no longer offered; a scenario built by hand joins it.
     await u.click(screen.getByRole('button', { name: 'New scenario' }));
     sheet = await screen.findByRole('dialog', { name: 'New scenario' });
-    // Opened and closed again, it fills the fields for the user to adjust.
-    await u.click(within(sheet).getByRole('button', { name: /Sales grow/ }));
-    await u.click(within(sheet).getByRole('button', { name: /Sales grow/ }));
-    await u.clear(await within(sheet).findByLabelText('Change in income (%)'));
+    expect(within(sheet).queryByRole('button', { name: /Sales grow/ })).not.toBeInTheDocument();
     await u.type(within(sheet).getByLabelText('Change in income (%)'), '30');
     await u.click(within(sheet).getByRole('button', { name: 'Run scenario' }));
     expect(await screen.findByRole('heading', { name: 'Your scenario' })).toBeInTheDocument();
     expect(router.state.location.search).toBe('?scenario=custom&incomeChangePct=30');
+
+    // Choosing another keeps both on the list, and the user's own comes back as built.
+    await u.click(within(list).getByRole('radio', { name: /Sales grow/ }));
+    expect(await screen.findByRole('heading', { name: 'Sales grow' })).toBeInTheDocument();
+    expect(within(list).getByRole('radio', { name: /Your scenario/ })).toBeInTheDocument();
+    await u.click(within(list).getByRole('radio', { name: /Your scenario/ }));
+    expect(router.state.location.search).toBe('?scenario=custom&incomeChangePct=30');
+  });
+
+  it('removes scenarios from the list and offers removed suggestions again', async () => {
+    ledgerServer({ transactions: shop() });
+    const router = renderTransactions('/simulations');
+    const u = userEvent.setup();
+    const list = await screen.findByRole('radiogroup', { name: 'Choose a scenario' });
+
+    // Add the suggestion, then take it off the list again: it is offered once more.
+    await u.click(screen.getByRole('button', { name: 'New scenario' }));
+    let sheet = await screen.findByRole('dialog', { name: 'New scenario' });
+    await u.click(within(sheet).getByRole('button', { name: /Sales grow/ }));
+    await u.click(within(sheet).getByRole('button', { name: 'Run scenario' }));
+    expect(within(list).getByRole('radio', { name: /Sales grow/ })).toBeChecked();
+    await u.click(within(list).getByRole('button', { name: 'Remove “Sales grow”' }));
+    expect(within(list).queryByRole('radio', { name: /Sales grow/ })).not.toBeInTheDocument();
+    // The one shown was removed, so the next on the list takes its place.
+    expect(within(list).getAllByRole('radio')[0]).toBeChecked();
+    expect(router.state.location.search).not.toContain('income-growth');
+
+    // A ready-made one removed is offered in New scenario too.
+    await u.click(within(list).getByRole('button', { name: 'Remove “A new monthly commitment”' }));
+    expect(
+      within(list).queryByRole('radio', { name: /A new monthly commitment/ }),
+    ).not.toBeInTheDocument();
+    await u.click(screen.getByRole('button', { name: 'New scenario' }));
+    sheet = await screen.findByRole('dialog', { name: 'New scenario' });
+    expect(within(sheet).getByRole('button', { name: /Sales grow/ })).toBeInTheDocument();
+    expect(
+      within(sheet).getByRole('button', { name: /A new monthly commitment/ }),
+    ).toBeInTheDocument();
   });
 });
 

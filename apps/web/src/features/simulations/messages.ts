@@ -16,8 +16,14 @@ export const simulationMessages = defineMessages(
       noScenario: 'No scenario yet',
       chartOwner: 'Add your first transactions to test decisions against your own cash flow',
       runError: 'Could not run this scenario',
+      listCleared: 'No scenarios on your list',
+      listClearedHint: 'Add one from New scenario. The ones you removed are offered there again.',
     },
-    list: { title: 'Scenarios', choose: 'Choose a scenario' },
+    list: {
+      title: 'Scenarios',
+      choose: 'Choose a scenario',
+      remove: (name: string) => `Remove “${name}”`,
+    },
     stats: {
       currentPlan: 'Current plan',
       withScenario: 'With scenario',
@@ -196,8 +202,14 @@ export const simulationMessages = defineMessages(
       chartOwner:
         'Добавете първите си транзакции, за да тествате решения спрямо собствения си паричен поток',
       runError: 'Този сценарий не може да се изчисли',
+      listCleared: 'Няма сценарии в списъка ви',
+      listClearedHint: 'Добавете от „Нов сценарий“. Премахнатите се предлагат там отново.',
     },
-    list: { title: 'Сценарии', choose: 'Изберете сценарий' },
+    list: {
+      title: 'Сценарии',
+      choose: 'Изберете сценарий',
+      remove: (name: string) => `Премахване на „${name}“`,
+    },
     stats: {
       currentPlan: 'Текущ план',
       withScenario: 'Със сценария',
