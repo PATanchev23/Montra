@@ -6,6 +6,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router/dom';
 import { restoreSession } from './api/session';
+import { LoadingVeil } from './app/AppLoading';
 import { Providers } from './app/Providers';
 import { router } from './app/router';
 
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Providers>
       <RouterProvider router={router} />
+      <LoadingVeil />
     </Providers>
   </StrictMode>,
 );

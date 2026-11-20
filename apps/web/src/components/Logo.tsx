@@ -4,10 +4,14 @@ import { cn } from '../lib/cn';
  * Two stacked diamonds whose overlap is cut out (even-odd fill), traced from
  * design/LogoLightTheme.png and design/LogoDarkTheme.png. It fills with the
  * ink token, so it is black on the light theme and white on the dark one.
+ *
+ * Drawn as the outline of both diamonds with a slightly smaller diamond hole,
+ * so the two halves meet through a short solid neck instead of at a single
+ * point; a point that thin cannot be drawn at icon sizes and smears grey.
  */
 const MARK_PATH =
-  'M19.58 0.25A0.7 0.7 0 0 1 20.42 0.25L36.24 11.94A0.7 0.7 0 0 1 36.24 13.06L20.42 24.75A0.7 0.7 0 0 1 19.58 24.75L3.76 13.06A0.7 0.7 0 0 1 3.76 11.94Z' +
-  'M19.58 15.25A0.7 0.7 0 0 1 20.42 15.25L36.24 26.94A0.7 0.7 0 0 1 36.24 28.06L20.42 39.75A0.7 0.7 0 0 1 19.58 39.75L3.76 28.06A0.7 0.7 0 0 1 3.76 26.94Z';
+  'M19.58 0.25A0.7 0.7 0 0 1 20.42 0.25L36.24 11.94A0.7 0.7 0 0 1 36.24 13.06L26.85 20L36.24 26.94A0.7 0.7 0 0 1 36.24 28.06L20.42 39.75A0.7 0.7 0 0 1 19.58 39.75L3.76 28.06A0.7 0.7 0 0 1 3.76 26.94L13.15 20L3.76 13.06A0.7 0.7 0 0 1 3.76 11.94Z' +
+  'M20 15.94L25.5 20L20 24.06L14.5 20Z';
 
 export function LogoMark({ className }: { className?: string }) {
   return (
