@@ -126,18 +126,33 @@ export function useScenarioPresets(businessId: string) {
   });
 }
 
+const simulationQuery = (businessId: string, rule: ScenarioRule) => ({
+  queryKey: financeKeys.simulation(businessId, rule),
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    authorizedRequest(`${base(businessId)}/simulations/run?${ruleQuery(rule)}`, {
+      schema: simulationResponseSchema,
+      signal,
+    }),
+});
+
 /** The plan with and without `rule`; off until there is a rule to run. */
 export function useSimulation(businessId: string, rule: ScenarioRule | undefined) {
   return useQuery({
-    queryKey: financeKeys.simulation(businessId, rule ?? {}),
-    queryFn: ({ signal }) =>
-      authorizedRequest(`${base(businessId)}/simulations/run?${ruleQuery(rule ?? {})}`, {
-        schema: simulationResponseSchema,
-        signal,
-      }),
+    ...simulationQuery(businessId, rule ?? {}),
     enabled: rule !== undefined,
     placeholderData: keepPreviousData,
   });
+}
+
+/**
+ * Runs a scenario ahead of time, as the pointer or focus reaches it, so that
+ * choosing it shows its result at once. A recent result is not fetched again.
+ */
+export function usePrefetchSimulation(businessId: string) {
+  const queryClient = useQueryClient();
+  return (rule: ScenarioRule) => {
+    void queryClient.prefetchQuery(simulationQuery(businessId, rule));
+  };
 }
 
 export function useReport(businessId: string, year: number | undefined) {

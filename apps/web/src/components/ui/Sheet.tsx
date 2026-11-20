@@ -13,6 +13,7 @@ export function Sheet({
   description,
   side = 'right',
   children,
+  footer,
   className,
   hideTitle,
 }: {
@@ -22,6 +23,8 @@ export function Sheet({
   description?: string;
   side?: 'left' | 'right';
   children: ReactNode;
+  /** Pinned below the scrolling body, so its actions stay in reach and the body ends on a clean edge. */
+  footer?: ReactNode;
   className?: string;
   hideTitle?: boolean;
 }) {
@@ -33,8 +36,9 @@ export function Sheet({
         <Dialog.Content
           className={cn(
             'fixed top-0 bottom-0 z-50 flex w-full flex-col border-line bg-surface shadow-pop outline-none',
+            // From 640px it floats inset from the edge with panel corners; on phones it fills the screen.
             side === 'right'
-              ? 'right-0 max-w-md border-l data-[state=open]:animate-[slide-in-right_220ms_var(--ease-out-soft)]'
+              ? 'right-0 max-w-md border-l sm:top-3 sm:right-3 sm:bottom-3 sm:overflow-hidden sm:rounded-panel sm:border data-[state=open]:animate-[slide-in-right_220ms_var(--ease-out-soft)]'
               : 'left-0 max-w-[288px] border-r data-[state=open]:animate-[slide-in-left_220ms_var(--ease-out-soft)]',
             className,
           )}
@@ -61,7 +65,21 @@ export function Sheet({
             </Dialog.Close>
           </div>
           {!description && <Dialog.Description className="sr-only">{title}</Dialog.Description>}
-          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+          {/* Inset on the floating right sheet so the scrollbar stops short of the rounded corners. */}
+          <div
+            className={cn(
+              'min-h-0 flex-1 overflow-y-auto',
+              side === 'right' && 'sm:mr-1.5',
+              side === 'right' && !footer && 'sm:mb-2',
+            )}
+          >
+            {children}
+          </div>
+          {footer && (
+            <div className="flex shrink-0 justify-end gap-2 border-t border-line px-6 py-4">
+              {footer}
+            </div>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

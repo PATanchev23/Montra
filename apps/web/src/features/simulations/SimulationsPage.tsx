@@ -7,9 +7,15 @@ import {
   type SimulationResponse,
 } from '@montra/shared';
 import { FlaskConical, Plus, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion, useIsPresent } from 'motion/react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
-import { ruleQuery, useScenarioPresets, useSimulation } from '../../api/finance';
+import {
+  ruleQuery,
+  usePrefetchSimulation,
+  useScenarioPresets,
+  useSimulation,
+} from '../../api/finance';
 import { Legend, TooltipRow, TooltipTitle } from '../../components/charts/ChartTooltip';
 import { LineChart } from '../../components/charts/LineChart';
 import { EmptyChartNote } from '../../components/finance/EmptyChartNote';
@@ -18,6 +24,7 @@ import { Button } from '../../components/ui/Button';
 import { IconButton } from '../../components/ui/IconButton';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Panel, PanelHeader } from '../../components/ui/Panel';
+import { RollingText } from '../../components/ui/RollingText';
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/States';
 import { useMessages } from '../../i18n';
 import { common } from '../../i18n/common';
@@ -114,8 +121,10 @@ export function SimulationsPage() {
     shown &&
     [...(custom ? [{ id: 'custom' as const, rule: custom }] : []), ...shown].map((p) => ({
       id: p.id,
+      rule: p.rule,
       text: describeScenario(p, context),
     }));
+  const prefetch = usePrefetchSimulation(business.id);
 
   const run = (next: ScenarioRule) => {
     saveCustomScenario(business.id, next);
@@ -159,6 +168,7 @@ export function SimulationsPage() {
             emptyHint={cleared ? m.listClearedHint : m.noScenariosHint}
             selectedId={selectedId}
             onSelect={(id) => setParams(scenarioParams(id, custom), { replace: true })}
+            onPrefetch={prefetch}
             onSelectCustom={() => setBuilding(true)}
             onRemove={remove}
           />
@@ -184,6 +194,7 @@ export function SimulationsPage() {
             <ScenarioDetail
               result={result.data}
               text={text}
+              scenarioKey={noData ? 'none' : `${selectedId}?${ruleQuery(rule ?? {})}`}
               stale={result.isPlaceholderData}
               noData={noData}
             />
@@ -214,13 +225,16 @@ function ScenarioList({
   emptyHint,
   selectedId,
   onSelect,
+  onPrefetch,
   onSelectCustom,
   onRemove,
 }: {
-  items: { id: ScenarioId; text: ScenarioText }[] | undefined;
+  items: { id: ScenarioId; rule: ScenarioRule; text: ScenarioText }[] | undefined;
   emptyHint: string;
   selectedId: ScenarioId | undefined;
   onSelect: (id: ScenarioId) => void;
+  /** Starts running a scenario the user is about to choose. */
+  onPrefetch: (rule: ScenarioRule) => void;
   onSelectCustom: () => void;
   onRemove: (id: ScenarioId) => void;
 }) {
@@ -245,22 +259,31 @@ function ScenarioList({
                   role="radio"
                   aria-checked={active}
                   onClick={() => (s.id === 'custom' && active ? onSelectCustom() : onSelect(s.id))}
+                  onPointerEnter={() => onPrefetch(s.rule)}
+                  onFocus={() => onPrefetch(s.rule)}
                   className={cn(
-                    'flex w-full cursor-pointer gap-3 rounded-control border p-3 pr-10 text-left transition-colors',
-                    active
-                      ? 'border-chart-1/40 bg-chart-1-soft'
-                      : 'border-transparent hover:bg-hover',
+                    'relative flex w-full cursor-pointer gap-3 rounded-control border border-transparent p-3 pr-10 text-left transition-colors',
+                    !active && 'hover:bg-hover',
                   )}
                 >
+                  {/* The highlight glides from the scenario left to the one chosen. */}
+                  {active && (
+                    <motion.span
+                      aria-hidden
+                      layoutId="scenario-selection"
+                      className="absolute -inset-px rounded-control border border-chart-1/40 bg-chart-1-soft"
+                      transition={{ type: 'spring', stiffness: 520, damping: 44 }}
+                    />
+                  )}
                   <span
                     className={cn(
-                      'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-[9px]',
+                      'relative mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-[9px] transition-colors duration-300',
                       active ? 'bg-chart-1 text-white' : 'bg-hover text-muted',
                     )}
                   >
                     <FlaskConical className="size-4" strokeWidth={1.75} />
                   </span>
-                  <span className="min-w-0">
+                  <span className="relative min-w-0">
                     <span className="block text-[14px] leading-snug font-medium text-ink">
                       {s.text.name}
                     </span>
@@ -293,14 +316,36 @@ function ScenarioList({
   );
 }
 
+/** Exponential ease-out: switching scenarios feels quick and lands softly. */
+const EASE_OUT = [0.16, 1, 0.3, 1] as const;
+
+/** One scenario's heading, story and badges; the one on its way out is hidden from assistive tech. */
+function StoryLayer({ children }: { children: ReactNode }) {
+  const present = useIsPresent();
+  return (
+    <motion.div
+      aria-hidden={present ? undefined : true}
+      className={cn('[grid-area:1/1]', !present && 'pointer-events-none')}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0, transition: { duration: 0.26, ease: EASE_OUT } }}
+      exit={{ opacity: 0, transition: { duration: 0.12, ease: 'linear' } }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 function ScenarioDetail({
   result,
   text,
+  scenarioKey,
   stale,
   noData,
 }: {
   result: SimulationResponse | undefined;
   text: ScenarioText | undefined;
+  /** Which scenario is shown, so switching to another can be animated. */
+  scenarioKey: string;
   stale: boolean;
   /** No transactions: a flat plan, with nothing to compare. */
   noData: boolean;
@@ -351,18 +396,35 @@ function ScenarioDetail({
   ];
 
   return (
-    <div className={cn('flex min-w-0 flex-col gap-6 transition-opacity', stale && 'opacity-60')}>
+    <div
+      className={cn(
+        'flex min-w-0 flex-col gap-6 transition-opacity duration-300',
+        stale && 'opacity-60',
+      )}
+    >
       <Panel className="p-5 sm:p-6">
-        <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-ink">{text.name}</h2>
-        <p className="mt-1 text-[14px] text-ink-2">
-          {noData ? t.page.noScenariosHint : text.description}
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {text.assumptions.map((a) => (
-            <Badge key={a} tone="analytic">
-              {a}
-            </Badge>
-          ))}
+        {/* The new scenario's story rises in as the old one fades, in the same place, at once. */}
+        <div className="grid">
+          <AnimatePresence initial={false}>
+            <StoryLayer key={scenarioKey}>
+              <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-ink">{text.name}</h2>
+              <p className="mt-1 text-[14px] text-ink-2">
+                {noData ? t.page.noScenariosHint : text.description}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {text.assumptions.map((a, i) => (
+                  <motion.span
+                    key={a}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.22, delay: 0.05 + i * 0.04, ease: EASE_OUT }}
+                  >
+                    <Badge tone="analytic">{a}</Badge>
+                  </motion.span>
+                ))}
+              </div>
+            </StoryLayer>
+          </AnimatePresence>
         </div>
 
         <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-control border border-line bg-line md:grid-cols-4">
@@ -371,14 +433,14 @@ function ScenarioDetail({
               <dt className="text-[12px] text-muted">{s.label}</dt>
               <dd
                 className={cn(
-                  'tabular mt-1 text-[20px] font-semibold tracking-[-0.02em]',
+                  'tabular mt-1 text-[20px] font-semibold tracking-[-0.02em] transition-colors duration-300',
                   s.className,
                 )}
               >
-                {s.value}
+                <RollingText>{s.value}</RollingText>
               </dd>
               <dd className={cn('mt-0.5 text-[11px]', noData ? 'text-muted' : 'text-faint')}>
-                {noData ? c.delta.noData : s.hint}
+                <RollingText>{noData ? c.delta.noData : s.hint}</RollingText>
               </dd>
             </div>
           ))}
@@ -484,16 +546,22 @@ function ScenarioDetail({
                     {formatDate(`${m.month}-01`, 'LLLL yyyy')}
                   </th>
                   <td className="px-3 text-right text-ink-2">
-                    {fmt(m.baselineNetCents, 'always')}
+                    <RollingText className="justify-items-end">
+                      {fmt(m.baselineNetCents, 'always')}
+                    </RollingText>
                   </td>
-                  <td className="px-3 text-right text-ink">{fmt(m.scenarioNetCents, 'always')}</td>
+                  <td className="px-3 text-right text-ink">
+                    <RollingText className="justify-items-end">
+                      {fmt(m.scenarioNetCents, 'always')}
+                    </RollingText>
+                  </td>
                   <td
                     className={cn(
-                      'pr-5 pl-3 text-right font-medium sm:pr-6',
+                      'pr-5 pl-3 text-right font-medium transition-colors duration-300 sm:pr-6',
                       diff < 0 ? 'text-negative' : diff > 0 ? 'text-positive' : 'text-muted',
                     )}
                   >
-                    {fmt(diff, 'always')}
+                    <RollingText className="justify-items-end">{fmt(diff, 'always')}</RollingText>
                   </td>
                 </tr>
               );

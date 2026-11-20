@@ -1,11 +1,14 @@
 import { scaleLinear, scaleTime } from 'd3-scale';
 import { area, curveMonotoneX, line } from 'd3-shape';
 import { eachMonthOfInterval, parseISO } from 'date-fns';
-import { motion } from 'motion/react';
+import { animate, AnimatePresence, motion, useMotionValue, useReducedMotion } from 'motion/react';
 import {
   useId,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
+  type ComponentProps,
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
@@ -45,6 +48,40 @@ const toneClass = {
 
 const MARGIN = { top: 16, right: 8, bottom: 30, left: 40 };
 
+/** How the chart moves to new figures: quick to leave, gentle to land. */
+const MORPH = { duration: 0.45, ease: [0.22, 1, 0.36, 1] } as const;
+
+/**
+ * A value that glides to its target when the figures change (`dataKey`), and
+ * follows at once for anything else, such as the chart being resized.
+ */
+function useMorph<T extends string | number>(target: T, dataKey: string) {
+  const value = useMotionValue(target);
+  const reduceMotion = useReducedMotion();
+  const lastKey = useRef(dataKey);
+  useLayoutEffect(() => {
+    const dataChanged = lastKey.current !== dataKey;
+    lastKey.current = dataKey;
+    if (!dataChanged || reduceMotion) {
+      value.set(target);
+      return;
+    }
+    const controls = animate(value, target, MORPH);
+    return () => controls.stop();
+  }, [target, dataKey, value, reduceMotion]);
+  return value;
+}
+
+/** A path that reshapes itself into the new figures rather than jumping to them. */
+function MorphPath({
+  d,
+  dataKey,
+  ...props
+}: { d: string; dataKey: string } & Omit<ComponentProps<typeof motion.path>, 'd'>) {
+  const shape = useMorph(d, dataKey);
+  return <motion.path d={shape} {...props} />;
+}
+
 export function LineChart({
   series,
   band,
@@ -73,6 +110,11 @@ export function LineChart({
 
   const dates = useMemo(
     () => [...new Set(series.flatMap((s) => s.points.map((p) => p.date)))].sort(),
+    [series],
+  );
+  // Changes only when the figures do, so the lines morph between data sets but not on resize.
+  const dataKey = useMemo(
+    () => series.map((s) => s.points.map((p) => `${p.date}:${p.value}`).join()).join('|'),
     [series],
   );
 
@@ -167,27 +209,36 @@ export function LineChart({
             </linearGradient>
           </defs>
 
-          {ticks.map((tick) => (
-            <g key={tick}>
-              <line
-                x1={MARGIN.left}
-                x2={width - MARGIN.right}
-                y1={Math.round(y(tick)) + 0.5}
-                y2={Math.round(y(tick)) + 0.5}
-                className="stroke-grid"
-                strokeDasharray="2 5"
-              />
-              <text
-                x={MARGIN.left - 12}
-                y={y(tick)}
-                dy="0.32em"
-                textAnchor="end"
-                className="tabular fill-muted text-[11px]"
+          {/* Gridlines slide to where the new scale puts them; ones the scale gains or loses fade. */}
+          <AnimatePresence initial={false}>
+            {ticks.map((tick) => (
+              <motion.g
+                key={tick}
+                initial={{ opacity: 0, y: Math.round(y(tick)) }}
+                animate={{ opacity: 1, y: Math.round(y(tick)) }}
+                exit={{ opacity: 0 }}
+                transition={MORPH}
               >
-                {formatTick(tick)}
-              </text>
-            </g>
-          ))}
+                <line
+                  x1={MARGIN.left}
+                  x2={width - MARGIN.right}
+                  y1={0.5}
+                  y2={0.5}
+                  className="stroke-grid"
+                  strokeDasharray="2 5"
+                />
+                <text
+                  x={MARGIN.left - 12}
+                  y={0}
+                  dy="0.32em"
+                  textAnchor="end"
+                  className="tabular fill-muted text-[11px]"
+                >
+                  {formatTick(tick)}
+                </text>
+              </motion.g>
+            ))}
+          </AnimatePresence>
 
           {months.map((m) => (
             <text
@@ -266,7 +317,8 @@ export function LineChart({
             return (
               <g key={s.id} className={toneClass[s.tone]}>
                 {s.area && (
-                  <path
+                  <MorphPath
+                    dataKey={dataKey}
                     d={
                       area()
                         .curve(curveMonotoneX)
@@ -276,7 +328,8 @@ export function LineChart({
                   />
                 )}
                 {actual.length > 1 && (
-                  <motion.path
+                  <MorphPath
+                    dataKey={dataKey}
                     d={lineGen(actual.map(toXY)) ?? ''}
                     fill="none"
                     stroke="currentColor"
@@ -288,7 +341,8 @@ export function LineChart({
                   />
                 )}
                 {projected.length > 1 && (
-                  <motion.path
+                  <MorphPath
+                    dataKey={dataKey}
                     d={lineGen(projected.map(toXY)) ?? ''}
                     fill="none"
                     stroke="currentColor"

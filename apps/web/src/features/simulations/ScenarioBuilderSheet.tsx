@@ -180,8 +180,26 @@ export function ScenarioBuilderSheet({
   );
 
   return (
-    <Sheet open onOpenChange={onOpenChange} title={m.title} description={m.description}>
-      <form noValidate onSubmit={submit} className="flex flex-col gap-5 px-6 pt-5 pb-6">
+    <Sheet
+      open
+      onOpenChange={onOpenChange}
+      title={m.title}
+      description={m.description}
+      footer={
+        <>
+          <Button onClick={() => onOpenChange(false)}>{m.cancel}</Button>
+          <Button type="submit" form="scenario-form" variant="primary">
+            {m.run}
+          </Button>
+        </>
+      }
+    >
+      <form
+        id="scenario-form"
+        noValidate
+        onSubmit={submit}
+        className="flex flex-col gap-5 px-6 pt-5 pb-6"
+      >
         {suggestions.length > 0 && (
           <section aria-labelledby="scenario-suggested" className="flex flex-col gap-2 pb-5">
             <div>
@@ -307,13 +325,6 @@ export function ScenarioBuilderSheet({
             </motion.div>
           )}
         </AnimatePresence>
-
-        <div className="flex justify-end gap-2 pt-1">
-          <Button onClick={() => onOpenChange(false)}>{m.cancel}</Button>
-          <Button type="submit" variant="primary">
-            {m.run}
-          </Button>
-        </div>
       </form>
     </Sheet>
   );
