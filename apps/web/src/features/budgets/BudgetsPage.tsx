@@ -18,6 +18,7 @@ import { messagesFor, useMessages } from '../../i18n';
 import { common } from '../../i18n/common';
 import { cn } from '../../lib/cn';
 import { count, formatDate, money, percent } from '../../lib/format';
+import { useOpenCount, useStayMounted } from '../../lib/presence';
 import { useCurrentMembership } from '../auth/currentUser';
 import { BudgetEditorSheet } from './BudgetEditorSheet';
 import { budgetMessages } from './messages';
@@ -49,6 +50,8 @@ export function BudgetsPage() {
   const [month, setMonth] = useState<string | undefined>(undefined);
   const [sort, setSort] = useState<SortKey>('usage');
   const [editing, setEditing] = useState(false);
+  const editorMounted = useStayMounted(editing);
+  const editorKey = useOpenCount(editing);
   const { data, isError, isPlaceholderData, refetch } = useBudgets(business.id, month);
   const canEdit = role === 'OWNER';
   const m = useMessages(budgetMessages).page;
@@ -196,8 +199,14 @@ export function BudgetsPage() {
         </div>
       )}
 
-      {editing && data && (
-        <BudgetEditorSheet businessId={business.id} data={data} open onOpenChange={setEditing} />
+      {editorMounted && data && (
+        <BudgetEditorSheet
+          key={editorKey}
+          businessId={business.id}
+          data={data}
+          open={editing}
+          onOpenChange={setEditing}
+        />
       )}
     </div>
   );

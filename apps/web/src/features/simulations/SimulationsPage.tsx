@@ -30,6 +30,7 @@ import { useMessages } from '../../i18n';
 import { common } from '../../i18n/common';
 import { cn } from '../../lib/cn';
 import { formatDate, money } from '../../lib/format';
+import { useOpenCount, useStayMounted } from '../../lib/presence';
 import { NO_SCENARIO_CHOICES, useUiStore } from '../../stores/ui';
 import { useCurrentMembership } from '../auth/currentUser';
 import { describeScenario, type ScenarioId, type ScenarioText } from './describe';
@@ -55,6 +56,8 @@ export function SimulationsPage() {
   const { business } = useCurrentMembership();
   const presets = useScenarioPresets(business.id);
   const [building, setBuilding] = useState(false);
+  const builderMounted = useStayMounted(building);
+  const builderKey = useOpenCount(building);
   const m = useMessages(simulationMessages).page;
   const choices = useUiStore((s) => s.scenarios[business.id]) ?? NO_SCENARIO_CHOICES;
   const addScenario = useUiStore((s) => s.addScenario);
@@ -202,8 +205,10 @@ export function SimulationsPage() {
         </div>
       )}
 
-      {building && (
+      {builderMounted && (
         <ScenarioBuilderSheet
+          key={builderKey}
+          open={building}
           businessId={business.id}
           currency={business.currency}
           initial={(customSelected && custom) || {}}

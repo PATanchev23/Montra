@@ -16,6 +16,7 @@ import { useMessages } from '../../i18n';
 import { common } from '../../i18n/common';
 import { cn } from '../../lib/cn';
 import { formatDate, money, relativeDay, type MoneyOptions } from '../../lib/format';
+import { useOpenCount, useStayMounted } from '../../lib/presence';
 import { useCurrentMembership } from '../auth/currentUser';
 import { TypeIcon } from '../transactions/TypeIcon';
 import { CashSettingsDialog } from './CashSettingsDialog';
@@ -38,6 +39,8 @@ export function CashFlowPage() {
   const { business, role } = useCurrentMembership();
   const { data, isError, refetch } = useCashFlow(business.id);
   const [editing, setEditing] = useState(false);
+  const settingsMounted = useStayMounted(editing);
+  const settingsKey = useOpenCount(editing);
   const canEdit = role === 'OWNER';
   const noData = data?.transactionCount === 0;
   const empty: Empty = { noData, canEdit };
@@ -73,8 +76,10 @@ export function CashFlowPage() {
         </>
       )}
 
-      {editing && data && (
+      {settingsMounted && data && (
         <CashSettingsDialog
+          key={settingsKey}
+          open={editing}
           businessId={business.id}
           currency={data.currency}
           settings={data.settings}

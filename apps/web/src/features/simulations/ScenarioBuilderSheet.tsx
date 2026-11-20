@@ -69,6 +69,7 @@ function parsePercent(text: string): number | undefined | null {
  * are, they keep their own name, and once changed they become the user's own.
  */
 export function ScenarioBuilderSheet({
+  open = true,
   businessId,
   currency,
   initial,
@@ -77,6 +78,8 @@ export function ScenarioBuilderSheet({
   onRunSuggestion,
   onOpenChange,
 }: {
+  /** False while it animates out; its parent unmounts it after. */
+  open?: boolean;
   businessId: string;
   currency: string;
   initial: ScenarioRule;
@@ -181,7 +184,7 @@ export function ScenarioBuilderSheet({
 
   return (
     <Sheet
-      open
+      open={open}
       onOpenChange={onOpenChange}
       title={m.title}
       description={m.description}

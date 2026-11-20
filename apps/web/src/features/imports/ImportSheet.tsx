@@ -17,6 +17,7 @@ import { cn } from '../../lib/cn';
 import { useMessages } from '../../i18n';
 import { localizeMessage } from '../../i18n/serverMessages';
 import { count, formatDate } from '../../lib/format';
+import { useLastWhile, useStayMounted } from '../../lib/presence';
 import { showToast } from '../../stores/toasts';
 import { FormNotice } from '../auth/AuthFields';
 import { sourceName } from '../transactions/display';
@@ -403,7 +404,7 @@ function DetailLoading() {
  */
 export function ImportSheet({
   open,
-  importId,
+  importId: currentId,
   onImportIdChange,
   onClose,
   businessId,
@@ -419,7 +420,11 @@ export function ImportSheet({
   currency: string;
   canEdit: boolean;
 }) {
-  const detail = useImportDetail(businessId, open ? importId : null);
+  // While the sheet animates out it keeps the import it showed, instead of
+  // flashing back to the upload step.
+  const importId = useLastWhile(currentId, open);
+  const visible = useStayMounted(open);
+  const detail = useImportDetail(businessId, visible ? importId : null);
   const data = detail.data;
   const m = useMessages(importMessages).sheet;
 

@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Sheet } from '../../components/ui/Sheet';
 import { formatDate, money } from '../../lib/format';
+import { useLastWhile } from '../../lib/presence';
 import { showToast } from '../../stores/toasts';
 import { useMessages } from '../../i18n';
 import { entryType, sourceLabel, typeLabel } from './display';
@@ -106,7 +107,7 @@ function Details({
  * anyone but the owner whatever this sheet shows.
  */
 export function TransactionSheet({
-  state,
+  state: current,
   onStateChange,
   businessId,
   currency,
@@ -120,6 +121,8 @@ export function TransactionSheet({
   canEdit: boolean;
   categories: string[];
 }) {
+  // While the sheet animates out, it keeps showing what it showed rather than going blank.
+  const state = useLastWhile(current, current !== null);
   const remove = useDeleteTransaction(businessId);
   const [confirming, setConfirming] = useState(false);
   const close = () => onStateChange(null);
@@ -142,7 +145,7 @@ export function TransactionSheet({
   return (
     <>
       <Sheet
-        open={state !== null}
+        open={current !== null}
         onOpenChange={(open) => !open && close()}
         title={title}
         description={state?.mode === 'create' ? m.newDescription(currency) : undefined}

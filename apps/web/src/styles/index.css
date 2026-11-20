@@ -323,6 +323,37 @@
   }
 }
 
+/*
+ * Closing: quicker than opening, easing in, and held at the end (forwards)
+ * until Radix unmounts the layer, so nothing flashes back.
+ */
+@keyframes pop-out {
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-out-right {
+  to {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes slide-out-left {
+  to {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+}
+
 @keyframes slide-in-up {
   from {
     transform: translateY(24px);

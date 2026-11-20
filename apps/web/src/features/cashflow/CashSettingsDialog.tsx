@@ -27,9 +27,11 @@ import { cashFlowMessages } from './messages';
  * (often what an owner knows when importing past months), or one from any
  * day in between: the transactions carry it forward to today either way.
  *
- * Mounted only while open, so every opening starts from the saved values.
+ * Mounted only while open (and while it animates out), so every opening
+ * starts from the saved values.
  */
 export function CashSettingsDialog({
+  open = true,
   businessId,
   currency,
   settings,
@@ -37,6 +39,7 @@ export function CashSettingsDialog({
   ledgerStart,
   onOpenChange,
 }: {
+  open?: boolean;
   businessId: string;
   currency: string;
   settings: CashSettings;
@@ -101,10 +104,10 @@ export function CashSettingsDialog({
   }
 
   return (
-    <Dialog.Root open onOpenChange={close}>
+    <Dialog.Root open={open} onOpenChange={close}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[60] bg-overlay data-[state=open]:animate-[fade-in_160ms_ease-out]" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-[60] flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[28rem] -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-panel border border-line bg-raised shadow-pop outline-none data-[state=open]:animate-[pop-in_160ms_var(--ease-out-soft)]">
+        <Dialog.Overlay className="fixed inset-0 z-[60] bg-overlay data-[state=closed]:animate-[fade-out_120ms_ease-in_forwards] data-[state=open]:animate-[fade-in_160ms_ease-out]" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-[60] flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[28rem] -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-panel border border-line bg-raised shadow-pop outline-none data-[state=closed]:animate-[pop-out_120ms_ease-in_forwards] data-[state=open]:animate-[pop-in_160ms_var(--ease-out-soft)]">
           <form noValidate onSubmit={submit} aria-busy={save.isPending}>
             <header className="flex items-start justify-between gap-4 px-6 pt-5">
               <div className="min-w-0">

@@ -32,14 +32,14 @@ export function Sheet({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-overlay data-[state=open]:animate-[fade-in_160ms_ease-out]" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-overlay data-[state=closed]:animate-[fade-out_160ms_ease-in_forwards] data-[state=open]:animate-[fade-in_160ms_ease-out]" />
         <Dialog.Content
           className={cn(
             'fixed top-0 bottom-0 z-50 flex w-full flex-col border-line bg-surface shadow-pop outline-none',
             // From 640px it floats inset from the edge with panel corners; on phones it fills the screen.
             side === 'right'
-              ? 'right-0 max-w-md border-l sm:top-3 sm:right-3 sm:bottom-3 sm:overflow-hidden sm:rounded-panel sm:border data-[state=open]:animate-[slide-in-right_220ms_var(--ease-out-soft)]'
-              : 'left-0 max-w-[288px] border-r data-[state=open]:animate-[slide-in-left_220ms_var(--ease-out-soft)]',
+              ? 'right-0 max-w-md border-l sm:top-3 sm:right-3 sm:bottom-3 sm:overflow-hidden sm:rounded-panel sm:border data-[state=closed]:animate-[slide-out-right_160ms_ease-in_forwards] data-[state=open]:animate-[slide-in-right_220ms_var(--ease-out-soft)]'
+              : 'left-0 max-w-[288px] border-r data-[state=closed]:animate-[slide-out-left_160ms_ease-in_forwards] data-[state=open]:animate-[slide-in-left_220ms_var(--ease-out-soft)]',
             className,
           )}
         >
