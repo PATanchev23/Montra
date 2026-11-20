@@ -324,20 +324,26 @@ describe('budgets', () => {
     expect(
       within(advice).getByText(/^Leaves €[\d,]+ of expected income unspent/),
     ).toBeInTheDocument();
-    // A goal that saves more asks for a smaller share of income.
+    // A saving goal trims flexible costs; this shop only has rent, so it says why nothing moved.
     await u.click(within(advice).getByRole('radio', { name: 'Save 20%' }));
     expect(api.fetchMock.mock.calls.some(([url]) => String(url).endsWith('goal=save-20'))).toBe(
       true,
     );
+    expect(
+      await within(advice).findByText(/^Every category here is a steady monthly payment/),
+    ).toBeInTheDocument();
 
-    // Each category says what is recommended and why; Marketing only started this month.
+    // Each category says why, with the recommended amount under its field; Marketing only started this month.
     const rentRow = within(sheet).getByLabelText('Rent').closest('li')!;
-    expect(rentRow).toHaveTextContent('Recommended €1,200 · Repeats every month: €1,200.');
+    expect(rentRow).toHaveTextContent('Repeats every month: €1,200.');
+    expect(
+      within(rentRow).getByRole('button', { name: 'Use the recommended limit for Rent' }),
+    ).toHaveTextContent('Use €1,200');
     expect(within(sheet).getByLabelText('Marketing').closest('li')).toHaveTextContent(
       'No spending in the last three months',
     );
 
-    await u.click(within(sheet).getByRole('button', { name: 'Fill in recommendation' }));
+    await u.click(within(sheet).getByRole('button', { name: 'Use these limits' }));
     expect(within(sheet).getByLabelText('Rent')).toHaveValue('1200');
     expect(
       within(advice).getByText('The limits below match this recommendation.'),

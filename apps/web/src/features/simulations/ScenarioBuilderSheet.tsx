@@ -183,10 +183,7 @@ export function ScenarioBuilderSheet({
     <Sheet open onOpenChange={onOpenChange} title={m.title} description={m.description}>
       <form noValidate onSubmit={submit} className="flex flex-col gap-5 px-6 pt-5 pb-6">
         {suggestions.length > 0 && (
-          <section
-            aria-labelledby="scenario-suggested"
-            className="flex flex-col gap-2 border-b border-line pb-5"
-          >
+          <section aria-labelledby="scenario-suggested" className="flex flex-col gap-2 pb-5">
             <div>
               <h3 id="scenario-suggested" className="text-[13px] font-medium text-ink-2">
                 {m.suggested}

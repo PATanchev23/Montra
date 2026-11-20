@@ -1,5 +1,5 @@
 import { categoryKey, type BudgetGoal, type BudgetMonthResponse } from '@montra/shared';
-import { Plus, Sparkles } from 'lucide-react';
+import { Check, Plus, Sparkles } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { errorMessage } from '../../api/client';
 import { useBudgetRecommendation, useUpdateBudgets } from '../../api/finance';
@@ -128,6 +128,11 @@ export function BudgetEditorSheet({
       const parsed = row ? parseAmount(row.text) : null;
       return parsed?.ok && parsed.cents === line.limitCents;
     });
+  // What the limits as typed add up to; a field that does not parse counts as empty.
+  const enteredCents = shown.reduce((sum, row) => {
+    const parsed = parseAmount(row.text);
+    return sum + (parsed.ok ? (parsed.cents ?? 0) : 0);
+  }, 0);
 
   return (
     <Sheet
@@ -137,12 +142,12 @@ export function BudgetEditorSheet({
       description={m.description}
     >
       <form noValidate onSubmit={submit} className="flex min-h-full flex-col">
-        {/* Montra's recommendation: a starting point the owner can take and adjust. */}
+        {/* Montra's recommendation: pick what it aims for, read the plan, take it. */}
         <section
           aria-labelledby="budget-recommendation"
-          className="mx-6 mt-4 rounded-control bg-sunken px-4 py-4"
+          className="mx-6 mt-5 rounded-panel bg-sunken p-5"
         >
-          <h3 id="budget-recommendation" className="text-body-sm font-medium text-ink">
+          <h3 id="budget-recommendation" className="text-body font-semibold text-ink">
             {r.title}
           </h3>
           <p className="mt-0.5 text-caption text-muted">
@@ -155,7 +160,7 @@ export function BudgetEditorSheet({
             size="sm"
             value={goal}
             onChange={setGoal}
-            className="mt-3 w-full"
+            className="mt-4 w-full"
             options={[
               { value: 'within-income', label: r.goals['within-income'] },
               { value: 'save-10', label: r.goals['save-10'] },
@@ -164,38 +169,52 @@ export function BudgetEditorSheet({
           />
           <div
             className={cn(
-              'mt-4 transition-opacity',
+              'mt-5 transition-opacity',
               recommendation.isPlaceholderData && 'opacity-60',
             )}
           >
             {recommendation.isError ? (
               <ErrorState title={r.loadError} onRetry={() => recommendation.refetch()} />
             ) : !recommendation.data ? (
-              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-32 w-full" />
             ) : recommendation.data.lines.length === 0 ? (
               <p className="text-body-sm text-muted">{r.notEnough}</p>
             ) : (
               <>
                 <RecommendationSummary data={recommendation.data} fmt={fmt} />
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                  <p className="text-caption text-muted">{matches ? r.filled : r.adjustAfter}</p>
-                  <Button size="sm" onClick={fillRecommendation} disabled={matches}>
-                    <Sparkles />
-                    {r.fill}
-                  </Button>
+                <div className="mt-4 border-t border-line pt-4">
+                  {matches ? (
+                    <p className="flex items-center gap-2 text-body-sm text-ink-2">
+                      <Check aria-hidden className="size-4 shrink-0" strokeWidth={2} />
+                      {r.filled}
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+                      <p className="min-w-0 flex-1 basis-40 text-caption text-muted">
+                        {r.adjustAfter}
+                      </p>
+                      <Button onClick={fillRecommendation}>
+                        <Sparkles />
+                        {r.fill}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </>
             )}
           </div>
         </section>
 
-        <p className="px-6 pt-5 text-caption text-muted">{m.columns(data.currency)}</p>
+        <div className="flex items-baseline justify-between gap-4 px-6 pt-6 pb-1 text-caption text-muted">
+          <span>{m.category}</span>
+          <span>{m.limit(data.currency)}</span>
+        </div>
         {shown.length === 0 && (
-          <p className="mx-6 mt-3 rounded-control bg-sunken px-4 py-6 text-center text-body-sm text-muted">
+          <p className="mx-6 mt-2 rounded-control bg-sunken px-4 py-6 text-center text-body-sm text-muted">
             {m.noCategories}
           </p>
         )}
-        <ul className="mt-1 divide-y divide-line-soft px-6">
+        <ul className="mx-6 divide-y divide-line-soft border-t border-line">
           {shown.map((row, i) => (
             <EditorRow
               key={row.category}
@@ -208,7 +227,7 @@ export function BudgetEditorSheet({
           ))}
         </ul>
 
-        <div className="mx-6 mt-2 flex gap-2 border-t border-line pt-4">
+        <div className="mx-6 mt-3 mb-6 flex gap-2">
           <Input
             aria-label={m.newCategory}
             placeholder={m.newCategory}
@@ -228,19 +247,29 @@ export function BudgetEditorSheet({
           </Button>
         </div>
 
-        <div className="mt-auto flex flex-col gap-3 border-t border-line px-6 py-4">
+        {/* Pinned to the foot of the sheet: what is about to be saved, and the way out. */}
+        <div className="sticky bottom-0 mt-auto flex flex-col gap-3 border-t border-line bg-surface px-6 py-4">
           {save.error && (
             <p role="alert" className="text-body-sm text-negative">
               {errorMessage(save.error)}
             </p>
           )}
-          <div className="flex justify-end gap-2">
-            <Button disabled={save.isPending} onClick={() => onOpenChange(false)}>
-              {m.cancel}
-            </Button>
-            <Button type="submit" variant="primary" disabled={save.isPending}>
-              {save.isPending ? m.saving : m.save}
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+            <div aria-live="polite">
+              <p className="text-caption text-muted">{m.total}</p>
+              <p className="text-body-sm text-muted">
+                <span className="tabular font-semibold text-ink">{fmt(enteredCents)}</span>{' '}
+                {r.perMonth}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button disabled={save.isPending} onClick={() => onOpenChange(false)}>
+                {m.cancel}
+              </Button>
+              <Button type="submit" variant="primary" disabled={save.isPending}>
+                {save.isPending ? m.saving : m.save}
+              </Button>
+            </div>
           </div>
         </div>
       </form>
@@ -271,36 +300,21 @@ function EditorRow({
       return parsed.ok && parsed.cents === line.limitCents;
     })();
   return (
-    <li className="py-3">
-      <div className="flex items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <label htmlFor={id} className="block truncate text-body text-ink">
-            {row.category}
-          </label>
-          {line ? (
-            <p className="text-caption text-muted">
-              {applied ? (
-                <span className="font-medium text-ink-2">
-                  {r.recommendedAmount(fmt(line.limitCents))}
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => onChange(amountInputText(line.limitCents))}
-                  aria-label={r.useOne(row.category)}
-                  className="cursor-pointer rounded-sm font-medium text-ink underline decoration-line-strong underline-offset-2 hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
-                >
-                  {r.recommendedAmount(fmt(line.limitCents))}
-                </button>
-              )}{' '}
-              · {reason(line, fmt)}
-            </p>
-          ) : (
-            <p className="text-caption text-muted">
-              {row.averageCents > 0 ? m.average(fmt(row.averageCents)) : m.noRecent}
-            </p>
-          )}
-        </div>
+    <li className="flex items-start gap-4 py-3.5">
+      <div className="min-w-0 flex-1 pt-1.5">
+        <label htmlFor={id} className="block truncate text-body font-medium text-ink">
+          {row.category}
+        </label>
+        <p className="mt-0.5 text-caption text-muted">
+          {line
+            ? reason(line, fmt)
+            : row.averageCents > 0
+              ? m.average(fmt(row.averageCents))
+              : m.noRecent}
+        </p>
+      </div>
+      {/* The recommendation sits under the field it fills: a pill to take it, or a tick once taken. */}
+      <div className="flex w-32 shrink-0 flex-col items-end gap-1.5">
         <Input
           id={id}
           inputMode="decimal"
@@ -309,10 +323,28 @@ function EditorRow({
           value={row.text}
           aria-invalid={row.error ? true : undefined}
           onChange={(e) => onChange(e.target.value)}
-          className="tabular w-32 shrink-0 text-right"
+          className="tabular text-right"
         />
+        {row.error ? (
+          <p className="text-right text-caption text-negative">{row.error}</p>
+        ) : line && applied ? (
+          <p className="tabular flex h-6 items-center gap-1 text-caption whitespace-nowrap text-muted">
+            <Check aria-hidden className="size-3.5" strokeWidth={2} />
+            {r.applied}
+          </p>
+        ) : (
+          line && (
+            <button
+              type="button"
+              onClick={() => onChange(amountInputText(line.limitCents))}
+              aria-label={r.useOne(row.category)}
+              className="tabular inline-flex h-6 cursor-pointer items-center gap-1 rounded-full bg-hover px-2.5 text-caption font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-line-strong hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+            >
+              {r.useAmount(fmt(line.limitCents))}
+            </button>
+          )
+        )}
       </div>
-      {row.error && <p className="mt-1.5 text-right text-caption text-negative">{row.error}</p>}
     </li>
   );
 }

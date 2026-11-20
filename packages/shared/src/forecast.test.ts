@@ -735,6 +735,33 @@ describe('recommendBudget', () => {
     expect(save20!.targetCents!).toBe(Math.round(within!.targetCents! * 0.8));
   });
 
+  it('trims flexible costs by the saving share even when income already covers it', () => {
+    const pastries = ['05', '06', '07', '08', '09', '10'].map((m, i) =>
+      entry({
+        date: `2026-${m}-10`,
+        amountCents: [50_000, 40_000, 55_000, 45_000, 60_000, 50_000][i]!,
+        category: 'Pastries',
+        description: `Pastry order ${m}`,
+      }),
+    );
+    const ledger = new Ledger([...cafe(), ...pastries], TODAY, noSettings);
+    const [within, save10, save20] = (['within-income', 'save-10', 'save-20'] as const).map(
+      (goal) => recommendBudget(ledger, goal),
+    );
+    const pastry = (plan: typeof within) => plan!.lines.find((l) => l.category === 'Pastries')!;
+
+    // The café earns far more than it spends, so spending within income cuts nothing.
+    expect(pastry(within)).toMatchObject({ limitCents: 50_000, trimmedPct: 0 });
+    expect(within!.totalCents).toBe(within!.usualTotalCents);
+    // Saving still asks the flexible costs for its share; rent is kept whole.
+    expect(pastry(save10)).toMatchObject({ limitCents: 45_000, trimmedPct: 10 });
+    expect(pastry(save20)).toMatchObject({ limitCents: 40_000, trimmedPct: 20 });
+    expect(save10!.lines.find((l) => l.category === 'Rent')!.limitCents).toBe(100_000);
+    expect(save10!.usualTotalCents).toBe(within!.totalCents);
+    expect(save10!.totalCents).toBe(within!.totalCents - 5_000);
+    expect(save10!.overByCents).toBe(0);
+  });
+
   it('leaves room to climb back above the warning level', () => {
     const below = new Ledger(cafe(), TODAY, {
       balanceCents: 100_000,

@@ -228,6 +228,8 @@ export const budgetRecommendationSchema = z.object({
   /** The most the goal allows to be spent each month; null without expected income. */
   targetCents: z.int().nullable(),
   totalCents: z.int().min(0),
+  /** What the same categories would get at their usual levels, before any trim. */
+  usualTotalCents: z.int().min(0),
   /** How far the total still exceeds the target after trimming as far as it goes; 0 when it fits. */
   overByCents: z.int().min(0),
   /** The bank balance is below the warning level, so the target also leaves room to recover. */

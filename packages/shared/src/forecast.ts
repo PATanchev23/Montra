@@ -608,9 +608,12 @@ const SAVE_SHARE: Record<BudgetGoal, number> = {
  *  2. The goal sets the most that can be spent: the income the forecast
  *     expects for the next three months, less the share to save, less a
  *     third of any shortfall below the warning level.
- *  3. If the usual levels add up to more, the flexible categories are
- *     trimmed in proportion, by up to half. Mostly-recurring categories are
- *     commitments and are never trimmed; what still does not fit is reported.
+ *  3. A saving goal trims the flexible categories by its share (10% or 20%)
+ *     even when income already leaves that much over, so choosing it always
+ *     asks for less. If the usual levels still add up to more than the
+ *     target, they are trimmed further in proportion, by up to half.
+ *     Mostly-recurring categories are commitments and are never trimmed;
+ *     what still does not fit is reported.
  */
 export function recommendBudget(ledger: Ledger, goal: BudgetGoal) {
   const { today } = ledger;
@@ -681,21 +684,24 @@ export function recommendBudget(ledger: Ledger, goal: BudgetGoal) {
 
   const total = base.reduce((sum, l) => sum + l.level, 0);
   const flexible = base.filter((l) => !l.fixed).reduce((sum, l) => sum + l.level, 0);
-  const trim =
+  // A saving goal always asks flexible costs for at least its share, even when
+  // income already leaves that much over; more if the target needs it.
+  const needed =
     targetCents !== null && total > targetCents && flexible > 0
-      ? Math.min(MAX_TRIM, (total - targetCents) / flexible)
+      ? (total - targetCents) / flexible
       : 0;
+  const trim = flexible > 0 ? Math.min(MAX_TRIM, Math.max(SAVE_SHARE[goal], needed)) : 0;
 
+  const usualLimit = (level: number) =>
+    Math.max(LIMIT_STEP, Math.ceil(level / LIMIT_STEP) * LIMIT_STEP);
   const lines = base
     .filter((l) => l.level > 0)
     .map((l) => {
       const cut = l.fixed ? 0 : trim;
-      const limitCents = Math.max(
-        LIMIT_STEP,
+      const limitCents =
         cut > 0
-          ? Math.floor((l.level * (1 - cut)) / LIMIT_STEP) * LIMIT_STEP
-          : Math.ceil(l.level / LIMIT_STEP) * LIMIT_STEP,
-      );
+          ? Math.max(LIMIT_STEP, Math.floor((l.level * (1 - cut)) / LIMIT_STEP) * LIMIT_STEP)
+          : usualLimit(l.level);
       return {
         category: ledger.displayName(l.key),
         limitCents,
@@ -709,6 +715,9 @@ export function recommendBudget(ledger: Ledger, goal: BudgetGoal) {
     .sort((a, b) => b.limitCents - a.limitCents || a.category.localeCompare(b.category));
 
   const totalCents = lines.reduce((sum, l) => sum + l.limitCents, 0);
+  const usualTotalCents = base
+    .filter((l) => l.level > 0)
+    .reduce((sum, l) => sum + usualLimit(l.level), 0);
   // Rounding each limit to a whole 10 can leave a few euros over a target the
   // trim did meet; only a trim that ran out of room is a real gap.
   const ranOut =
@@ -720,6 +729,7 @@ export function recommendBudget(ledger: Ledger, goal: BudgetGoal) {
     expectedIncomeCents,
     targetCents,
     totalCents,
+    usualTotalCents,
     overByCents: targetCents !== null && ranOut ? Math.max(0, totalCents - targetCents) : 0,
     recovering: shortfall > 0,
     lines,
