@@ -361,11 +361,7 @@ export function ledgerServer(options: LedgerOptions = {}) {
         });
       },
     ],
-    [
-      'GET',
-      new RegExp(`^${BASE}/simulations$`),
-      () => jsonResponse({ presets: scenarioPresets(ledger()) }),
-    ],
+    ['GET', new RegExp(`^${BASE}/simulations$`), () => jsonResponse(scenarioPresets(ledger()))],
     [
       'GET',
       new RegExp(`^${BASE}/simulations/run$`),

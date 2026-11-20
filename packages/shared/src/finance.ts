@@ -311,19 +311,32 @@ export const scenarioQuerySchema = z
   })
   .superRefine(checkRule);
 
+/** Every ready-made scenario; ties in relevance keep this order. */
 export const SCENARIO_PRESET_IDS = [
+  'cash-injection',
   'income-drop',
+  'top-income-loss',
   'top-cost-up',
+  'rising-cost',
+  'trim-cost',
   'new-monthly-cost',
   'one-off-purchase',
+  'costs-rise',
   'income-growth',
 ] as const;
 export const scenarioPresetIdSchema = z.enum(SCENARIO_PRESET_IDS);
 export type ScenarioPresetId = z.infer<typeof scenarioPresetIdSchema>;
 
-/** GET /businesses/:businessId/simulations: ready-made what-ifs sized to this business. */
+const scenarioPresetSchema = z.object({ id: scenarioPresetIdSchema, rule: scenarioRuleSchema });
+
+/**
+ * GET /businesses/:businessId/simulations: ready-made what-ifs chosen and sized
+ * for this business, most relevant first. `presets` are listed; `suggested`
+ * are the next best, offered when building a new scenario.
+ */
 export const scenarioPresetsResponseSchema = z.object({
-  presets: z.array(z.object({ id: scenarioPresetIdSchema, rule: scenarioRuleSchema })),
+  presets: z.array(scenarioPresetSchema),
+  suggested: z.array(scenarioPresetSchema),
 });
 export type ScenarioPresetsResponse = z.infer<typeof scenarioPresetsResponseSchema>;
 export type ScenarioPreset = ScenarioPresetsResponse['presets'][number];

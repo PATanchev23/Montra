@@ -14,6 +14,8 @@ export interface ScenarioText {
 }
 
 const pct = (value: number) => percent(value / 100, { signed: true });
+/** The size of a change whose direction the sentence already gives. */
+const size = (value: number) => percent(Math.abs(value) / 100);
 
 /**
  * A scenario in words, in the interface language. The API sends rules, not
@@ -46,9 +48,9 @@ export function describeScenario(
 
   switch (id) {
     case 'income-drop':
-      return { ...m.presets.incomeDrop(pct(rule.incomeChangePct ?? 0)), assumptions };
+      return { ...m.presets.incomeDrop(size(rule.incomeChangePct ?? 0)), assumptions };
     case 'income-growth':
-      return { ...m.presets.incomeGrowth(pct(rule.incomeChangePct ?? 0)), assumptions };
+      return { ...m.presets.incomeGrowth(size(rule.incomeChangePct ?? 0)), assumptions };
     case 'top-cost-up':
       return {
         ...m.presets.topCostUp(rule.category ?? '', pct(rule.categoryChangePct ?? 0)),
@@ -62,6 +64,31 @@ export function describeScenario(
     case 'one-off-purchase':
       return {
         ...m.presets.oneOffPurchase(
+          amount(rule.oneOffCents ?? 0),
+          rule.oneOffDate ? formatDate(rule.oneOffDate, 'd MMMM') : '',
+        ),
+        assumptions,
+      };
+    case 'top-income-loss':
+      return {
+        ...m.presets.topIncomeLoss(rule.category ?? '', pct(rule.categoryChangePct ?? 0)),
+        assumptions,
+      };
+    case 'rising-cost':
+      return {
+        ...m.presets.risingCost(rule.category ?? '', size(rule.categoryChangePct ?? 0)),
+        assumptions,
+      };
+    case 'trim-cost':
+      return {
+        ...m.presets.trimCost(rule.category ?? '', size(rule.categoryChangePct ?? 0)),
+        assumptions,
+      };
+    case 'costs-rise':
+      return { ...m.presets.costsRise(size(rule.expenseChangePct ?? 0)), assumptions };
+    case 'cash-injection':
+      return {
+        ...m.presets.cashInjection(
           amount(rule.oneOffCents ?? 0),
           rule.oneOffDate ? formatDate(rule.oneOffDate, 'd MMMM') : '',
         ),

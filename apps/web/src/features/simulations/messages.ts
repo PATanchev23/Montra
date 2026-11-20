@@ -65,6 +65,26 @@ export const simulationMessages = defineMessages(
           name: 'A large one-off purchase',
           description: `Equipment or stock worth ${amount}, paid on ${date}.`,
         }),
+        topIncomeLoss: (category: string, change: string) => ({
+          name: `Less from ${category}`,
+          description: `${category} brings in much of your income. What if it changed by ${change}?`,
+        }),
+        risingCost: (category: string, change: string) => ({
+          name: `${category} keeps rising`,
+          description: `${category} has been costing more lately. What if it rose another ${change}?`,
+        }),
+        trimCost: (category: string, change: string) => ({
+          name: `Spend less on ${category}`,
+          description: `${category} is your largest cost you can adjust. What if you cut it by ${change}?`,
+        }),
+        costsRise: (change: string) => ({
+          name: 'Prices go up',
+          description: `What if everything you pay for cost ${change} more?`,
+        }),
+        cashInjection: (amount: string, date: string) => ({
+          name: 'A loan or investment',
+          description: `${amount} coming in on ${date} to steady your cash.`,
+        }),
         custom: {
           name: 'Your scenario',
           description: 'The changes you chose, applied to your current plan.',
@@ -88,6 +108,8 @@ export const simulationMessages = defineMessages(
       in: 'Money in',
       oneOffAmount: (currency: string) => `Amount (${currency})`,
       oneOffDate: 'Date',
+      suggested: 'Suggested for your business',
+      suggestedHint: 'Pick one to fill in the form, then adjust it if you like.',
       run: 'Run scenario',
       cancel: 'Cancel',
       wholePercent: 'Enter a whole percentage between −100 and 500.',
@@ -142,11 +164,11 @@ export const simulationMessages = defineMessages(
       presets: {
         incomeDrop: (change: string) => ({
           name: 'Продажбите се забавят',
-          description: `Какво ако всички очаквани приходи се променят с ${change}?`,
+          description: `Какво ако всички очаквани приходи паднат с ${change}?`,
         }),
         incomeGrowth: (change: string) => ({
           name: 'Продажбите растат',
-          description: `Какво ако всички очаквани приходи се променят с ${change}?`,
+          description: `Какво ако всички очаквани приходи се увеличат с ${change}?`,
         }),
         topCostUp: (category: string, change: string) => ({
           name: `Разходите за „${category}“ растат`,
@@ -159,6 +181,26 @@ export const simulationMessages = defineMessages(
         oneOffPurchase: (amount: string, date: string) => ({
           name: 'Голяма еднократна покупка',
           description: `Оборудване или стока за ${amount}, платени на ${date}.`,
+        }),
+        topIncomeLoss: (category: string, change: string) => ({
+          name: `По-малко от „${category}“`,
+          description: `„${category}“ носи голяма част от приходите ви. Какво ако се промени с ${change}?`,
+        }),
+        risingCost: (category: string, change: string) => ({
+          name: `„${category}“ продължава да расте`,
+          description: `„${category}“ ви струва все повече напоследък. Какво ако се повиши с още ${change}?`,
+        }),
+        trimCost: (category: string, change: string) => ({
+          name: `По-малко за „${category}“`,
+          description: `„${category}“ е най-големият ви разход, който можете да промените. Какво ако го намалите с ${change}?`,
+        }),
+        costsRise: (change: string) => ({
+          name: 'Цените се покачват',
+          description: `Какво ако всичко, за което плащате, поскъпне с ${change}?`,
+        }),
+        cashInjection: (amount: string, date: string) => ({
+          name: 'Заем или инвестиция',
+          description: `${amount} постъпват на ${date}, за да укрепят наличните ви пари.`,
         }),
         custom: {
           name: 'Вашият сценарий',
@@ -183,6 +225,8 @@ export const simulationMessages = defineMessages(
       in: 'Постъпление',
       oneOffAmount: (currency: string) => `Сума (${currency})`,
       oneOffDate: 'Дата',
+      suggested: 'Препоръчани за вашия бизнес',
+      suggestedHint: 'Изберете един, за да попълните формата, и го променете, ако искате.',
       run: 'Изчисли сценария',
       cancel: 'Отказ',
       wholePercent: 'Въведете цял процент между −100 и 500.',

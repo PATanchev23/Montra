@@ -1,6 +1,7 @@
 import {
   scenarioQuerySchema,
   todayIn,
+  type ScenarioPresetId,
   type ScenarioRule,
   type SimulationResponse,
 } from '@montra/shared';
@@ -42,8 +43,13 @@ export function SimulationsPage() {
 
   const custom = useMemo(() => customRule(params), [params]);
   const list = presets.data?.presets;
+  const suggested = presets.data?.suggested;
   const requested = params.get('scenario');
-  const preset = list?.find((p) => p.id === requested) ?? list?.[0];
+  // A suggestion run from "New scenario" joins the list while it is open.
+  const picked = list?.some((p) => p.id === requested)
+    ? undefined
+    : suggested?.find((p) => p.id === requested);
+  const preset = list?.find((p) => p.id === requested) ?? picked ?? list?.[0];
   const noData = list !== undefined && list.length === 0 && !custom;
   const selectedId: ScenarioId | undefined = custom ? 'custom' : preset?.id;
   // Without transactions there is nothing to change: run the plain plan, flat.
@@ -62,6 +68,10 @@ export function SimulationsPage() {
 
   const run = (next: ScenarioRule) => {
     setParams({ scenario: 'custom', ...Object.fromEntries(new URLSearchParams(ruleQuery(next))) });
+    setBuilding(false);
+  };
+  const runSuggestion = (id: ScenarioPresetId) => {
+    setParams({ scenario: id });
     setBuilding(false);
   };
 
@@ -88,7 +98,11 @@ export function SimulationsPage() {
           <ScenarioList
             items={
               list &&
-              [...(custom ? [{ id: 'custom' as const, rule: custom }] : []), ...list].map((p) => ({
+              [
+                ...(custom ? [{ id: 'custom' as const, rule: custom }] : []),
+                ...(picked ? [picked] : []),
+                ...list,
+              ].map((p) => ({
                 id: p.id,
                 text: describeScenario(p.id, p.rule, context),
               }))
@@ -117,7 +131,12 @@ export function SimulationsPage() {
           businessId={business.id}
           currency={business.currency}
           initial={custom ?? {}}
+          suggestions={(suggested ?? []).map((p) => ({
+            ...p,
+            text: describeScenario(p.id, p.rule, context),
+          }))}
           onRun={run}
+          onRunSuggestion={runSuggestion}
           onOpenChange={setBuilding}
         />
       )}

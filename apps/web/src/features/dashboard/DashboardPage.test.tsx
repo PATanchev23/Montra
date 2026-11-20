@@ -146,10 +146,11 @@ describe('dashboard figures', () => {
       within(upcoming).getByText('Recurring payments from your transactions'),
     ).toBeInTheDocument();
     const scenario = screen.getByRole('region', { name: 'Scenario preview' });
-    expect(await within(scenario).findByText('Sales slow down')).toBeInTheDocument();
+    // The scenario that matters most to this business: it spends more than it earns.
+    expect(await within(scenario).findByText('Spend less on Advertising')).toBeInTheDocument();
     expect(within(scenario).getByRole('link', { name: 'Run simulation' })).toHaveAttribute(
       'href',
-      '/simulations?scenario=income-drop',
+      '/simulations?scenario=trim-cost',
     );
     // No sample data anywhere.
     expect(screen.queryByText(/Sample data|TechStore sample/)).not.toBeInTheDocument();

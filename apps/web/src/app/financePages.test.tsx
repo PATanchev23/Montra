@@ -390,8 +390,9 @@ describe('simulations', () => {
     const u = userEvent.setup();
 
     const list = await screen.findByRole('radiogroup', { name: 'Choose a scenario' });
-    expect(within(list).getByText('Rent costs rise')).toBeInTheDocument();
-    expect(await screen.findByRole('heading', { name: 'Sales slow down' })).toBeInTheDocument();
+    // Rent is most of what this profitable shop spends, so that question comes first.
+    expect(await screen.findByRole('heading', { name: 'Rent costs rise' })).toBeInTheDocument();
+    expect(within(list).getByText('Sales slow down')).toBeInTheDocument();
 
     await u.click(screen.getByRole('button', { name: 'New scenario' }));
     const sheet = await screen.findByRole('dialog', { name: 'New scenario' });
@@ -404,6 +405,44 @@ describe('simulations', () => {
     // Three months of the new cost: 1 December, 1 January, 1 February.
     const difference = screen.getByText('Difference', { selector: 'dt' }).parentElement!;
     expect(within(difference).getByText('−€3,000')).toBeInTheDocument();
+  });
+
+  it('suggests more scenarios in New scenario, run by name or adjusted', async () => {
+    ledgerServer({ transactions: shop() });
+    const router = renderTransactions('/simulations');
+    const u = userEvent.setup();
+    const list = await screen.findByRole('radiogroup', { name: 'Choose a scenario' });
+    expect(within(list).queryByText('Prices go up')).not.toBeInTheDocument();
+
+    await u.click(screen.getByRole('button', { name: 'New scenario' }));
+    let sheet = await screen.findByRole('dialog', { name: 'New scenario' });
+    const suggestions = within(sheet).getByRole('region', { name: 'Suggested for your business' });
+    const prices = within(suggestions).getByRole('button', { name: /Prices go up/ });
+    await u.click(prices);
+    expect(prices).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByLabelText('Change in expenses (%)')).toHaveValue('5');
+
+    // Changed, it is no longer the suggestion.
+    const expenses = within(sheet).getByLabelText('Change in expenses (%)');
+    await u.clear(expenses);
+    await u.type(expenses, '8');
+    expect(prices).toHaveAttribute('aria-pressed', 'false');
+    await u.click(prices);
+    await u.click(within(sheet).getByRole('button', { name: 'Run scenario' }));
+
+    expect(await screen.findByRole('heading', { name: 'Prices go up' })).toBeInTheDocument();
+    expect(router.state.location.search).toBe('?scenario=costs-rise');
+    expect(within(list).getByRole('radio', { name: /Prices go up/ })).toBeChecked();
+
+    // Opened again, the suggestion is still offered and an edit runs as the user's own.
+    await u.click(screen.getByRole('button', { name: 'New scenario' }));
+    sheet = await screen.findByRole('dialog', { name: 'New scenario' });
+    await u.click(within(sheet).getByRole('button', { name: /Prices go up/ }));
+    await u.clear(within(sheet).getByLabelText('Change in expenses (%)'));
+    await u.type(within(sheet).getByLabelText('Change in expenses (%)'), '8');
+    await u.click(within(sheet).getByRole('button', { name: 'Run scenario' }));
+    expect(await screen.findByRole('heading', { name: 'Your scenario' })).toBeInTheDocument();
+    expect(router.state.location.search).toBe('?scenario=custom&expenseChangePct=8');
   });
 });
 

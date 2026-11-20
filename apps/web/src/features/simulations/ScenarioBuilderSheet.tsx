@@ -1,4 +1,5 @@
-import type { ScenarioRule, TransactionType } from '@montra/shared';
+import type { ScenarioPresetId, ScenarioRule, TransactionType } from '@montra/shared';
+import { Sparkles } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { useTransactionCategories } from '../../api/transactions';
 import { Button } from '../../components/ui/Button';
@@ -10,6 +11,8 @@ import { Select } from '../../components/ui/Select';
 import { Sheet } from '../../components/ui/Sheet';
 import { useMessages } from '../../i18n';
 import { amountInputText, parseAmount } from '../../lib/amountInput';
+import { cn } from '../../lib/cn';
+import type { ScenarioText } from './describe';
 import { simulationMessages } from './messages';
 
 const NONE = '__none__';
@@ -36,6 +39,16 @@ const valuesFrom = (rule: ScenarioRule): Values => ({
   oneOffDate: rule.oneOffDate ?? '',
 });
 
+const sameValues = (a: Values, b: Values) =>
+  (Object.keys(a) as (keyof Values)[]).every((key) => a[key] === b[key]);
+
+/** A ready-made scenario offered in the form, already described. */
+export interface ScenarioSuggestion {
+  id: ScenarioPresetId;
+  rule: ScenarioRule;
+  text: ScenarioText;
+}
+
 /** A whole percentage from −100 to 500, typed with or without a sign; empty is no change. */
 function parsePercent(text: string): number | undefined | null {
   const compact = text.replace(/\s|%/g, '').replace('−', '-');
@@ -45,18 +58,26 @@ function parsePercent(text: string): number | undefined | null {
   return value >= -100 && value <= 500 ? value : null;
 }
 
-/** The form behind "New scenario": every change is optional and they combine. */
+/**
+ * The form behind "New scenario": every change is optional and they combine.
+ * Suggestions sized to the business fill the form in one click; run as they
+ * are, they keep their own name, and once changed they become the user's own.
+ */
 export function ScenarioBuilderSheet({
   businessId,
   currency,
   initial,
+  suggestions,
   onRun,
+  onRunSuggestion,
   onOpenChange,
 }: {
   businessId: string;
   currency: string;
   initial: ScenarioRule;
+  suggestions: ScenarioSuggestion[];
   onRun: (rule: ScenarioRule) => void;
+  onRunSuggestion: (id: ScenarioPresetId) => void;
   onOpenChange: (open: boolean) => void;
 }) {
   const m = useMessages(simulationMessages).builder;
@@ -68,8 +89,19 @@ export function ScenarioBuilderSheet({
     setErrors((e) => ({ ...e, [key]: undefined }));
   };
 
+  // The suggestion the form still holds unchanged, if any.
+  const chosen = suggestions.find((s) => sameValues(values, valuesFrom(s.rule)));
+  const choose = (rule: ScenarioRule) => {
+    setValues(valuesFrom(rule));
+    setErrors({});
+  };
+
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (chosen) {
+      onRunSuggestion(chosen.id);
+      return;
+    }
     const next: typeof errors = {};
     const rule: ScenarioRule = {};
 
@@ -112,6 +144,14 @@ export function ScenarioBuilderSheet({
     onRun(rule);
   }
 
+  // A suggestion may name a category before the list has loaded.
+  const names = (categories.data?.items ?? []).map((c) => c.name);
+  if (values.category !== NONE && !names.includes(values.category)) names.push(values.category);
+  const categoryOptions = [
+    { value: NONE, label: m.categoryPlaceholder },
+    ...names.map((name) => ({ value: name, label: name })),
+  ];
+
   const percentField = (key: 'income' | 'expenses', label: string) => (
     <Field label={label} htmlFor={`scenario-${key}`} hint={m.percentHint} error={errors[key]}>
       <Input
@@ -129,6 +169,55 @@ export function ScenarioBuilderSheet({
   return (
     <Sheet open onOpenChange={onOpenChange} title={m.title} description={m.description}>
       <form noValidate onSubmit={submit} className="flex flex-col gap-5 px-6 pt-5 pb-6">
+        {suggestions.length > 0 && (
+          <section
+            aria-labelledby="scenario-suggested"
+            className="flex flex-col gap-2 border-b border-line pb-5"
+          >
+            <div>
+              <h3 id="scenario-suggested" className="text-[13px] font-medium text-ink-2">
+                {m.suggested}
+              </h3>
+              <p className="mt-0.5 text-[12px] text-muted">{m.suggestedHint}</p>
+            </div>
+            <ul className="flex flex-col gap-1.5">
+              {suggestions.map((s) => {
+                const active = chosen?.id === s.id;
+                return (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => choose(s.rule)}
+                      className={cn(
+                        'flex w-full cursor-pointer gap-3 rounded-control border p-3 text-left transition-colors',
+                        active ? 'border-chart-1/40 bg-chart-1-soft' : 'border-line hover:bg-hover',
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-[8px]',
+                          active ? 'bg-chart-1 text-white' : 'bg-hover text-muted',
+                        )}
+                      >
+                        <Sparkles className="size-3.5" strokeWidth={1.75} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[13px] leading-snug font-medium text-ink">
+                          {s.text.name}
+                        </span>
+                        <span className="mt-0.5 line-clamp-2 block text-[12px] leading-snug text-muted">
+                          {s.text.description}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2">
           {percentField('income', m.income)}
           {percentField('expenses', m.expenses)}
@@ -142,10 +231,7 @@ export function ScenarioBuilderSheet({
               value={values.category}
               onChange={(v) => set('category', v)}
               className="w-full"
-              options={[
-                { value: NONE, label: m.categoryPlaceholder },
-                ...(categories.data?.items ?? []).map((c) => ({ value: c.name, label: c.name })),
-              ]}
+              options={categoryOptions}
             />
           </Field>
           <Field

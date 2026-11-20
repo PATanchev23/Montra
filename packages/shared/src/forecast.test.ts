@@ -324,17 +324,80 @@ describe('buildBudgetMonth', () => {
 });
 
 describe('simulations', () => {
-  it('sizes the presets to the business, and offers none without transactions', () => {
-    const presets = scenarioPresets(new Ledger(shop(), TODAY, noSettings));
-    expect(presets.map((p) => p.id)).toEqual([
+  it('chooses, orders and sizes the presets from the business’s own ledger', () => {
+    // The shop spends more than it earns: trimming its flexible costs comes first.
+    const shopScenarios = scenarioPresets(new Ledger(shop(), TODAY, noSettings));
+    expect(shopScenarios.presets.map((p) => p.id)).toEqual([
+      'trim-cost',
       'income-drop',
       'top-cost-up',
-      'new-monthly-cost',
+      'cash-injection',
       'one-off-purchase',
-      'income-growth',
     ]);
-    expect(presets[1]!.rule).toEqual({ category: 'Payroll', categoryChangePct: 20 });
-    expect(scenarioPresets(new Ledger([], TODAY, noSettings))).toEqual([]);
+    expect(shopScenarios.presets[0]!.rule).toEqual({
+      category: 'supplies',
+      categoryChangePct: -25,
+    });
+    expect(shopScenarios.presets[2]!.rule).toEqual({ category: 'Payroll', categoryChangePct: 20 });
+    expect(shopScenarios.suggested.map((p) => p.id)).toEqual([
+      'income-growth',
+      'new-monthly-cost',
+      'costs-rise',
+    ]);
+
+    // A profitable studio living off one client, with hosting climbing every month.
+    const studio: LedgerEntry[] = ['06', '07', '08', '09', '10', '11'].flatMap((m, i) => [
+      entry({
+        date: `2026-${m}-03`,
+        type: 'INCOME',
+        amountCents: 600_000,
+        category: 'Acme',
+        description: 'Acme retainer',
+      }),
+      entry({
+        date: `2026-${m}-15`,
+        type: 'INCOME',
+        amountCents: 200_000,
+        category: 'Projects',
+        description: `Project ${m}`,
+      }),
+      entry({ date: `2026-${m}-02`, amountCents: 150_000, category: 'Rent', description: 'Rent' }),
+      entry({
+        date: `2026-${m}-20`,
+        amountCents: 20_000 + i * 15_000,
+        category: 'Cloud',
+        description: `Hosting ${m}`,
+      }),
+    ]);
+    const studioScenarios = scenarioPresets(new Ledger(studio, TODAY, noSettings));
+    expect(studioScenarios.presets.slice(0, 3)).toEqual([
+      { id: 'rising-cost', rule: { category: 'Cloud', categoryChangePct: 50 } },
+      { id: 'top-income-loss', rule: { category: 'Acme', categoryChangePct: -50 } },
+      { id: 'new-monthly-cost', rule: { monthlyCostCents: 35_000 } },
+    ]);
+    const all = [...studioScenarios.presets, ...studioScenarios.suggested].map((p) => p.id);
+    expect(all).not.toContain('trim-cost');
+    expect(all).not.toContain('cash-injection');
+    expect(new Set(all).size).toBe(all.length);
+
+    expect(scenarioPresets(new Ledger([], TODAY, noSettings))).toEqual({
+      presets: [],
+      suggested: [],
+    });
+  });
+
+  it('puts the money needed first when the plan dips below the low-balance line', () => {
+    const ledger = new Ledger(shop(), TODAY, {
+      balanceCents: 500_000,
+      balanceDate: TODAY,
+      lowBalanceThresholdCents: 200_000,
+    });
+    const [first] = scenarioPresets(ledger).presets;
+    expect(first!.id).toBe('cash-injection');
+    // Enough to keep the plan above the line, a week before it would cross it.
+    const result = simulate(ledger, first!.rule);
+    expect(result.scenarioLowCents).toBeGreaterThanOrEqual(200_000);
+    expect(first!.rule.oneOffDate! > TODAY).toBe(true);
   });
 
   it('applies a rule on top of the current plan', () => {

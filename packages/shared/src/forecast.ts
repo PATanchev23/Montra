@@ -7,6 +7,7 @@ import {
 } from './dashboard';
 import {
   FORECAST_DAYS,
+  SCENARIO_PRESET_IDS,
   UPCOMING_DAYS,
   type Alert,
   type BalancePoint,
@@ -17,6 +18,7 @@ import {
   type MonthlyFlow,
   type ReportResponse,
   type ScenarioPreset,
+  type ScenarioPresetsResponse,
   type ScenarioRule,
   type SimulationResponse,
   type UpcomingPayment,
@@ -726,38 +728,223 @@ export function recommendBudget(ledger: Ledger, goal: BudgetGoal) {
 // ── Simulations ─────────────────────────────────────────────────────────
 
 const roundUp = (cents: number, step: number) => Math.ceil(cents / step) * step;
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+/** Percentages in steps of five, the way people talk about change. */
+const stepOf5 = (pct: number) => Math.round(pct / 5) * 5;
+const mean = (values: number[]) =>
+  values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
 
-/** Ready-made what-ifs, sized to the business's own last three months. */
-export function scenarioPresets(ledger: Ledger): ScenarioPreset[] {
-  if (ledger.transactionCount === 0) return [];
-  const expenses = averageMonthlyByCategory(ledger, 'EXPENSE');
-  const incomes = averageMonthlyByCategory(ledger, 'INCOME');
-  const sum = (m: Map<string, number>) => [...m.values()].reduce((a, b) => a + b, 0);
-  const top = [...expenses].sort((a, b) => b[1] - a[1])[0];
+/** Scenarios on the Simulations list; the next best are suggested in "New scenario". */
+export const LISTED_SCENARIOS = 5;
+export const SUGGESTED_SCENARIOS = 4;
+const SCENARIO_HISTORY_MONTHS = 6;
 
-  const presets: ScenarioPreset[] = [{ id: 'income-drop', rule: { incomeChangePct: -20 } }];
-  if (top) {
-    presets.push({
+interface MonthlyHistory {
+  /** One total per month, oldest first. */
+  totals: number[];
+  byCategory: Map<string, number[]>;
+}
+
+/**
+ * Up to six full months of one side of the ledger. A first month that began
+ * part-way through (for income or expenses alone) is left out, so it does not
+ * read as a slump; a business with no full month yet is read from this month so far.
+ */
+function monthlyHistory(ledger: Ledger, type: TransactionType): MonthlyHistory {
+  const thisMonth = isoStartOfMonth(ledger.today);
+  const first =
+    ledger.entriesBetween('0000-01-01', ledger.today).find((e) => e.type === type)?.date ??
+    thisMonth;
+  const firstFull = first.endsWith('-01') ? first : isoShiftMonth(isoStartOfMonth(first), 1);
+  const starts: string[] = [];
+  for (let m = SCENARIO_HISTORY_MONTHS; m >= 1; m--) {
+    const start = isoShiftMonth(thisMonth, -m);
+    if (start >= firstFull) starts.push(start);
+  }
+  const to = starts.length ? isoAddDays(thisMonth, -1) : ledger.today;
+  if (!starts.length) starts.push(thisMonth);
+  const keys = starts.map(month);
+
+  const totals = keys.map(() => 0);
+  const byCategory = new Map<string, number[]>();
+  for (const e of ledger.entriesBetween(starts[0]!, to)) {
+    if (e.type !== type) continue;
+    const i = keys.indexOf(month(e.date));
+    const key = categoryKey(e.category);
+    const values = byCategory.get(key) ?? keys.map(() => 0);
+    values[i]! += e.amountCents;
+    totals[i]! += e.amountCents;
+    byCategory.set(key, values);
+  }
+  return { totals, byCategory };
+}
+
+/** The last three months against the ones before them; zero without both. */
+function growth(values: number[]): number {
+  if (values.length < 4) return 0;
+  const prior = mean(values.slice(0, -3));
+  return prior > 0 ? mean(values.slice(-3)) / prior - 1 : 0;
+}
+
+interface Candidate extends ScenarioPreset {
+  /** How much this question matters to this business; higher comes first. */
+  score: number;
+}
+
+/**
+ * Ready-made what-ifs chosen and sized from the business's own ledger: how
+ * concentrated its income is, which costs are rising, how thin its margin is
+ * and whether the plan already dips below its low-balance line. Every
+ * candidate is scored on those signals, so two businesses see different
+ * scenarios, in a different order, with different figures. The best few are
+ * listed; the next few are suggested when building a new one.
+ */
+export function scenarioPresets(ledger: Ledger): ScenarioPresetsResponse {
+  if (ledger.transactionCount === 0) return { presets: [], suggested: [] };
+  const { today, settings } = ledger;
+  const income = monthlyHistory(ledger, 'INCOME');
+  const expense = monthlyHistory(ledger, 'EXPENSE');
+  const recent = (values: number[]) => mean(values.slice(-3));
+  const monthlyIncome = recent(income.totals);
+  const monthlyExpense = recent(expense.totals);
+  const margin = monthlyIncome > 0 ? (monthlyIncome - monthlyExpense) / monthlyIncome : -1;
+  const ranked = ({ byCategory }: MonthlyHistory) =>
+    [...byCategory]
+      .map(([key, values]) => ({ key, level: recent(values), growth: growth(values) }))
+      .filter((c) => c.level > 0)
+      .sort((a, b) => b.level - a.level || a.key.localeCompare(b.key));
+  const incomes = ranked(income);
+  const costs = ranked(expense);
+
+  const candidates: Candidate[] = [];
+  const add = (score: number, preset: ScenarioPreset) => candidates.push({ ...preset, score });
+
+  if (monthlyIncome > 0) {
+    // Sized to the business's own worst recent month against its usual one.
+    const usual = median(income.totals);
+    const dip =
+      income.totals.length >= 3 && usual > 0
+        ? Math.max(0, 1 - Math.min(...income.totals) / usual)
+        : 0;
+    add(45 + Math.min(35, dip * 100) + (margin < 0.15 ? 10 : 0), {
+      id: 'income-drop',
+      rule: { incomeChangePct: -clamp(stepOf5(dip * 100), 15, 40) },
+    });
+
+    const trend = growth(income.totals);
+    add(25 + clamp(trend * 150, 0, 35), {
+      id: 'income-growth',
+      rule: { incomeChangePct: clamp(stepOf5(trend * 100), 10, 30) },
+    });
+
+    // One source carrying much of the income is a risk worth testing.
+    const top = incomes[0]!;
+    const share = top.level / monthlyIncome;
+    if (incomes.length >= 2 && share >= 0.3) {
+      add(share * 90, {
+        id: 'top-income-loss',
+        rule: { category: ledger.displayName(top.key), categoryChangePct: -50 },
+      });
+    }
+  }
+
+  const top = costs[0];
+  if (top && monthlyExpense > 0) {
+    add(30 + (top.level / monthlyExpense) * 40 + clamp(top.growth * 100, 0, 20), {
       id: 'top-cost-up',
-      rule: { category: ledger.displayName(top[0]), categoryChangePct: 20 },
+      rule: {
+        category: ledger.displayName(top.key),
+        categoryChangePct: top.growth >= 0.1 ? clamp(stepOf5(top.growth * 100), 20, 40) : 20,
+      },
+    });
+
+    const rising = costs
+      .slice(1)
+      .filter((c) => c.growth >= 0.15 && c.level >= monthlyExpense * 0.05)
+      .sort((a, b) => b.growth - a.growth)[0];
+    if (rising) {
+      add(35 + clamp(rising.growth * 60, 0, 45), {
+        id: 'rising-cost',
+        rule: {
+          category: ledger.displayName(rising.key),
+          categoryChangePct: clamp(stepOf5(rising.growth * 100), 10, 50),
+        },
+      });
+    }
+
+    // Trimming only makes sense where the spending is a choice, not a commitment.
+    const committed = new Map<string, number>();
+    for (const s of ledger.recurring()) {
+      if (s.type !== 'EXPENSE' || !s.steady) continue;
+      const key = categoryKey(s.category);
+      committed.set(key, (committed.get(key) ?? 0) + s.amountCents);
+    }
+    const flexible = costs.find((c) => (committed.get(c.key) ?? 0) < c.level * FIXED_SHARE);
+    if (flexible && margin < 0.25) {
+      add(40 + clamp((0.25 - margin) * 100, 0, 40), {
+        id: 'trim-cost',
+        rule: { category: ledger.displayName(flexible.key), categoryChangePct: -25 },
+      });
+    }
+
+    const costTrend = growth(expense.totals);
+    add(15 + clamp(costTrend * 150, 0, 45), {
+      id: 'costs-rise',
+      rule: { expenseChangePct: clamp(stepOf5(costTrend * 100), 5, 20) },
     });
   }
-  presets.push(
-    {
-      id: 'new-monthly-cost',
-      rule: { monthlyCostCents: roundUp(Math.max(sum(expenses) * 0.15, 10_000), 5_000) },
+
+  add(margin > 0.1 ? 40 + clamp(margin * 50, 0, 25) : 20, {
+    id: 'new-monthly-cost',
+    rule: { monthlyCostCents: roundUp(Math.max(monthlyExpense * 0.15, 10_000), 5_000) },
+  });
+
+  const knownBalance = settings.balanceCents !== null;
+  const cushion = knownBalance && ledger.balanceAt(today) > monthlyExpense * 2;
+  add(30 + (cushion ? 15 : 0), {
+    id: 'one-off-purchase',
+    rule: {
+      oneOffType: 'EXPENSE',
+      oneOffCents: roundUp(Math.max(monthlyIncome * 0.5, 50_000), 10_000),
+      oneOffDate: isoAddDays(today, 30),
     },
-    {
-      id: 'one-off-purchase',
+  });
+
+  // Money coming in: enough to stay above the line where the plan dips under
+  // it, or three months of the shortfall where the business spends more than it earns.
+  const floor = settings.lowBalanceThresholdCents ?? 0;
+  const plan = knownBalance ? ledger.project(FORECAST_DAYS) : [];
+  const below = plan.find((d) => d.balance < floor);
+  if (below) {
+    const low = lowest(plan);
+    const date = isoAddDays(below.date, -7);
+    add(90, {
+      id: 'cash-injection',
       rule: {
-        oneOffType: 'EXPENSE',
-        oneOffCents: roundUp(Math.max(sum(incomes) * 0.5, 50_000), 10_000),
-        oneOffDate: isoAddDays(ledger.today, 30),
+        oneOffType: 'INCOME',
+        oneOffCents: roundUp(floor - low.balance, 10_000),
+        oneOffDate: date > today ? date : isoAddDays(today, 1),
       },
-    },
-    { id: 'income-growth', rule: { incomeChangePct: 10 } },
-  );
-  return presets;
+    });
+  } else if (margin < 0 && monthlyExpense > monthlyIncome) {
+    add(35, {
+      id: 'cash-injection',
+      rule: {
+        oneOffType: 'INCOME',
+        oneOffCents: roundUp((monthlyExpense - monthlyIncome) * 3, 10_000),
+        oneOffDate: isoAddDays(today, 14),
+      },
+    });
+  }
+
+  const order = (id: ScenarioPreset['id']) => SCENARIO_PRESET_IDS.indexOf(id);
+  const best = candidates
+    .sort((a, b) => b.score - a.score || order(a.id) - order(b.id))
+    .map(({ id, rule }): ScenarioPreset => ({ id, rule }));
+  return {
+    presets: best.slice(0, LISTED_SCENARIOS),
+    suggested: best.slice(LISTED_SCENARIOS, LISTED_SCENARIOS + SUGGESTED_SCENARIOS),
+  };
 }
 
 export function simulate(ledger: Ledger, rule: ScenarioRule) {

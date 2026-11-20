@@ -181,7 +181,7 @@ export async function getScenarioPresets(
   now = new Date(),
 ): Promise<ScenarioPresetsResponse> {
   const { ledger } = await loadLedger(db, businessId, now);
-  return { presets: scenarioPresets(ledger) };
+  return scenarioPresets(ledger);
 }
 
 export async function runSimulation(
