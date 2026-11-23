@@ -33,10 +33,26 @@ model User {
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 
+  // ── Billing (Stripe). The plan belongs to the account, not to a business.
+  /// Kept in step with Stripe by the billing webhook; FREE without a live subscription.
+  plan                 Plan      @default(FREE)
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  /// Stripe's subscription status (active, past_due, canceled…).
+  subscriptionStatus   String?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  currentPeriodEnd     DateTime? @db.Timestamptz(3)
+
   memberships Membership[]
   sessions    Session[]
   onboarding  OnboardingProgress?
   imports     ImportBatch[]
+}
+
+enum Plan {
+  FREE
+  PRO
+  BUSINESS
 }
 
 /// One signed-in device. The refresh token itself lives only in an httpOnly

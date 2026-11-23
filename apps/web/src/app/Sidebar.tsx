@@ -17,6 +17,7 @@ import type { MembershipRole } from '@montra/shared';
 import { useState } from 'react';
 import { NavLink, useMatch, useNavigate } from 'react-router';
 import { useLogout } from '../api/auth';
+import { useBilling } from '../api/billing';
 import { Logo } from '../components/Logo';
 import { Badge } from '../components/ui/Badge';
 import { IconButton } from '../components/ui/IconButton';
@@ -31,7 +32,6 @@ import {
 import { Tooltip } from '../components/ui/Tooltip';
 import { useSignedInUser } from '../features/auth/currentUser';
 import { plansMessages } from '../features/plans/messages';
-import { CURRENT_PLAN } from '../features/plans/plans';
 import { PlansDialog, PlansDialogTrigger } from '../features/plans/PlansDialog';
 import { LANGUAGE_NAMES, LANGUAGES, useLanguage, useMessages } from '../i18n';
 import { common } from '../i18n/common';
@@ -170,6 +170,7 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
 function UpgradeButton({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const [open, setOpen] = useState(false);
   const m = useMessages(plansMessages);
+  const plan = useBilling().data?.plan;
   // The dialog's own trigger, so focus comes back here when it closes.
   const button = (
     <PlansDialogTrigger
@@ -183,7 +184,7 @@ function UpgradeButton({ collapsed, onNavigate }: { collapsed: boolean; onNaviga
       {!collapsed && (
         <>
           <span className="flex-1 truncate text-left">{m.upgrade}</span>
-          <Badge>{m.names[CURRENT_PLAN]}</Badge>
+          {plan && <Badge>{m.names[plan]}</Badge>}
         </>
       )}
     </PlansDialogTrigger>

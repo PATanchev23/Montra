@@ -1,10 +1,13 @@
-import { Check, Minus } from 'lucide-react';
+import { Check, Minus, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
+import { useBilling } from '../../api/billing';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Panel, PanelHeader } from '../../components/ui/Panel';
 import { useMessages } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { plansMessages } from './messages';
-import { EarlyAccessNote, PlanCards } from './PlanCards';
+import { BillingNote, PlanCards } from './PlanCards';
 import { COMPARISON, PLANS, type Availability } from './plans';
 
 function Cell({ value }: { value: Availability }) {
@@ -26,17 +29,80 @@ function Cell({ value }: { value: Availability }) {
   return <span className="tabular text-ink">{m[value] as string}</span>;
 }
 
+/** How long to wait for Stripe's confirmation before saying it is slow. */
+const CONFIRM_WAIT_MS = 30_000;
+
+/**
+ * Back from Stripe Checkout (`?checkout=success` or `cancelled`). Success is
+ * only claimed once the API has heard from Stripe; until then it says it is
+ * confirming, and after a while that it is taking longer.
+ */
+function CheckoutReturn() {
+  const m = useMessages(plansMessages);
+  const [params, setParams] = useSearchParams();
+  const outcome = params.get('checkout');
+  const [slow, setSlow] = useState(false);
+  const { data: billing } = useBilling({ pollWhileFree: outcome === 'success' && !slow });
+
+  useEffect(() => {
+    if (outcome !== 'success') return;
+    const timer = setTimeout(() => setSlow(true), CONFIRM_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [outcome]);
+
+  if (outcome !== 'success' && outcome !== 'cancelled') return null;
+
+  const done = outcome === 'success' && billing !== undefined && billing.plan !== 'free';
+  const [text, tone] =
+    outcome === 'cancelled'
+      ? [m.checkout.cancelled, 'border-line text-ink-2']
+      : done
+        ? [
+            m.checkout.done(m.names[billing.plan]),
+            'border-transparent bg-positive-soft text-positive',
+          ]
+        : slow
+          ? [m.checkout.slow, 'border-transparent bg-warning-soft text-warning']
+          : [m.checkout.confirming, 'border-line text-ink-2'];
+
+  return (
+    <div
+      role="status"
+      className={cn('flex items-start gap-3 rounded-field border px-4 py-3 text-body-sm', tone)}
+    >
+      <p className="min-w-0 flex-1 font-medium">{text}</p>
+      <button
+        type="button"
+        aria-label={m.dialog.close}
+        onClick={() =>
+          setParams(
+            (current) => {
+              current.delete('checkout');
+              return current;
+            },
+            { replace: true },
+          )
+        }
+        className="-m-1 inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md opacity-70 transition-opacity hover:opacity-100"
+      >
+        <X aria-hidden className="size-4" />
+      </button>
+    </div>
+  );
+}
+
 /**
  * Free, Pro and Business side by side, then every feature in one table.
- * Display only: billing does not exist yet, so the paid plans are marked as
- * coming soon and every feature stays open meanwhile.
+ * Paying, switching and cancelling happen on Stripe's own pages; every
+ * feature stays open on every plan for now.
  */
 export function PlansPage() {
   const m = useMessages(plansMessages);
   return (
     <div className="flex flex-col gap-6 lg:gap-7">
       <PageHeader title={m.title} description={m.description} />
-      <EarlyAccessNote />
+      <CheckoutReturn />
+      <BillingNote />
       <PlanCards />
 
       <Panel className="p-5 sm:p-6" aria-labelledby="compare-title">

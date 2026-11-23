@@ -1,6 +1,7 @@
+import type { PlanId } from '@montra/shared';
 import type { plansMessages } from './messages';
 
-export type PlanId = 'free' | 'pro' | 'business';
+export type { PlanId };
 
 export interface Plan {
   id: PlanId;
@@ -19,12 +20,6 @@ export const PLANS: Plan[] = [
   { id: 'pro', priceCents: 1200, builds: 'free', recommended: true },
   { id: 'business', priceCents: 2900, builds: 'pro' },
 ];
-
-/**
- * There is no billing yet, so every account is on Free and nothing is locked:
- * the plans say what each tier will include, honestly marked as coming soon.
- */
-export const CURRENT_PLAN: PlanId = 'free';
 
 type CompareKey = keyof (typeof plansMessages)['en']['compare'];
 type RowKey = keyof (typeof plansMessages)['en']['compare']['rows'];

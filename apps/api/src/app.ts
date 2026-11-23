@@ -14,9 +14,11 @@ import {
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
 import { randomUUID } from 'node:crypto';
+import Stripe from 'stripe';
 import type { Env } from './config/env';
 import { AppError } from './lib/app-error';
 import { authRoutes } from './modules/auth/routes';
+import { billingRoutes } from './modules/billing/routes';
 import { businessRoutes } from './modules/businesses/routes';
 import { dashboardRoutes } from './modules/dashboard/routes';
 import { financeRoutes } from './modules/finance/routes';
@@ -57,8 +59,20 @@ function loggerOptions(env: Env): FastifyServerOptions['logger'] {
   return { level: env.LOG_LEVEL, redact: REDACT };
 }
 
+export interface AppDependencies {
+  /** Replaces the Stripe client made from STRIPE_SECRET_KEY (tests pass one with stubbed calls). */
+  stripe?: Stripe | null;
+}
+
 /** Builds a fully configured app without listening, so tests can drive it via `app.inject`. */
-export async function buildApp(env: Env) {
+export async function buildApp(env: Env, dependencies: AppDependencies = {}) {
+  const stripe =
+    dependencies.stripe !== undefined
+      ? dependencies.stripe
+      : env.STRIPE_SECRET_KEY
+        ? new Stripe(env.STRIPE_SECRET_KEY, { appInfo: { name: 'Montra', version: VERSION } })
+        : null;
+
   const app = Fastify({
     logger: loggerOptions(env),
     genReqId: (request) => {
@@ -129,6 +143,17 @@ export async function buildApp(env: Env) {
   });
   await app.register(financeRoutes, { prefix: `${API_PREFIX}/businesses/:businessId` });
   await app.register(importTemplateRoutes, { prefix: `${API_PREFIX}/imports` });
+  await app.register(billingRoutes, {
+    prefix: `${API_PREFIX}/billing`,
+    billing: {
+      stripe,
+      webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+      products: { pro: env.STRIPE_PRODUCT_PRO, business: env.STRIPE_PRODUCT_BUSINESS },
+      webAppUrl: env.WEB_APP_URL.replace(/\/+$/, ''),
+      // Only a production server may hold a live key (see config/env.ts).
+      testMode: !env.STRIPE_SECRET_KEY?.includes('_live_'),
+    },
+  });
 
   return app;
 }

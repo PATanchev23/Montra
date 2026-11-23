@@ -327,7 +327,8 @@ describe('write surface of the API', () => {
   afterAll(() => app.close());
 
   /*
-   * Account and onboarding writes act only on the caller. Every write under
+   * Account, onboarding and billing writes act only on the caller (the billing
+   * webhook only on an event signed by Stripe). Every write under
    * /businesses/{businessId} must be OWNER-only: the test below calls each of
    * them as the demo viewer. A new write route must be added here.
    */
@@ -342,6 +343,9 @@ describe('write surface of the API', () => {
       'POST /api/v1/auth/logout',
       'POST /api/v1/auth/refresh',
       'POST /api/v1/auth/register',
+      'POST /api/v1/billing/checkout',
+      'POST /api/v1/billing/portal',
+      'POST /api/v1/billing/webhook',
       'POST /api/v1/businesses/{businessId}/imports',
       'POST /api/v1/businesses/{businessId}/imports/{importId}/confirm',
       'POST /api/v1/businesses/{businessId}/transactions',

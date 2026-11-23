@@ -24,6 +24,13 @@ const SERVER_MESSAGES = [
   'Something went wrong on our side.',
   'Too many attempts. Try again in 1 minute.',
   'Too many attempts. Try again in 15 minutes.',
+  // apps/api: billing
+  'Billing is not set up yet.',
+  'Only business owners can choose a paid plan.',
+  'You already have a subscription. Change or cancel it in Manage billing.',
+  'There is no billing to manage yet.',
+  'This plan is not available to buy yet.',
+  'The payment provider could not be reached. Try again in a moment.',
   // apps/web: the API client
   'Could not reach the Montra API.',
   'The API returned an unexpected response.',

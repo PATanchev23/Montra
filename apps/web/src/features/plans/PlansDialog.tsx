@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 import { Button } from '../../components/ui/Button';
 import { useMessages } from '../../i18n';
 import { plansMessages } from './messages';
-import { EarlyAccessNote, PlanCards } from './PlanCards';
+import { BillingNote, PlanCards } from './PlanCards';
 
 /** Marks the control that opens the plans dialog (use with `asChild`). */
 export const PlansDialogTrigger = Dialog.Trigger;
@@ -53,7 +53,7 @@ export function PlansDialog({
             </Dialog.Close>
           </div>
           <div className="overflow-y-auto px-5 pb-5 sm:px-6 sm:pb-6">
-            <EarlyAccessNote className="mt-4" />
+            <BillingNote className="mt-4" />
             <PlanCards headingLevel="h3" className="mt-4" />
             <div className="mt-5 flex justify-center">
               <Button asChild variant="ghost">

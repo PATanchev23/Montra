@@ -28,6 +28,17 @@ const EXACT: Record<string, string> = {
     'Само собственикът на бизнеса може да прави промени.',
   'The request is invalid.': 'Заявката е невалидна.',
 
+  // Billing
+  'Billing is not set up yet.': 'Плащанията все още не са настроени.',
+  'Only business owners can choose a paid plan.':
+    'Само собствениците на бизнес могат да изберат платен план.',
+  'You already have a subscription. Change or cancel it in Manage billing.':
+    'Вече имате абонамент. Променете или прекратете го от „Управление на плащанията“.',
+  'There is no billing to manage yet.': 'Все още няма плащания за управление.',
+  'This plan is not available to buy yet.': 'Този план все още не може да бъде закупен.',
+  'The payment provider could not be reached. Try again in a moment.':
+    'Няма връзка с доставчика на плащания. Опитайте отново след малко.',
+
   // Client-side failures (api/client.ts)
   'Could not reach the Montra API.': 'Няма връзка със сървъра на Montra.',
   'The API returned an unexpected response.': 'Сървърът върна неочакван отговор.',

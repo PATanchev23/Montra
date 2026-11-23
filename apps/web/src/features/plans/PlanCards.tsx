@@ -1,34 +1,148 @@
-import { Check, Info } from 'lucide-react';
-import { useId } from 'react';
+import type { BillingResponse } from '@montra/shared';
+import { Check, Info, Settings2 } from 'lucide-react';
+import { useId, type ReactNode } from 'react';
+import { errorMessage } from '../../api/client';
+import { useBilling, useOpenBillingPortal, useStartCheckout } from '../../api/billing';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { Skeleton } from '../../components/ui/States';
 import { useMessages } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { money } from '../../lib/format';
 import { plansMessages } from './messages';
-import { CURRENT_PLAN, PLAN_CURRENCY, PLANS, type Plan } from './plans';
+import { PLAN_CURRENCY, PLANS, type Plan } from './plans';
+import { subscriptionLine } from './subscription';
 
-/** Says plainly that nothing is charged yet and every feature is open meanwhile. */
-export function EarlyAccessNote({ className }: { className?: string }) {
+/**
+ * What the plans mean right now: before Stripe is set up, that nothing is
+ * charged; after, that every feature is still open (and, in test mode, that
+ * no real money moves). Subscribers get Manage billing here.
+ */
+export function BillingNote({ className }: { className?: string }) {
   const m = useMessages(plansMessages);
+  const { data: billing } = useBilling();
+  const portal = useOpenBillingPortal();
+  if (!billing) return null;
+
+  const text = !billing.configured
+    ? m.earlyAccess
+    : [m.openForNow, billing.testMode && m.testMode, !billing.canSubscribe && m.ownersOnly]
+        .filter(Boolean)
+        .join(' ');
+
   return (
-    <p
+    <div
       className={cn(
-        'flex items-start gap-2.5 rounded-field border border-line px-4 py-3 text-body-sm text-ink-2',
+        'flex flex-wrap items-center gap-x-4 gap-y-3 rounded-field border border-line px-4 py-3',
         className,
       )}
     >
-      <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-muted" strokeWidth={1.75} />
-      {m.earlyAccess}
-    </p>
+      <p className="flex min-w-0 flex-1 basis-80 items-start gap-2.5 text-body-sm text-ink-2">
+        <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-muted" strokeWidth={1.75} />
+        {text}
+      </p>
+      {billing.canManage && (
+        <Button size="sm" disabled={portal.isPending} onClick={() => portal.mutate()}>
+          <Settings2 />
+          {portal.isPending ? m.opening : m.manage}
+        </Button>
+      )}
+      {portal.isError && (
+        <p role="alert" className="w-full text-body-sm text-negative">
+          {errorMessage(portal.error)}
+        </p>
+      )}
+    </div>
   );
 }
 
-function PlanCard({ plan, headingLevel }: { plan: Plan; headingLevel: 'h2' | 'h3' }) {
+function PlanAction({
+  plan,
+  billing,
+  checkout,
+  portal,
+}: {
+  plan: Plan;
+  billing: BillingResponse | undefined;
+  checkout: ReturnType<typeof useStartCheckout>;
+  portal: ReturnType<typeof useOpenBillingPortal>;
+}) {
+  const m = useMessages(plansMessages);
+  if (!billing) return <Skeleton className="mt-5 h-11 w-full rounded-control" />;
+
+  if (plan.id === billing.plan) {
+    const line = subscriptionLine(billing, m);
+    return (
+      <>
+        <p className="mt-5 flex h-11 items-center justify-center gap-2 rounded-control bg-hover text-body font-medium text-ink-2">
+          <Check aria-hidden className="size-4" strokeWidth={2.25} />
+          {m.current}
+        </p>
+        {line && (
+          <p
+            className={cn(
+              'tabular mt-2 text-center text-caption',
+              line.warning ? 'text-warning' : 'text-muted',
+            )}
+          >
+            {line.text}
+          </p>
+        )}
+      </>
+    );
+  }
+
+  // Before Stripe is set up, the paid plans are honestly not on sale.
+  if (!billing.configured) {
+    return (
+      <Button size="lg" disabled className="mt-5 w-full">
+        {m.comingSoon}
+      </Button>
+    );
+  }
+
+  // A subscriber changes plan (or goes back to Free) in Stripe's portal.
+  if (billing.plan !== 'free') {
+    return (
+      <Button
+        size="lg"
+        className="mt-5 w-full"
+        disabled={!billing.canManage || portal.isPending}
+        onClick={() => portal.mutate()}
+      >
+        {portal.isPending ? m.opening : m.changePlan}
+      </Button>
+    );
+  }
+
+  const paid = plan.id === 'free' ? null : plan.id;
+  if (!paid) return null;
+  const opening = checkout.isPending && checkout.variables === paid;
+  return (
+    <Button
+      size="lg"
+      // One ink action in the group: the recommended plan's.
+      variant={plan.recommended ? 'primary' : 'secondary'}
+      className="mt-5 w-full"
+      disabled={!billing.canSubscribe || checkout.isPending}
+      onClick={() => checkout.mutate(paid)}
+    >
+      {opening ? m.opening : m.upgradeTo(m.names[paid])}
+    </Button>
+  );
+}
+
+function PlanCard({
+  plan,
+  headingLevel,
+  action,
+}: {
+  plan: Plan;
+  headingLevel: 'h2' | 'h3';
+  action: ReactNode;
+}) {
   const m = useMessages(plansMessages);
   const Heading = headingLevel;
-  const name = m.names[plan.id];
-  const current = plan.id === CURRENT_PLAN;
   // Unique even with the dialog open over the Plans page.
   const titleId = `${useId()}-title`;
 
@@ -43,7 +157,7 @@ function PlanCard({ plan, headingLevel }: { plan: Plan; headingLevel: 'h2' | 'h3
     >
       <div className="flex min-h-[22px] items-center justify-between gap-3">
         <Heading id={titleId} className="text-title text-ink">
-          {name}
+          {m.names[plan.id]}
         </Heading>
         {plan.recommended && <Badge>{m.recommended}</Badge>}
       </div>
@@ -56,17 +170,7 @@ function PlanCard({ plan, headingLevel }: { plan: Plan; headingLevel: 'h2' | 'h3
         <span className="text-body-sm text-muted">{m.perMonth}</span>
       </p>
 
-      {current ? (
-        <p className="mt-5 flex h-11 items-center justify-center gap-2 rounded-control bg-hover text-body font-medium text-ink-2">
-          <Check aria-hidden className="size-4" strokeWidth={2.25} />
-          {m.current}
-        </p>
-      ) : (
-        // Not on sale yet: a quiet disabled button (a dimmed ink one reads as broken).
-        <Button size="lg" disabled className="mt-5 w-full">
-          {m.comingSoon}
-        </Button>
-      )}
+      {action}
 
       <div className="mt-6 border-t border-line pt-5">
         {plan.builds && (
@@ -97,13 +201,31 @@ export function PlanCards({
   className?: string;
 }) {
   const m = useMessages(plansMessages);
+  const { data: billing } = useBilling();
+  const checkout = useStartCheckout();
+  const portal = useOpenBillingPortal();
+  const failed = checkout.error ?? portal.error;
+
   return (
-    <ul aria-label={m.title} className={cn('grid gap-4 sm:gap-6 md:grid-cols-3', className)}>
-      {PLANS.map((plan) => (
-        <li key={plan.id} className="min-w-0">
-          <PlanCard plan={plan} headingLevel={headingLevel} />
-        </li>
-      ))}
-    </ul>
+    <div className={className}>
+      <ul aria-label={m.title} className="grid gap-4 sm:gap-6 md:grid-cols-3">
+        {PLANS.map((plan) => (
+          <li key={plan.id} className="min-w-0">
+            <PlanCard
+              plan={plan}
+              headingLevel={headingLevel}
+              action={
+                <PlanAction plan={plan} billing={billing} checkout={checkout} portal={portal} />
+              }
+            />
+          </li>
+        ))}
+      </ul>
+      {failed && (
+        <p role="alert" className="mt-4 text-center text-body-sm text-negative">
+          {errorMessage(failed)}
+        </p>
+      )}
+    </div>
   );
 }

@@ -54,6 +54,25 @@ describe('loadEnv', () => {
     });
   });
 
+  describe('Stripe', () => {
+    it('is off without a secret key', () => {
+      expect(loadEnv(base).STRIPE_SECRET_KEY).toBeUndefined();
+      expect(loadEnv({ ...base, STRIPE_SECRET_KEY: '' }).STRIPE_SECRET_KEY).toBeUndefined();
+    });
+
+    it('takes test keys anywhere and live keys only in production', () => {
+      expect(loadEnv({ ...base, STRIPE_SECRET_KEY: 'sk_test_abc' }).STRIPE_SECRET_KEY).toBe(
+        'sk_test_abc',
+      );
+      expect(() => loadEnv({ ...base, STRIPE_SECRET_KEY: 'sk_live_abc' })).toThrow(
+        /live key[\s\S]*STRIPE_SECRET_KEY/,
+      );
+      expect(() => loadEnv({ ...base, STRIPE_SECRET_KEY: 'pk_test_abc' })).toThrow(
+        /STRIPE_SECRET_KEY/,
+      );
+    });
+  });
+
   it('fails fast with a readable message when required config is missing', () => {
     expect(() => loadEnv({})).toThrow(/DATABASE_URL/);
     expect(() => loadEnv({ ...base, PORT: 'abc' })).toThrow(/PORT/);

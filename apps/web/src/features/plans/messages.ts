@@ -13,9 +13,26 @@ export const plansMessages = defineMessages(
       pro: 'For owners who plan ahead.',
       business: 'For more than one store, or a team.',
     },
+    openForNow: 'For now, every feature is open on every plan.',
+    testMode:
+      'Payments run in Stripe’s test mode, so no real money moves: pay with the card 4242 4242 4242 4242.',
     recommended: 'Recommended',
     current: 'Current plan',
     comingSoon: 'Coming soon',
+    upgradeTo: (plan: string) => `Upgrade to ${plan}`,
+    manage: 'Manage billing',
+    changePlan: 'Change plan',
+    opening: 'Opening Stripe…',
+    ownersOnly: 'Only business owners can change the plan.',
+    renews: (date: string) => `Renews on ${date}`,
+    ends: (date: string) => `Ends on ${date}`,
+    pastDue: 'Your last payment failed. Update your card in Manage billing.',
+    checkout: {
+      confirming: 'Thanks! Confirming your payment with Stripe…',
+      done: (plan: string) => `You’re on ${plan}. Thank you!`,
+      slow: 'Stripe hasn’t confirmed the payment yet. Refresh in a minute; you won’t be charged twice.',
+      cancelled: 'Checkout was cancelled. You haven’t been charged.',
+    },
     everythingIn: (plan: string) => `Everything in ${plan}, plus:`,
     highlights: {
       free: [
@@ -75,9 +92,27 @@ export const plansMessages = defineMessages(
       pro: 'За собственици, които планират напред.',
       business: 'За повече от един магазин или за екип.',
     },
+    openForNow: 'Засега всяка функция е отворена във всеки план.',
+    testMode:
+      'Плащанията са в тестовия режим на Stripe и не се движат истински пари: платете с карта 4242 4242 4242 4242.',
     recommended: 'Препоръчан',
     current: 'Текущ план',
     comingSoon: 'Очаквайте скоро',
+    upgradeTo: (plan: string) => `Преминете към ${plan}`,
+    manage: 'Управление на плащанията',
+    changePlan: 'Смяна на плана',
+    opening: 'Отваряне на Stripe…',
+    ownersOnly: 'Само собствениците на бизнес могат да сменят плана.',
+    renews: (date: string) => `Подновява се на ${date}`,
+    ends: (date: string) => `Изтича на ${date}`,
+    pastDue:
+      'Последното плащане не беше успешно. Обновете картата си от „Управление на плащанията“.',
+    checkout: {
+      confirming: 'Благодарим! Потвърждаваме плащането ви със Stripe…',
+      done: (plan: string) => `Вече сте на план ${plan}. Благодарим ви!`,
+      slow: 'Stripe все още не е потвърдил плащането. Обновете страницата след минута; няма да бъдете таксувани два пъти.',
+      cancelled: 'Плащането беше отказано. Не сте таксувани.',
+    },
     everythingIn: (plan: string) => `Всичко от ${plan}, плюс:`,
     highlights: {
       free: [

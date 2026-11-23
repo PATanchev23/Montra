@@ -2,12 +2,14 @@ import { ArrowUpRight, Check, Monitor, Moon, Sun, Trash2 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 import { useBusinessProfile } from '../../api/business';
+import { useBilling } from '../../api/billing';
 import { useHealth } from '../../api/health';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Field, Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Panel, PanelHeader } from '../../components/ui/Panel';
+import { Skeleton } from '../../components/ui/States';
 import { StatusDot } from '../../components/ui/StatusDot';
 import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
@@ -21,7 +23,7 @@ import {
   useDesktopPermission,
 } from '../notifications/desktop';
 import { plansMessages } from '../plans/messages';
-import { CURRENT_PLAN } from '../plans/plans';
+import { subscriptionLine } from '../plans/subscription';
 import { deriveStatus } from '../status/deriveStatus';
 import { DeleteAccountDialog } from './DeleteAccountDialog';
 import { settingsMessages } from './messages';
@@ -152,6 +154,8 @@ export function SettingsPage() {
   const membership = memberships[0];
   const m = useMessages(settingsMessages);
   const plans = useMessages(plansMessages);
+  const billing = useBilling().data;
+  const planLine = billing && subscriptionLine(billing, plans);
   const profile = useBusinessProfile(membership?.business.id ?? '').data?.business;
   const [deleting, setDeleting] = useState(false);
   const ownedBusinesses = memberships
@@ -251,13 +255,27 @@ export function SettingsPage() {
 
           <Section id="plan" title={m.sections.plan} description={m.plan.description}>
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="flex items-center gap-2 font-medium text-ink">
-                  {plans.names[CURRENT_PLAN]}
-                  <Badge>{plans.current}</Badge>
-                </p>
-                <p className="mt-1 max-w-md text-[13px] text-muted">{plans.earlyAccess}</p>
-              </div>
+              {billing ? (
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 font-medium text-ink">
+                    {plans.names[billing.plan]}
+                    <Badge>{plans.current}</Badge>
+                  </p>
+                  <p
+                    className={cn(
+                      'mt-1 max-w-md text-[13px]',
+                      planLine?.warning ? 'text-warning' : 'text-muted',
+                    )}
+                  >
+                    {planLine?.text ?? (billing.configured ? plans.openForNow : plans.earlyAccess)}
+                  </p>
+                </div>
+              ) : (
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3.5 w-64" />
+                </div>
+              )}
               <Button asChild>
                 <Link to="/plans">
                   {m.plan.open}

@@ -37,6 +37,37 @@ const envSchema = z
     /** The judges' shared demo accounts, also read by the seed. They cannot be deleted. */
     DEMO_OWNER_EMAIL: z.string().optional(),
     DEMO_VIEWER_EMAIL: z.string().optional(),
+    /**
+     * Stripe billing. Without a secret key the billing routes say billing is not
+     * set up and the web app shows the paid plans as coming soon.
+     */
+    STRIPE_SECRET_KEY: z
+      .string()
+      .optional()
+      .transform((value) => value || undefined)
+      .refine((value) => value === undefined || /^(sk|rk)_(test|live)_/.test(value), {
+        message: 'must be a Stripe secret or restricted key (sk_test_… or rk_test_…)',
+      }),
+    /** Signs the events Stripe sends to /billing/webhook (whsec_…). */
+    STRIPE_WEBHOOK_SECRET: z
+      .string()
+      .optional()
+      .transform((value) => value || undefined),
+    /** The Stripe products behind the paid plans; each needs a monthly default price. */
+    STRIPE_PRODUCT_PRO: z.string().default(''),
+    STRIPE_PRODUCT_BUSINESS: z.string().default(''),
+    /** Where the web app runs, for Stripe's return links after checkout and the portal. */
+    WEB_APP_URL: z.url().default('http://localhost:5173'),
+  })
+  .superRefine((env, ctx) => {
+    // Real charges only from a production server: anywhere else, test keys only.
+    if (env.NODE_ENV !== 'production' && env.STRIPE_SECRET_KEY?.includes('_live_')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['STRIPE_SECRET_KEY'],
+        message: 'is a live key; outside production use a test key (sk_test_…)',
+      });
+    }
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
