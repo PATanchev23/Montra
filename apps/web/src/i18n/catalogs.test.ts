@@ -12,7 +12,10 @@ const modules = import.meta.glob<Record<string, unknown>>(
 );
 
 /** Bulgarian text that is rightly the same as the English (names, codes, numbers). */
-const SAME_IN_BOTH = new Set<string>([]);
+const SAME_IN_BOTH = new Set<string>([
+  // The Pro plan keeps its product name in Bulgarian.
+  'Pro',
+]);
 
 type Catalog = { en: unknown; bg: unknown };
 const isCatalog = (value: unknown): value is Catalog =>
@@ -48,7 +51,7 @@ const catalogs = Object.entries(modules).flatMap(([file, exports]) =>
 
 describe('message catalogues', () => {
   it('finds every catalogue', () => {
-    expect(catalogs.length).toBe(14);
+    expect(catalogs.length).toBe(15);
   });
 
   it.each(catalogs.map((c) => [c.name, c] as const))('%s is translated', (_, catalog) => {

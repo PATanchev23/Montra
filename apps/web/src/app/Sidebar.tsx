@@ -10,12 +10,15 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  Sparkles,
   Sun,
 } from 'lucide-react';
 import type { MembershipRole } from '@montra/shared';
+import { useState } from 'react';
 import { NavLink, useMatch, useNavigate } from 'react-router';
 import { useLogout } from '../api/auth';
 import { Logo } from '../components/Logo';
+import { Badge } from '../components/ui/Badge';
 import { IconButton } from '../components/ui/IconButton';
 import {
   Menu,
@@ -27,6 +30,9 @@ import {
 } from '../components/ui/Menu';
 import { Tooltip } from '../components/ui/Tooltip';
 import { useSignedInUser } from '../features/auth/currentUser';
+import { plansMessages } from '../features/plans/messages';
+import { CURRENT_PLAN } from '../features/plans/plans';
+import { PlansDialog, PlansDialogTrigger } from '../features/plans/PlansDialog';
 import { LANGUAGE_NAMES, LANGUAGES, useLanguage, useMessages } from '../i18n';
 import { common } from '../i18n/common';
 import { cn } from '../lib/cn';
@@ -93,6 +99,7 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
   const language = useLanguage();
   const setLanguage = useUiStore((s) => s.setLanguage);
   const m = useMessages(common);
+  const plans = useMessages(plansMessages);
   const { user } = useSignedInUser();
   const logout = useLogout();
 
@@ -141,6 +148,10 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
           <Settings />
           {m.nav.settings}
         </MenuItem>
+        <MenuItem onSelect={() => navigate('/plans')}>
+          <Sparkles />
+          {plans.title}
+        </MenuItem>
         <MenuItem onSelect={() => navigate('/status')}>
           <Activity />
           {m.nav.status}
@@ -152,6 +163,41 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
         </MenuItem>
       </MenuContent>
     </Menu>
+  );
+}
+
+/** Upgrade, with the plan the account is on; opens the plans dialog. */
+function UpgradeButton({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
+  const [open, setOpen] = useState(false);
+  const m = useMessages(plansMessages);
+  // The dialog's own trigger, so focus comes back here when it closes.
+  const button = (
+    <PlansDialogTrigger
+      aria-label={collapsed ? m.upgrade : undefined}
+      className={cn(
+        'flex h-11 w-full cursor-pointer items-center gap-3.5 rounded-control text-body text-ink-2 transition-colors duration-150 hover:bg-hover hover:text-ink',
+        collapsed ? 'justify-center px-0' : 'px-3.5',
+      )}
+    >
+      <Sparkles aria-hidden className="size-[18px] shrink-0" strokeWidth={1.75} />
+      {!collapsed && (
+        <>
+          <span className="flex-1 truncate text-left">{m.upgrade}</span>
+          <Badge>{m.names[CURRENT_PLAN]}</Badge>
+        </>
+      )}
+    </PlansDialogTrigger>
+  );
+  return (
+    <PlansDialog open={open} onOpenChange={setOpen} onNavigate={onNavigate}>
+      {collapsed ? (
+        <Tooltip content={m.upgrade} side="right">
+          {button}
+        </Tooltip>
+      ) : (
+        button
+      )}
+    </PlansDialog>
   );
 }
 
@@ -211,6 +257,7 @@ export function Sidebar({
       </nav>
 
       <div className="mt-auto flex flex-col gap-3 pt-6">
+        <UpgradeButton collapsed={collapsed} onNavigate={onNavigate} />
         {!collapsed && membership && (
           <NavLink
             to="/settings#business"

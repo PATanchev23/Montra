@@ -5,6 +5,7 @@ export const settingsMessages = defineMessages(
     sections: {
       profile: 'Profile',
       business: 'Business',
+      plan: 'Plan',
       appearance: 'Appearance',
       language: 'Language',
       notifications: 'Notifications',
@@ -35,6 +36,10 @@ export const settingsMessages = defineMessages(
       currencyHint: 'Bulgaria uses the euro since 1 January 2026.',
       euro: 'Euro (€)',
       timeZone: 'Time zone',
+    },
+    plan: {
+      description: 'What your account includes.',
+      open: 'See plans',
     },
     appearance: {
       description: 'Dark is Montra’s signature theme; light suits bright rooms and printing.',
@@ -103,6 +108,7 @@ export const settingsMessages = defineMessages(
     sections: {
       profile: 'Профил',
       business: 'Бизнес',
+      plan: 'План',
       appearance: 'Външен вид',
       language: 'Език',
       notifications: 'Известия',
@@ -133,6 +139,10 @@ export const settingsMessages = defineMessages(
       currencyHint: 'България използва еврото от 1 януари 2026 г.',
       euro: 'Евро (€)',
       timeZone: 'Часова зона',
+    },
+    plan: {
+      description: 'Какво включва вашият профил.',
+      open: 'Вижте плановете',
     },
     appearance: {
       description:

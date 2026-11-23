@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '../../lib/cn';
 
 /**
  * A page's title, its one-line context and its actions. `eyebrow` is kept
@@ -10,11 +11,14 @@ export function PageHeader({
   title,
   description,
   actions,
+  actionsClassName,
 }: {
   eyebrow?: string;
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
+  /** For actions that span the width on phones: the wrapper must span it too. */
+  actionsClassName?: string;
 }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
@@ -25,7 +29,9 @@ export function PageHeader({
         </h1>
         {description && <p className="mt-1.5 text-body-lg text-ink-2">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className={cn('flex flex-wrap items-center gap-2', actionsClassName)}>{actions}</div>
+      )}
     </header>
   );
 }

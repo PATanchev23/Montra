@@ -57,8 +57,10 @@ const toneStroke = { primary: 'stroke-chart-1', secondary: 'stroke-chart-2' } as
 
 const TOP = 8;
 const BOTTOM = 32;
-/** Room kept under a scrolling plot for its scrollbar and the note that says it scrolls. */
-const SCROLLBAR = 24;
+/** The note under a scrolling plot that says it scrolls (one 16px caption line). */
+const SCROLL_NOTE = 16;
+/** Room kept under a scrolling plot: its scrollbar (classic ones run up to 14px), then the note. */
+const SCROLLBAR = SCROLL_NOTE + 14;
 const TOOLTIP_WIDTH = 208;
 /** Approximate width of one character of a 12px axis label. */
 const CHAR = 6.6;
@@ -274,11 +276,12 @@ export function CapsuleBarChart({
             }}
             onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
             className={cn(
-              'absolute top-0 right-0 bottom-0 cursor-pointer touch-pan-x touch-pan-y overflow-y-hidden rounded-control',
+              'absolute top-0 right-0 cursor-pointer touch-pan-x touch-pan-y overflow-y-hidden rounded-control',
               scrolls ? 'overflow-x-auto' : 'overflow-x-hidden',
               keyFocus ? 'outline-2 outline-offset-2 outline-accent' : 'outline-none',
             )}
-            style={{ left }}
+            // The scrollbar sits under the plot, clear of the note beneath it.
+            style={{ left, bottom: scrolls ? SCROLL_NOTE : 0 }}
           >
             <svg width={contentWidth} height={height} aria-hidden className="block">
               <defs>

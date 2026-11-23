@@ -90,6 +90,7 @@ export function DashboardPage() {
             <>{m.header.doing(business.name)}</>
           )
         }
+        actionsClassName="w-full sm:w-auto"
         actions={
           <div className="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto">
             {noData && canEdit && (

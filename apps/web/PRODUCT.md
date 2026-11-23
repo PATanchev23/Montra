@@ -33,12 +33,13 @@ Three things together, which a generic bookkeeping or expense tracker cannot tru
 - New accounts go through onboarding (business details → financial preferences → review). Each step saves to the API, so setup resumes on any device; the app opens only once the business exists.
 - Owners bring existing data in through a three-step import: upload (`.csv` / `.xlsx`, ≤ 5 MB, ≤ 5,000 rows) → map columns → confirm. The uploaded file itself is never stored; parsed cells expire after 24 hours.
 - Owners export transactions and reports as CSV and print reports.
-- Main areas: Dashboard, Transactions, Budgets, Cash Flow, Simulations, Reports, plus Settings and System status.
+- Main areas: Dashboard, Transactions, Budgets, Cash Flow, Simulations, Reports, plus Settings, Plans and System status.
 
 ## Capabilities and Constraints
 
 - **Live on the REST API:** auth (short-lived access token + rotating HttpOnly refresh cookie), onboarding, businesses, transactions (CRUD, filter, sort, paginate), imports, dashboard summary.
 - **Still on sample data** (marked in the UI with a **Sample data** label): cash flow, budgets, simulations, reports, notifications, and the dashboard's Upcoming payments and Scenario preview panels, which say which date the sample is anchored to. Moving them to the API changes only the query functions. Building custom simulation scenarios is not available yet.
+- **Plans (display only):** Free (€0), Pro (€12 / month, marked Recommended) and Business (€29 / month), priced in EUR. Free: one business, dashboard and transactions, budgets, import up to 500 rows a month. Pro adds the 90-day forecast, simulations, reports and CSV export, unlimited import and desktop notifications. Business adds up to 5 businesses, read-only viewer accounts and priority support. Shown on the Plans page (`/plans`, with a feature comparison) and in a pop-up from **Upgrade** in the sidebar; linked from the account menu and Settings. **There is no billing:** every account is on Free, nothing is locked or charged, and the paid plans read "Coming soon" under an early-access note that says so. Plan data lives in `src/features/plans/plans.ts`, wording in its `messages.ts`.
 - Money is integer cents everywhere. Default currency **EUR** (Bulgaria joined the euro in 2026); also USD, GBP, CHF, CZK, DKK, HUF, NOK, PLN, RON, SEK. Default time zone Europe/Sofia.
 - Transactions have a positive amount and a type (`INCOME` / `EXPENSE`) that gives direction. Only OWNERs can change data; every surface must work read-only for VIEWERs.
 - **Language: bilingual English and Bulgarian is required for the tournament.** The whole interface ships in both. Bulgarian is the default for a browser that asks for it first, English otherwise; the choice is saved and can be changed on the sign-in pages, in the account menu and in Settings. Dates, numbers and currency follow the language (`1 234,56 €`, `17 ное 2026`). Text lives in typed `messages.ts` catalogues beside each feature (`src/i18n` holds the shared ones and the translations of API messages); a Bulgarian entry missing or left in English fails the build or the tests. Users' own data (descriptions, categories) is never translated. All copy and layout must keep allowing both languages, including Bulgarian strings 20–30% longer than English.
@@ -56,7 +57,8 @@ Three things together, which a generic bookkeeping or expense tracker cannot tru
 - Deterministic TechStore sample dataset in `src/demo`.
 - Visual reference: `design/9322b23f-e28d-4928-ad73-5e40a42c9bbd.png` (repo root), the monochrome direction. `design/montra-dashboard-reference.png` is the earlier dark direction it replaced, kept for history only.
 - Import template served at `/api/v1/imports/template?format=xlsx|csv`.
-- **No** real customers, testimonials, usage metrics, pricing or press exist. Do not invent them.
+- Pricing: the three plans above, set by the user on 23 November 2026. Change prices or tiers only on the user's word.
+- **No** real customers, testimonials, usage metrics or press exist. Do not invent them, nor claims built on them (no "most popular" or subscriber counts; Pro is "Recommended").
 
 ## Product Principles
 

@@ -20,6 +20,8 @@ import {
   showDesktop,
   useDesktopPermission,
 } from '../notifications/desktop';
+import { plansMessages } from '../plans/messages';
+import { CURRENT_PLAN } from '../plans/plans';
 import { deriveStatus } from '../status/deriveStatus';
 import { DeleteAccountDialog } from './DeleteAccountDialog';
 import { settingsMessages } from './messages';
@@ -27,6 +29,7 @@ import { settingsMessages } from './messages';
 const SECTIONS = [
   'profile',
   'business',
+  'plan',
   'appearance',
   'language',
   'notifications',
@@ -148,6 +151,7 @@ export function SettingsPage() {
   const { user, memberships } = useSignedInUser();
   const membership = memberships[0];
   const m = useMessages(settingsMessages);
+  const plans = useMessages(plansMessages);
   const profile = useBusinessProfile(membership?.business.id ?? '').data?.business;
   const [deleting, setDeleting] = useState(false);
   const ownedBusinesses = memberships
@@ -242,6 +246,24 @@ export function SettingsPage() {
               <Field label={m.business.timeZone} htmlFor="timezone">
                 <Input id="timezone" readOnly defaultValue={profile?.timezone ?? ''} />
               </Field>
+            </div>
+          </Section>
+
+          <Section id="plan" title={m.sections.plan} description={m.plan.description}>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 font-medium text-ink">
+                  {plans.names[CURRENT_PLAN]}
+                  <Badge>{plans.current}</Badge>
+                </p>
+                <p className="mt-1 max-w-md text-[13px] text-muted">{plans.earlyAccess}</p>
+              </div>
+              <Button asChild>
+                <Link to="/plans">
+                  {m.plan.open}
+                  <ArrowUpRight />
+                </Link>
+              </Button>
             </div>
           </Section>
 

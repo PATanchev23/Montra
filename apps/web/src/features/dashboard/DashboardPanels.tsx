@@ -85,6 +85,8 @@ export function ExpenseBreakdownPanel({
     <Panel className="@container p-5 sm:p-6" aria-labelledby="breakdown-title">
       <PanelHeader
         id="breakdown-title"
+        // Title at the top, as in the overview beside it, with the period on its baseline.
+        className="items-baseline"
         title={m.breakdown}
         actions={periodLabel && <span className="text-body-sm text-muted">{periodLabel}</span>}
       />
@@ -367,9 +369,14 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
       ) : (
         <>
           <p className="mt-4 text-body-sm text-ink-2">{text.description}</p>
-          <div className="mt-4 grid grid-cols-2 divide-x divide-line rounded-field bg-sunken">
-            <div className="min-w-0 p-4" role="group" aria-label={m.currentPlan}>
-              <p className="min-h-10 text-body-sm text-ink-2">{m.currentPlan}</p>
+          {/* The two sides share rows, so their figures line up however their labels wrap. */}
+          <div className="mt-4 grid grid-cols-2 grid-rows-[repeat(4,auto)] divide-x divide-line rounded-field bg-sunken">
+            <div
+              className="row-span-4 grid min-w-0 grid-rows-subgrid p-4"
+              role="group"
+              aria-label={m.currentPlan}
+            >
+              <p className="text-body-sm text-ink-2">{m.currentPlan}</p>
               <p className="tabular mt-1 text-figure-sm text-ink">
                 {fmt(preview.baselineEndCents)}
               </p>
@@ -382,8 +389,12 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
                 className="mt-3 h-9 w-full"
               />
             </div>
-            <div className="min-w-0 p-4" role="group" aria-label={text.name}>
-              <p className="line-clamp-2 min-h-10 text-body-sm text-ink-2" title={text.name}>
+            <div
+              className="row-span-4 grid min-w-0 grid-rows-subgrid p-4"
+              role="group"
+              aria-label={text.name}
+            >
+              <p className="line-clamp-2 text-body-sm text-ink-2" title={text.name}>
                 {text.name}
               </p>
               <p className="tabular mt-1 text-figure-sm text-ink">
@@ -410,13 +421,18 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
               />
             </div>
           </div>
-          <ul aria-label={m.assumptions} className="mt-3 mb-5 divide-y divide-line">
-            {text.assumptions.map((assumption) => (
-              <li key={assumption} className="py-2.5 text-body-sm text-ink-2">
-                {assumption}
-              </li>
-            ))}
-          </ul>
+          <div className="mt-4 mb-5">
+            <h3 id="scenario-assumptions" className="text-caption text-muted">
+              {m.assumptions}
+            </h3>
+            <ul aria-labelledby="scenario-assumptions" className="divide-y divide-line">
+              {text.assumptions.map((assumption) => (
+                <li key={assumption} className="py-2 text-body-sm text-ink-2">
+                  {assumption}
+                </li>
+              ))}
+            </ul>
+          </div>
           <Button asChild variant="primary" size="lg" className="mt-auto w-full">
             <Link to={`/simulations?scenario=${preset.id}`}>
               <Play className="fill-current" />
