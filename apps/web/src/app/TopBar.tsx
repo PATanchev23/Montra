@@ -9,11 +9,13 @@ import { IconButton } from '../components/ui/IconButton';
 import { SearchField } from '../components/ui/Input';
 import { Menu, MenuContent, MenuLabel, MenuTrigger } from '../components/ui/Menu';
 import { useCurrentMembership } from '../features/auth/currentUser';
+import { useDesktopNotifications } from '../features/notifications/desktop';
 import { PeriodPicker } from '../features/dashboard/PeriodPicker';
 import { useMessages } from '../i18n';
 import { common } from '../i18n/common';
 import { cn } from '../lib/cn';
 import { money, relativeDay } from '../lib/format';
+import type { NotificationPrefs } from '../stores/ui';
 
 function GlobalSearch() {
   const navigate = useNavigate();
@@ -74,7 +76,10 @@ function GlobalSearch() {
 const toneDot = { warning: 'bg-warning', negative: 'bg-negative' } as const;
 
 interface Notice {
+  /** Stable for one occurrence, so the desktop shows it once. */
   id: string;
+  /** The Settings switch for this kind of alert. */
+  pref: keyof NotificationPrefs;
   title: string;
   body: string;
   time: string;
@@ -94,7 +99,8 @@ function useNotices(): Notice[] {
     switch (alert.kind) {
       case 'due-soon':
         return {
-          id: alert.kind,
+          id: `due-soon:${alert.description}:${alert.dueDate}`,
+          pref: 'dueReminders',
           title: m.due(alert.description),
           body: m.dueBody(fmt(alert.amountCents)),
           time: relativeDay(alert.dueDate, today, 'EEE d MMM'),
@@ -103,7 +109,8 @@ function useNotices(): Notice[] {
         };
       case 'over-budget':
         return {
-          id: alert.kind,
+          id: `over-budget:${alert.category}:${data.today.slice(0, 7)}`,
+          pref: 'budgetAlerts',
           title: m.overBudget(alert.category),
           body: m.overBudgetBody(fmt(alert.spentCents), fmt(alert.limitCents)),
           time: m.thisMonth,
@@ -112,7 +119,8 @@ function useNotices(): Notice[] {
         };
       case 'low-balance':
         return {
-          id: alert.kind,
+          id: `low-balance:${alert.date}`,
+          pref: 'lowBalance',
           title: m.lowBalance,
           body: m.lowBalanceBody(fmt(alert.balanceCents), fmt(alert.thresholdCents)),
           time: relativeDay(alert.date, today, 'd MMM'),
@@ -125,8 +133,19 @@ function useNotices(): Notice[] {
 
 function Notifications() {
   const navigate = useNavigate();
+  const { business } = useCurrentMembership();
   const data = useNotices();
   const m = useMessages(common).topBar;
+  useDesktopNotifications(
+    business.id,
+    data.map((n) => ({
+      key: n.id,
+      pref: n.pref,
+      title: n.title,
+      body: `${n.body} · ${n.time}`,
+      onClick: () => navigate(n.to),
+    })),
+  );
 
   return (
     <Menu>

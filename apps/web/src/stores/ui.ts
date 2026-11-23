@@ -20,6 +20,8 @@ export const NO_SCENARIO_CHOICES: ScenarioChoices = { added: [], removed: [] };
 export type ThemePreference = 'system' | 'light' | 'dark';
 
 export interface NotificationPrefs {
+  /** Also show alerts in the computer's notification area (the browser must allow it). */
+  desktop: boolean;
   dueReminders: boolean;
   budgetAlerts: boolean;
   weeklySummary: boolean;
@@ -100,6 +102,7 @@ export const useUiStore = create<UiState>()(
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
 
       notifications: {
+        desktop: false,
         dueReminders: true,
         budgetAlerts: true,
         weeklySummary: false,
@@ -147,9 +150,15 @@ export const useUiStore = create<UiState>()(
       },
       // Saved data from before languages existed has no language; it keeps the detected one.
       // An unknown saved value (hand-edited, or a language since removed) is ignored too.
+      // Notification switches added later (desktop) keep their default under older saved ones.
       merge: (persisted, current) => {
-        const { language, ...rest } = (persisted ?? {}) as Partial<UiState>;
-        return { ...current, ...rest, ...(isLanguage(language) && { language }) };
+        const { language, notifications, ...rest } = (persisted ?? {}) as Partial<UiState>;
+        return {
+          ...current,
+          ...rest,
+          notifications: { ...current.notifications, ...notifications },
+          ...(isLanguage(language) && { language }),
+        };
       },
       storage,
       partialize: ({ theme, language, sidebarCollapsed, notifications, scenarios }) => ({

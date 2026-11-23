@@ -167,11 +167,16 @@ export function useReport(businessId: string, year: number | undefined) {
   });
 }
 
+/** Checked again every few minutes, also with the tab in the background, so desktop notifications arrive. */
+const ALERTS_REFRESH_MS = 5 * 60_000;
+
 export function useAlerts(businessId: string) {
   return useQuery({
     queryKey: financeKeys.alerts(businessId),
     queryFn: ({ signal }) =>
       authorizedRequest(`${base(businessId)}/alerts`, { schema: alertsResponseSchema, signal }),
+    refetchInterval: ALERTS_REFRESH_MS,
+    refetchIntervalInBackground: true,
   });
 }
 

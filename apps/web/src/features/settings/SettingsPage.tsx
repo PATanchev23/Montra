@@ -15,6 +15,11 @@ import { useUiStore, type NotificationPrefs, type ThemePreference } from '../../
 import { useSignedInUser } from '../auth/currentUser';
 import { LanguageSwitch } from '../../components/LanguageSwitch';
 import { useMessages } from '../../i18n';
+import {
+  requestDesktopPermission,
+  showDesktop,
+  useDesktopPermission,
+} from '../notifications/desktop';
 import { deriveStatus } from '../status/deriveStatus';
 import { DeleteAccountDialog } from './DeleteAccountDialog';
 import { settingsMessages } from './messages';
@@ -85,6 +90,52 @@ const NOTIFICATIONS: (keyof NotificationPrefs)[] = [
   'lowBalance',
   'weeklySummary',
 ];
+
+/**
+ * Turns desktop notifications on: asks the browser for permission (only a
+ * click may), then confirms with a first notification so the owner sees
+ * where they will appear.
+ */
+function DesktopSwitch() {
+  const m = useMessages(settingsMessages).notifications.desktop;
+  const on = useUiStore((s) => s.notifications.desktop);
+  const setNotification = useUiStore((s) => s.setNotification);
+  const [permission, setPermission] = useDesktopPermission();
+  const blocked = permission === 'denied' || permission === 'unsupported';
+
+  async function toggle(next: boolean) {
+    if (!next) {
+      setNotification('desktop', false);
+      return;
+    }
+    const granted = permission === 'granted' ? 'granted' : await requestDesktopPermission();
+    setPermission(granted);
+    if (granted !== 'granted') return;
+    setNotification('desktop', true);
+    showDesktop(m.enabledTitle, { body: m.enabledBody, tag: 'montra-desktop-on' });
+  }
+
+  return (
+    <li className="flex items-center justify-between gap-6 py-3.5">
+      <label htmlFor="notify-desktop" className="min-w-0 cursor-pointer">
+        <span className="block text-[14px] text-ink">{m.title}</span>
+        <span className={cn('block text-[13px]', blocked ? 'text-warning' : 'text-muted')}>
+          {permission === 'unsupported'
+            ? m.unsupported
+            : permission === 'denied'
+              ? m.blocked
+              : m.body}
+        </span>
+      </label>
+      <Switch
+        id="notify-desktop"
+        checked={on && permission === 'granted'}
+        disabled={blocked}
+        onCheckedChange={(v) => void toggle(v)}
+      />
+    </li>
+  );
+}
 
 export function SettingsPage() {
   const location = useLocation();
@@ -257,6 +308,7 @@ export function SettingsPage() {
             description={m.notifications.description}
           >
             <ul className="-my-2 divide-y divide-line-soft">
+              <DesktopSwitch />
               {NOTIFICATIONS.map((key) => (
                 <li key={key} className="flex items-center justify-between gap-6 py-3.5">
                   <label htmlFor={`notify-${key}`} className="min-w-0 cursor-pointer">

@@ -49,6 +49,16 @@ export const settingsMessages = defineMessages(
     },
     notifications: {
       description: 'Choose what Montra tells you about. Saved on this device.',
+      desktop: {
+        title: 'Show on this computer',
+        body: 'Pop-ups in your computer’s notification area for the alerts below, while Montra is open in a browser tab.',
+        blocked:
+          'Blocked by your browser. Allow notifications for this site in the browser’s site settings, then turn this on.',
+        unsupported: 'This browser can’t show desktop notifications.',
+        enabledTitle: 'Desktop notifications are on',
+        enabledBody:
+          'Montra will tell you here about payments due, budgets over their limit and low balances.',
+      },
       dueReminders: {
         title: 'Payment reminders',
         body: 'Two days before a supplier invoice or recurring payment is due.',
@@ -138,6 +148,16 @@ export const settingsMessages = defineMessages(
     },
     notifications: {
       description: 'Изберете за какво да ви известява Montra. Запазва се на това устройство.',
+      desktop: {
+        title: 'Показвай на този компютър',
+        body: 'Изскачащи известия в зоната за известия на компютъра за сигналите отдолу, докато Montra е отворена в раздел на браузъра.',
+        blocked:
+          'Блокирано от браузъра. Разрешете известията за този сайт в настройките на сайта в браузъра и след това ги включете.',
+        unsupported: 'Този браузър не може да показва известия на работния плот.',
+        enabledTitle: 'Известията на работния плот са включени',
+        enabledBody:
+          'Montra ще ви известява тук за предстоящи плащания, превишени бюджети и нисък баланс.',
+      },
       dueReminders: {
         title: 'Напомняния за плащания',
         body: 'Два дни преди падежа на фактура от доставчик или повтарящо се плащане.',
