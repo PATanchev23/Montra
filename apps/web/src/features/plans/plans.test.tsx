@@ -108,7 +108,9 @@ describe('PlansPage before Stripe is set up', () => {
     useUiStore.setState({ language: 'bg' });
     renderPage();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Планове' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Правилният план за вашия бизнес.' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Безплатен' })).toBeInTheDocument();
     expect(screen.getByText('12 €')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Очаквайте скоро' })).toHaveLength(2);

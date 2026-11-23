@@ -3,7 +3,9 @@ import { defineMessages } from '../../i18n';
 export const plansMessages = defineMessages(
   {
     title: 'Plans',
+    headline: 'The right plan for your business.',
     description: 'Start free. Move up when you want to see further ahead.',
+    youreOn: (plan: string) => `You’re on ${plan}`,
     earlyAccess:
       'Montra is in early access: every feature is open on every account for now. Paid plans are coming soon, and nothing is charged until then.',
     perMonth: 'per month',
@@ -34,6 +36,7 @@ export const plansMessages = defineMessages(
       cancelled: 'Checkout was cancelled. You haven’t been charged.',
     },
     everythingIn: (plan: string) => `Everything in ${plan}, plus:`,
+    includes: 'Includes:',
     highlights: {
       free: [
         'One business',
@@ -82,7 +85,9 @@ export const plansMessages = defineMessages(
   },
   {
     title: 'Планове',
+    headline: 'Правилният план за вашия бизнес.',
     description: 'Започнете безплатно. Преминете нагоре, когато искате да виждате по-напред.',
+    youreOn: (plan: string) => `Вие сте на план ${plan}`,
     earlyAccess:
       'Montra е в ранен достъп: засега всяка функция е отворена за всеки профил. Платените планове идват скоро и дотогава нищо не се таксува.',
     perMonth: 'на месец',
@@ -114,6 +119,7 @@ export const plansMessages = defineMessages(
       cancelled: 'Плащането беше отказано. Не сте таксувани.',
     },
     everythingIn: (plan: string) => `Всичко от ${plan}, плюс:`,
+    includes: 'Включва:',
     highlights: {
       free: [
         'Един бизнес',

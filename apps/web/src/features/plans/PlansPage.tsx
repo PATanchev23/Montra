@@ -2,13 +2,13 @@ import { Check, Minus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useBilling } from '../../api/billing';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { Panel, PanelHeader } from '../../components/ui/Panel';
+import { Panel } from '../../components/ui/Panel';
 import { useMessages } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { money } from '../../lib/format';
 import { plansMessages } from './messages';
-import { BillingNote, PlanCards } from './PlanCards';
-import { COMPARISON, PLANS, type Availability } from './plans';
+import { PlanCards, PlansFinePrint, PlanStatus } from './PlanCards';
+import { COMPARISON, PLAN_CURRENCY, PLANS, type Availability } from './plans';
 
 function Cell({ value }: { value: Availability }) {
   const m = useMessages(plansMessages).compare;
@@ -68,7 +68,10 @@ function CheckoutReturn() {
   return (
     <div
       role="status"
-      className={cn('flex items-start gap-3 rounded-field border px-4 py-3 text-body-sm', tone)}
+      className={cn(
+        'mx-auto flex w-full max-w-xl items-start gap-3 rounded-[1.25rem] border px-5 py-3 text-body-sm',
+        tone,
+      )}
     >
       <p className="min-w-0 flex-1 font-medium">{text}</p>
       <button
@@ -92,72 +95,84 @@ function CheckoutReturn() {
 }
 
 /**
- * Free, Pro and Business side by side, then every feature in one table.
- * Paying, switching and cancelling happen on Stripe's own pages; every
- * feature stays open on every plan for now.
+ * Plans set like a product page: one centred headline, the three plans with
+ * their prices leading, the conditions as fine print, then every feature in
+ * one quiet table. Paying, switching and cancelling happen on Stripe's own
+ * pages; every feature stays open on every plan for now.
  */
 export function PlansPage() {
   const m = useMessages(plansMessages);
   return (
-    <div className="flex flex-col gap-6 lg:gap-7">
-      <PageHeader title={m.title} description={m.description} />
-      <CheckoutReturn />
-      <BillingNote />
-      <PlanCards />
+    <div className="mx-auto flex w-full max-w-[68rem] flex-col gap-10 pt-2 pb-6 sm:gap-14 lg:pt-6">
+      <header className="mx-auto flex max-w-2xl flex-col items-center text-center">
+        <h1 className="text-[2rem] leading-[1.1] font-semibold tracking-[-0.035em] text-balance text-ink sm:text-[2.75rem]">
+          {m.headline}
+        </h1>
+        <p className="mt-4 text-body-lg text-balance text-ink-2">{m.description}</p>
+        <PlanStatus className="mt-6" />
+      </header>
 
-      <Panel className="p-5 sm:p-6" aria-labelledby="compare-title">
-        <PanelHeader
+      <CheckoutReturn />
+
+      <div className="flex flex-col gap-6">
+        <PlanCards />
+        <PlansFinePrint />
+      </div>
+
+      <section aria-labelledby="compare-title" className="flex flex-col items-center">
+        <h2
           id="compare-title"
-          title={m.compare.title}
-          description={m.compare.description}
-        />
-        {/*
-          Scrolls sideways on the narrowest phones rather than crushing the plan columns.
-          Relative, so the screen-reader labels (absolutely placed) scroll with it
-          instead of widening the page.
-        */}
-        <div className="relative mt-4 overflow-x-auto">
-          <table className="w-full min-w-[30rem] text-body-sm">
-            <caption className="sr-only">{m.compare.title}</caption>
-            <thead>
-              <tr className="border-b border-line">
-                <th scope="col" className="py-3 pr-4 text-left font-medium text-muted">
-                  {m.compare.feature}
-                </th>
-                {PLANS.map((plan) => (
-                  <th
-                    key={plan.id}
-                    scope="col"
-                    className={cn(
-                      'w-[22%] px-2 py-3 text-center font-semibold text-ink',
-                      plan.recommended && 'bg-hover/60',
-                    )}
-                  >
-                    {m.names[plan.id]}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {COMPARISON.map(({ row, plans }) => (
-                <tr key={row}>
-                  <th scope="row" className="py-3 pr-4 text-left font-normal text-ink-2">
-                    {m.compare.rows[row]}
+          className="text-center text-[1.5rem] leading-tight font-semibold tracking-[-0.025em] text-ink sm:text-[1.75rem]"
+        >
+          {m.compare.title}
+        </h2>
+        <p className="mt-2 text-center text-body text-muted">{m.compare.description}</p>
+
+        <Panel className="mt-7 w-full px-4 py-2 sm:px-7 sm:py-3">
+          {/*
+            Scrolls sideways on the narrowest phones rather than crushing the plan columns.
+            Relative, so the screen-reader labels (absolutely placed) scroll with it
+            instead of widening the page.
+          */}
+          <div className="relative overflow-x-auto">
+            <table className="w-full min-w-[30rem] text-body-sm">
+              <caption className="sr-only">{m.compare.title}</caption>
+              <thead>
+                <tr className="border-b border-line">
+                  <th scope="col" className="py-4 pr-4 text-left align-bottom">
+                    <span className="sr-only">{m.compare.feature}</span>
                   </th>
                   {PLANS.map((plan) => (
-                    <td
-                      key={plan.id}
-                      className={cn('px-2 py-3 text-center', plan.recommended && 'bg-hover/60')}
-                    >
-                      <Cell value={plans[plan.id]} />
-                    </td>
+                    <th key={plan.id} scope="col" className="w-[22%] px-2 py-4 text-center">
+                      <span className="block text-body font-semibold text-ink">
+                        {m.names[plan.id]}
+                      </span>
+                      <span className="tabular block text-caption font-normal text-muted">
+                        {money(plan.priceCents, { decimals: 0, currency: PLAN_CURRENCY })}{' '}
+                        {m.perMonth}
+                      </span>
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+              </thead>
+              <tbody className="divide-y divide-line-soft">
+                {COMPARISON.map(({ row, plans }) => (
+                  <tr key={row}>
+                    <th scope="row" className="py-3.5 pr-4 text-left font-normal text-ink-2">
+                      {m.compare.rows[row]}
+                    </th>
+                    {PLANS.map((plan) => (
+                      <td key={plan.id} className="px-2 py-3.5 text-center">
+                        <Cell value={plans[plan.id]} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      </section>
     </div>
   );
 }
