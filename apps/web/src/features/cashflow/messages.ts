@@ -3,7 +3,6 @@ import { defineMessages } from '../../i18n';
 export const cashFlowMessages = defineMessages(
   {
     page: {
-      eyebrow: 'Analysis',
       title: 'Cash flow',
       description:
         'Twelve months of your transactions and a 90-day projection built from your recurring payments and recent averages.',
@@ -77,6 +76,7 @@ export const cashFlowMessages = defineMessages(
       today: 'Balance today',
       projected: 'Projected',
       in90: 'In 90 days',
+      summary: 'Cash flow summary',
     },
     monthly: {
       title: 'Income vs. expenses',
@@ -123,7 +123,6 @@ export const cashFlowMessages = defineMessages(
   },
   {
     page: {
-      eyebrow: 'Анализ',
       title: 'Паричен поток',
       description:
         'Дванадесет месеца от вашите транзакции и прогноза за 90 дни, изградена от повтарящите се плащания и скорошните средни стойности.',
@@ -199,6 +198,7 @@ export const cashFlowMessages = defineMessages(
       today: 'Баланс днес',
       projected: 'Прогноза',
       in90: 'След 90 дни',
+      summary: 'Обобщение на паричния поток',
     },
     monthly: {
       title: 'Приходи и разходи',

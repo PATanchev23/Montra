@@ -28,7 +28,7 @@ import { dashboardMessages } from './messages';
  * all there is nothing to project: the figure stays, the line gives way to a
  * sentence.
  */
-export function CashPosition({ canEdit }: { canEdit: boolean }) {
+export function CashPosition({ canEdit, className }: { canEdit: boolean; className?: string }) {
   const { business } = useCurrentMembership();
   const { data, isError, refetch } = useCashFlow(business.id);
   const m = useMessages(dashboardMessages).hero;
@@ -54,7 +54,7 @@ export function CashPosition({ canEdit }: { canEdit: boolean }) {
   const Arrow = change < 0 ? ArrowDownRight : ArrowUpRight;
 
   return (
-    <Panel aria-labelledby="cash-position" className="p-5 sm:p-6">
+    <Panel aria-labelledby="cash-position" className={cn('p-5 sm:p-6', className)}>
       <PanelHeader
         id="cash-position"
         title={unset ? m.titleUnset : m.title}

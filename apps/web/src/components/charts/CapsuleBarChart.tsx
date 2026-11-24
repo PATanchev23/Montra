@@ -24,6 +24,9 @@ import { common } from '../../i18n/common';
  *                     that period was (the Dashboard overview).
  *   layout="grouped"  two series side by side, ink and mid-grey, for honest
  *                     comparisons such as income vs. expenses.
+ *   layout="diverging" two series in one column per period: the first rises
+ *                     from a zero line, the second hangs below it (money in
+ *                     above, money out below), each capsule a full band wide.
  *
  * Projected categories render hatched with a dashed outline.
  *
@@ -84,7 +87,7 @@ export function CapsuleBarChart({
 }: {
   categories: CapsuleCategory[];
   series: CapsuleSeries[];
-  layout?: 'track' | 'grouped';
+  layout?: 'track' | 'grouped' | 'diverging';
   /** A fixed height in pixels, or `fill` to take the height of the element it sits in. */
   height?: number | 'fill';
   formatTick?: (value: number) => string;
@@ -120,10 +123,20 @@ export function CapsuleBarChart({
   const drawn = layout === 'track' ? series.slice(0, 1) : series.slice(0, 2);
   const peak = Math.max(0, ...drawn.flatMap((s) => s.values));
   const maxValue = Math.max(1, peak);
-  const y = scaleLinear().domain([0, maxValue]).nice(tickCount);
-  let ticks = y.ticks(tickCount);
-  // A nice scale can ask for eight or nine lines; every second one is plenty.
-  if (ticks.length > 6) ticks = ticks.filter((_, i) => i % 2 === 0);
+  // Diverging: the first series rises from zero, the second hangs below it.
+  const below = layout === 'diverging' ? Math.max(0, ...(drawn[1]?.values ?? [])) : 0;
+  const above = layout === 'diverging' ? Math.max(0, ...(drawn[0]?.values ?? [])) : maxValue;
+  const y = scaleLinear()
+    .domain(below > 0 ? [-below, Math.max(above, 0)] : [0, Math.max(1, above)])
+    // Both sides share one step, so a diverging scale asks for finer ones to stay snug.
+    .nice(below > 0 ? tickCount * 2 : tickCount);
+  let ticks = y.ticks(below > 0 ? tickCount * 2 : tickCount);
+  // A nice scale can ask for eight or nine lines; every second one is plenty,
+  // counted from zero so the zero line always keeps its label.
+  if (ticks.length > 6) {
+    const step = ticks.length > 1 ? ticks[1]! - ticks[0]! : 1;
+    ticks = ticks.filter((t) => Math.round(t / step) % 2 === 0);
+  }
   // Nothing to scale: label the baseline only, not a column of fractions of a cent that all read 0.
   if (peak === 0) ticks = [0];
   const left = Math.max(28, 14 + Math.max(...ticks.map((t) => formatTick(t).length)) * CHAR);
@@ -143,7 +156,9 @@ export function CapsuleBarChart({
     2,
     layout === 'track'
       ? Math.min(maxBarWidth, band * FILL)
-      : Math.min(maxBarWidth * 0.62, (band * 0.72) / 2),
+      : layout === 'diverging'
+        ? Math.min(maxBarWidth * 0.62, band * FILL)
+        : Math.min(maxBarWidth * 0.62, (band * 0.72) / 2),
   );
   const gap = layout === 'grouped' ? Math.max(2, barWidth * 0.14) : 0;
   const radius = barWidth / 2;
@@ -163,10 +178,15 @@ export function CapsuleBarChart({
   }, [scrolls, count, contentWidth]);
 
   /** A capsule is never shorter than it is wide, so small values still read as one. */
-  function barGeometry(value: number) {
-    if (value <= 0) return { top: baseline, h: 0 };
-    const h = Math.min(baseline - TOP, Math.max(baseline - y(value), barWidth));
-    return { top: baseline - h, h };
+  /** Where zero sits: the foot of the plot, or its middle when the bars diverge. */
+  const zero = layout === 'diverging' ? y(0) : baseline;
+
+  function barGeometry(value: number, down = false) {
+    if (value <= 0) return { top: zero, h: 0 };
+    if (down)
+      return { top: zero, h: Math.min(baseline - zero, Math.max(y(-value) - zero, barWidth)) };
+    const h = Math.min(zero - TOP, Math.max(zero - y(value), barWidth));
+    return { top: zero - h, h };
   }
 
   function indexAt(event: MouseEvent<HTMLDivElement>) {
@@ -308,7 +328,21 @@ export function CapsuleBarChart({
                 ))}
               </defs>
 
-              {/* No gridlines: the tracks already show the scale. Only the baseline is drawn. */}
+              {/* The tracks show the scale; without them, faint lines at the ticks do. */}
+              {layout !== 'track' &&
+                ticks
+                  .filter((t) => t !== 0)
+                  .map((t) => (
+                    <line
+                      key={t}
+                      x1={0}
+                      x2={contentWidth}
+                      y1={Math.round(y(t)) + 0.5}
+                      y2={Math.round(y(t)) + 0.5}
+                      className="stroke-line"
+                      strokeDasharray="2 4"
+                    />
+                  ))}
               <line
                 x1={0}
                 x2={contentWidth}
@@ -341,14 +375,27 @@ export function CapsuleBarChart({
                       />
                     )}
 
+                    {/* A quiet period, with no tracks to mark it: a dot on the baseline keeps the rhythm. */}
+                    {layout !== 'track' && drawn.every((s) => !(s.values[i] ?? 0)) && (
+                      <circle
+                        cx={center}
+                        cy={layout === 'diverging' ? zero : baseline - 3}
+                        r={2}
+                        className={isActive ? 'fill-ink' : 'fill-line-strong'}
+                      />
+                    )}
+
                     <g
                       className="transition-opacity duration-200 ease-[var(--ease-out-soft)]"
                       opacity={stepBack ? 0.32 : 1}
                     >
                       {drawn.map((s, si) => {
-                        const { top, h } = barGeometry(s.values[i] ?? 0);
+                        const { top, h } = barGeometry(
+                          s.values[i] ?? 0,
+                          layout === 'diverging' && si === 1,
+                        );
                         const x =
-                          layout === 'track'
+                          layout !== 'grouped'
                             ? center - barWidth / 2
                             : center - barWidth - gap / 2 + si * (barWidth + gap);
                         const projected = category.projected;
@@ -358,7 +405,7 @@ export function CapsuleBarChart({
                             x={x}
                             width={barWidth}
                             rx={radius}
-                            initial={reduceMotion ? false : { y: baseline, height: 0 }}
+                            initial={reduceMotion ? false : { y: zero, height: 0 }}
                             animate={{ y: top, height: h }}
                             transition={
                               reduceMotion

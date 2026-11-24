@@ -1,21 +1,18 @@
-import { parseISO } from 'date-fns';
 import { Bell, Menu as MenuIcon, Search } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { useAlerts } from '../api/finance';
 import { Logo } from '../components/Logo';
 import { IconButton } from '../components/ui/IconButton';
 import { SearchField } from '../components/ui/Input';
 import { Menu, MenuContent, MenuLabel, MenuTrigger } from '../components/ui/Menu';
 import { useCurrentMembership } from '../features/auth/currentUser';
 import { useDesktopNotifications } from '../features/notifications/desktop';
+import { useNotices } from '../features/notifications/notices';
 import { PeriodPicker } from '../features/dashboard/PeriodPicker';
 import { useMessages } from '../i18n';
 import { common } from '../i18n/common';
 import { cn } from '../lib/cn';
-import { money, relativeDay } from '../lib/format';
-import type { NotificationPrefs } from '../stores/ui';
 
 /**
  * The pages about the business's own money, where looking up a transaction,
@@ -97,66 +94,10 @@ function GlobalSearch() {
 
 const toneDot = { warning: 'bg-warning', negative: 'bg-negative' } as const;
 
-interface Notice {
-  /** Stable for one occurrence, so the desktop shows it once. */
-  id: string;
-  /** The Settings switch for this kind of alert. */
-  pref: keyof NotificationPrefs;
-  title: string;
-  body: string;
-  time: string;
-  tone: keyof typeof toneDot;
-  to: string;
-}
-
-/** The API's alerts, in words: a payment due soon, an overspent budget, a low balance ahead. */
-function useNotices(): Notice[] {
-  const { business } = useCurrentMembership();
-  const { data } = useAlerts(business.id);
-  const m = useMessages(common).topBar.alerts;
-  if (!data) return [];
-  const today = parseISO(data.today);
-  const fmt = (cents: number) => money(cents, { decimals: 0, currency: business.currency });
-  return data.alerts.map((alert): Notice => {
-    switch (alert.kind) {
-      case 'due-soon':
-        return {
-          id: `due-soon:${alert.description}:${alert.dueDate}`,
-          pref: 'dueReminders',
-          title: m.due(alert.description),
-          body: m.dueBody(fmt(alert.amountCents)),
-          time: relativeDay(alert.dueDate, today, 'EEE d MMM'),
-          tone: 'warning',
-          to: '/cash-flow#upcoming',
-        };
-      case 'over-budget':
-        return {
-          id: `over-budget:${alert.category}:${data.today.slice(0, 7)}`,
-          pref: 'budgetAlerts',
-          title: m.overBudget(alert.category),
-          body: m.overBudgetBody(fmt(alert.spentCents), fmt(alert.limitCents)),
-          time: m.thisMonth,
-          tone: 'negative',
-          to: '/budgets',
-        };
-      case 'low-balance':
-        return {
-          id: `low-balance:${alert.date}`,
-          pref: 'lowBalance',
-          title: m.lowBalance,
-          body: m.lowBalanceBody(fmt(alert.balanceCents), fmt(alert.thresholdCents)),
-          time: relativeDay(alert.date, today, 'd MMM'),
-          tone: 'negative',
-          to: '/cash-flow',
-        };
-    }
-  });
-}
-
 function Notifications() {
   const navigate = useNavigate();
   const { business } = useCurrentMembership();
-  const data = useNotices();
+  const { notices: data } = useNotices();
   const m = useMessages(common).topBar;
   useDesktopNotifications(
     business.id,

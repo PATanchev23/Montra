@@ -1,10 +1,8 @@
 import type { DashboardResponse } from '@montra/shared';
-import { useState } from 'react';
 import { CapsuleBarChart } from '../../components/charts/CapsuleBarChart';
-import { TooltipRow, TooltipTitle } from '../../components/charts/ChartTooltip';
+import { Legend, TooltipRow, TooltipTitle } from '../../components/charts/ChartTooltip';
 import { EmptyChartNote } from '../../components/finance/EmptyChartNote';
 import { Panel, PanelHeader } from '../../components/ui/Panel';
-import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Skeleton } from '../../components/ui/States';
 import { money } from '../../lib/format';
 import { useMessages } from '../../i18n';
@@ -12,16 +10,15 @@ import { axisFormatter } from './axis';
 import { dashboardMessages } from './messages';
 import { bucketLabels } from './period';
 
-type Measure = 'income' | 'expenses';
-
 /**
- * The hero of the dashboard. Ink capsules show the chosen measure for each
- * day, week or month of the period, against pale tracks that run to the top
- * of the scale, so each bar reads as "how full" it was. Reading a period
- * shows its income, expenses and net together.
+ * How the chosen period ran, day by day (or week by week, month by month):
+ * income rises from a zero line in ink and expenses hang below it in grey,
+ * one column per period, so a short and sparse period still reads at a
+ * glance and each capsule has its period's full width. A quiet period is a
+ * dot on the line. Reading a period shows its income, expenses and net.
  *
- * With no transactions at all (`noData`), the empty tracks stay in place but
- * step back, and a note over them says what fills them: with an Import button
+ * With no transactions at all (`noData`), the empty plot stays in place but
+ * steps back, and a note over it says what fills it: with an Import button
  * for an owner, plainly for a viewer, who cannot add anything.
  */
 export function CashFlowOverview({
@@ -35,19 +32,29 @@ export function CashFlowOverview({
   noData?: boolean;
   canEdit?: boolean;
 }) {
-  const [measure, setMeasure] = useState<Measure>('income');
   const points = data?.trend.points ?? [];
   const interval = data?.trend.interval ?? 'day';
   const currency = data?.currency;
   const m = useMessages(dashboardMessages).overview;
-  const noun = measure === 'income' ? m.income : m.expenses;
-
-  const values = points.map((p) => (measure === 'income' ? p.incomeCents : p.expenseCents));
-  const total = measure === 'income' ? data?.overview.income.cents : data?.overview.expenses.cents;
-  const average = points.length ? Math.round((total ?? 0) / points.length) : 0;
   const empty = data !== undefined && data.overview.transactionCount === 0;
   const labels = points.map((p) => bucketLabels(p, interval, points.length));
   const formatValue = (cents: number) => money(cents, { currency });
+  const whole = (cents: number, sign?: 'always') => money(cents, { currency, decimals: 0, sign });
+  const series = [
+    {
+      id: 'income',
+      label: m.income,
+      values: points.map((p) => p.incomeCents),
+      tone: 'primary' as const,
+    },
+    {
+      id: 'expenses',
+      label: m.expenses,
+      values: points.map((p) => p.expenseCents),
+      tone: 'secondary' as const,
+    },
+  ];
+  const peak = Math.max(0, ...series.flatMap((s) => s.values));
 
   return (
     <Panel
@@ -62,23 +69,25 @@ export function CashFlowOverview({
             m.noTransactionsYet
           ) : data ? (
             <span className="tabular">
-              {m.summary(formatValue(total ?? 0), measure, formatValue(average), interval)}
+              {m.compare(
+                whole(data.overview.income.cents),
+                whole(data.overview.expenses.cents),
+                whole(data.overview.income.cents - data.overview.expenses.cents, 'always'),
+              )}
             </span>
           ) : (
             m.fallback
           )
         }
         actions={
-          <SegmentedControl
-            label={m.measure}
-            size="sm"
-            value={measure}
-            onChange={setMeasure}
-            options={[
-              { value: 'income', label: m.income },
-              { value: 'expenses', label: m.expenses },
-            ]}
-          />
+          !noData && (
+            <Legend
+              items={[
+                { label: m.income, swatch: 'bg-chart-1' },
+                { label: m.expenses, swatch: 'bg-chart-2' },
+              ]}
+            />
+          )
         }
       />
 
@@ -90,14 +99,15 @@ export function CashFlowOverview({
           <div className="absolute inset-0">
             <div className={noData ? 'absolute inset-0 opacity-40' : 'absolute inset-0'}>
               <CapsuleBarChart
-                // A new range starts with nothing pinned; switching the measure keeps the pin.
+                // A new range starts with nothing pinned.
                 key={`${data.period.from}/${data.period.to}/${interval}`}
-                ariaLabel={m.chartLabel(noun, interval, periodLabel)}
+                ariaLabel={m.chartLabel(interval, periodLabel)}
+                layout="diverging"
                 height="fill"
-                formatTick={axisFormatter(Math.max(0, ...values))}
+                formatTick={axisFormatter(peak)}
                 formatValue={formatValue}
                 categories={points.map((p, i) => ({ key: p.start, label: labels[i]!.label }))}
-                series={[{ id: 'measure', label: noun, values, tone: 'primary' }]}
+                series={series}
                 describe={(i) => {
                   const p = points[i]!;
                   return m.describe(
@@ -113,12 +123,12 @@ export function CashFlowOverview({
                     <>
                       <TooltipTitle>{labels[i]!.title}</TooltipTitle>
                       <TooltipRow
-                        swatch={measure === 'income' ? 'bg-chart-1' : 'bg-chart-4'}
+                        swatch="bg-chart-1"
                         label={m.income}
                         value={formatValue(p.incomeCents)}
                       />
                       <TooltipRow
-                        swatch={measure === 'expenses' ? 'bg-chart-1' : 'bg-chart-4'}
+                        swatch="bg-chart-2"
                         label={m.expenses}
                         value={formatValue(p.expenseCents)}
                       />

@@ -1,9 +1,7 @@
 import type { DashboardPeriod } from '@montra/shared';
-import { CalendarRange, Plus, Upload } from 'lucide-react';
-import { Link } from 'react-router';
+import { CalendarRange } from 'lucide-react';
 import { errorMessage } from '../../api/client';
 import { useDashboardSummary } from '../../api/dashboard';
-import { Button } from '../../components/ui/Button';
 import { DatePicker } from '../../components/ui/DatePicker';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Panel } from '../../components/ui/Panel';
@@ -17,13 +15,8 @@ import { firstName } from '../auth/access';
 import { useCurrentMembership, useSignedInUser } from '../auth/currentUser';
 import { CashFlowOverview } from './CashFlowOverview';
 import { CashPosition } from './CashPosition';
-import {
-  ExpenseBreakdownPanel,
-  NotYetPanel,
-  RecentTransactionsPanel,
-  ScenarioPreviewPanel,
-  UpcomingPaymentsPanel,
-} from './DashboardPanels';
+import { AttentionPanel } from './AttentionPanel';
+import { BudgetRingPanel, ComingUpPanel, RunwayPanel } from './OverviewPanels';
 import { dashboardMessages } from './messages';
 import { customRangeProblem, describePeriod, rangeLabel } from './period';
 
@@ -31,18 +24,19 @@ import { customRangeProblem, describePeriod, rangeLabel } from './period';
 const QUICK_RANGES = ['7d', '30d', '90d'] as const;
 
 /**
- * The dashboard: first where cash stands today and where it is heading
- * (CashPosition, the balance line); then how the chosen period ran, bar by
- * bar, with its income or expenses in the chart's summary; where the money
- * went; the latest entries; and what comes next. There are no separate
- * summary tiles. Everything is live from the API.
+ * The dashboard: where cash stands and how long it lasts, what needs
+ * attention, this month's budgets, what is coming up, and how the chosen
+ * period ran (income above the line, expenses below). Wide panels sit beside
+ * tall narrow ones, each with a chart of its own: the balance line, the
+ * runway gauge, the budget ring, the payment timeline and the capsule bars.
+ * Everything else (where the money went, every entry, the what-if) has a
+ * page of its own and is reached from here, not repeated.
  *
  * A business with no transactions at all keeps the same layout, so nothing
- * jumps when the first import lands: the charts step back behind a note, and
- * the forward-looking panels give way to plain notes. An owner is offered
- * Import and Add transaction; a viewer, who can do neither, is just told
- * there is nothing yet. A period that is merely empty is not this case: its
- * zeros are real and shown as they are.
+ * jumps when the first import lands: the charts step back behind a note, the
+ * attention panel becomes the first steps for an owner, and a viewer, who
+ * can add nothing, is just told there is nothing yet. A period that is
+ * merely empty is not this case: its zeros are real and shown as they are.
  */
 export function DashboardPage() {
   const { user } = useSignedInUser();
@@ -93,22 +87,6 @@ export function DashboardPage() {
         actionsClassName="w-full sm:w-auto"
         actions={
           <div className="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto">
-            {noData && canEdit && (
-              <div className="flex w-full gap-3 sm:w-auto">
-                <Button asChild className="flex-1 sm:flex-none">
-                  <Link to="/transactions?new=1">
-                    <Plus />
-                    {m.header.addTransaction}
-                  </Link>
-                </Button>
-                <Button asChild variant="primary" className="flex-1 sm:flex-none">
-                  <Link to="/transactions?import=new">
-                    <Upload />
-                    {m.header.import}
-                  </Link>
-                </Button>
-              </div>
-            )}
             {params.period === 'custom' && (
               <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:flex sm:w-auto">
                 <DatePicker
@@ -139,59 +117,48 @@ export function DashboardPage() {
         }
       />
 
-      <CashPosition canEdit={canEdit} />
-
-      {rangeProblem ? (
-        <Panel>
-          <EmptyState icon={CalendarRange} title={m.states.checkRange} body={rangeProblem} />
-        </Panel>
-      ) : isError ? (
-        <Panel>
-          <ErrorState title={errorMessage(error, m.states.loadError)} onRetry={() => refetch()} />
-        </Panel>
-      ) : (
-        <div
-          aria-busy={isPlaceholderData}
-          className={cn(
-            'flex flex-col gap-4 transition-opacity duration-200 sm:gap-6',
-            isPlaceholderData && 'opacity-60',
+      {/*
+        A mix of wide panels and tall narrow ones: where cash stands and how
+        long it lasts across the top; what needs attention, the budgets and
+        what is coming up beneath; how the period ran at the foot.
+      */}
+      <div className="grid gap-4 sm:gap-6 md:grid-flow-dense md:grid-cols-2 xl:grid-cols-12">
+        <CashPosition canEdit={canEdit} className="md:col-span-2 xl:col-span-8" />
+        <RunwayPanel className="xl:col-span-4" />
+        {/* What needs doing does not depend on the period: it stays whatever the range. */}
+        <AttentionPanel noData={noData} className="xl:col-span-5" />
+        <BudgetRingPanel className="xl:col-span-3" />
+        <ComingUpPanel className="xl:col-span-4 xl:row-span-2" />
+        <div className="min-w-0 md:col-span-2 xl:col-span-8 [&>*]:h-full">
+          {rangeProblem ? (
+            <Panel>
+              <EmptyState icon={CalendarRange} title={m.states.checkRange} body={rangeProblem} />
+            </Panel>
+          ) : isError ? (
+            <Panel>
+              <ErrorState
+                title={errorMessage(error, m.states.loadError)}
+                onRetry={() => refetch()}
+              />
+            </Panel>
+          ) : (
+            <div
+              aria-busy={isPlaceholderData}
+              className={cn(
+                'flex min-w-0 flex-col transition-opacity duration-200 [&>*]:flex-1',
+                isPlaceholderData && 'opacity-60',
+              )}
+            >
+              <CashFlowOverview
+                data={shown}
+                periodLabel={text?.label ?? ''}
+                noData={noData}
+                canEdit={canEdit}
+              />
+            </div>
           )}
-        >
-          <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,352px)]">
-            <CashFlowOverview
-              data={shown}
-              periodLabel={text?.label ?? ''}
-              noData={noData}
-              canEdit={canEdit}
-            />
-            <ExpenseBreakdownPanel data={shown} periodLabel={text?.label ?? ''} noData={noData} />
-          </div>
-
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-2 wide:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(320px,352px)]">
-            <RecentTransactionsPanel data={shown} noData={noData} />
-            {noData ? (
-              <>
-                <NotYetPanel
-                  id="upcoming-title"
-                  title={m.panels.upcoming}
-                  note={m.panels.upcomingStart}
-                />
-                <NotYetPanel
-                  id="scenario-title"
-                  title={m.panels.scenario}
-                  note={m.panels.scenarioStart}
-                  className="md:col-span-2 wide:col-span-1"
-                />
-              </>
-            ) : (
-              <>
-                <UpcomingPaymentsPanel />
-                <ScenarioPreviewPanel className="md:col-span-2 wide:col-span-1" />
-              </>
-            )}
-          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
