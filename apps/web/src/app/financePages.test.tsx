@@ -630,6 +630,29 @@ describe('the top bar', () => {
     expect(await screen.findByText('marketing is over budget')).toBeInTheDocument();
     expect(screen.getByText('€450 spent of €100')).toBeInTheDocument();
   });
+
+  it('shows the search on the money pages but not on account pages', async () => {
+    ledgerServer();
+    renderTransactions('/settings', topBar);
+
+    await screen.findByText('Settings');
+    expect(screen.queryByRole('search')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Search transactions' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
+  });
+
+  it('fills the search from a transactions link and empties it on leaving', async () => {
+    ledgerServer();
+    const router = renderTransactions('/transactions?q=acme&range=all', topBar);
+
+    const field = await screen.findByRole('searchbox', { name: 'Search transactions' });
+    expect(field).toHaveValue('acme');
+
+    await router.navigate('/cash-flow');
+    await waitFor(() =>
+      expect(screen.getByRole('searchbox', { name: 'Search transactions' })).toHaveValue(''),
+    );
+  });
 });
 
 describe('in Bulgarian', () => {

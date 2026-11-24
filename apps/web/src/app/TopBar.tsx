@@ -2,7 +2,7 @@ import { parseISO } from 'date-fns';
 import { Bell, Menu as MenuIcon, Search } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useAlerts } from '../api/finance';
 import { Logo } from '../components/Logo';
 import { IconButton } from '../components/ui/IconButton';
@@ -17,10 +17,31 @@ import { cn } from '../lib/cn';
 import { money, relativeDay } from '../lib/format';
 import type { NotificationPrefs } from '../stores/ui';
 
+/**
+ * The pages about the business's own money, where looking up a transaction,
+ * supplier or category is a natural next step. Account and system pages
+ * (Settings, Plans, System status, not found) leave the search out: it only
+ * searches transactions, so there it would read as searching that page.
+ */
+const SEARCH_PAGES = ['/', '/transactions', '/budgets', '/cash-flow', '/simulations', '/reports'];
+
+function hasSearch(pathname: string) {
+  return SEARCH_PAGES.includes(pathname.replace(/(.)\/+$/, '$1'));
+}
+
+/** The query the transactions list is filtered by, or '' on any other page. */
+function useUrlQuery() {
+  const location = useLocation();
+  const [params] = useSearchParams();
+  return location.pathname.replace(/\/+$/, '') === '/transactions'
+    ? (params.get('q')?.trim() ?? '')
+    : '';
+}
+
 function GlobalSearch() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [value, setValue] = useState('');
+  const urlQuery = useUrlQuery();
+  const [value, setValue] = useState(urlQuery);
   const inputRef = useRef<HTMLInputElement>(null);
   const m = useMessages(common).topBar;
 
@@ -41,11 +62,12 @@ function GlobalSearch() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Clear the query when leaving the transactions page (state adjusted during render, not in an effect).
-  const [path, setPath] = useState(location.pathname);
-  if (location.pathname !== path) {
-    setPath(location.pathname);
-    if (location.pathname !== '/transactions') setValue('');
+  // Follow the list's query: filled in from a /transactions?q= link, emptied by
+  // the page's "Clear search" or by leaving it (state adjusted during render, not in an effect).
+  const [shownQuery, setShownQuery] = useState(urlQuery);
+  if (urlQuery !== shownQuery) {
+    setShownQuery(urlQuery);
+    setValue(urlQuery);
   }
 
   function submit(event: FormEvent) {
@@ -183,13 +205,14 @@ function Notifications() {
 
 /**
  * One line above every page: navigation access where the sidebar is hidden,
- * search and notifications. On the dashboard it also
+ * search (on the money pages, see SEARCH_PAGES) and notifications. On the dashboard it also
  * carries the date range the dashboard reports on.
  */
 export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const m = useMessages(common);
+  const search = hasSearch(location.pathname);
   return (
     <div className="flex h-[72px] items-center gap-3 sm:gap-4">
       <IconButton
@@ -202,20 +225,24 @@ export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
       <span className="sm:hidden">
         <Logo />
       </span>
-      <div className="hidden min-w-0 flex-1 sm:block">
-        <GlobalSearch />
-      </div>
+      {search && (
+        <div className="hidden min-w-0 flex-1 sm:block">
+          <GlobalSearch />
+        </div>
+      )}
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         {location.pathname === '/' && <PeriodPicker />}
-        <IconButton
-          label={m.topBar.searchLabel}
-          size="lg"
-          bordered
-          className="sm:hidden"
-          onClick={() => navigate('/transactions')}
-        >
-          <Search />
-        </IconButton>
+        {search && (
+          <IconButton
+            label={m.topBar.searchLabel}
+            size="lg"
+            bordered
+            className="sm:hidden"
+            onClick={() => navigate('/transactions')}
+          >
+            <Search />
+          </IconButton>
+        )}
         <Notifications />
       </div>
     </div>

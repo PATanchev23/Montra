@@ -41,6 +41,8 @@ export function renderTransactions(url = '/transactions', chrome?: ReactNode) {
                   { path: 'budgets', element: <BudgetsPage /> },
                   { path: 'simulations', element: <SimulationsPage /> },
                   { path: 'reports', element: <ReportsPage /> },
+                  // A stand-in for the account pages, for the top bar's tests.
+                  { path: 'settings', element: <p>Settings</p> },
                 ],
               },
             ],
