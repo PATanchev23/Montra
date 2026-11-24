@@ -2,17 +2,14 @@ import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 
 /**
- * The one section surface in Montra: white on the paper canvas, held by a
- * hairline and a whisper of shadow. Panels never nest: inside a panel, group
- * content with rules, spacing or a sunken band instead.
+ * The one resting surface in Montra: white on the canvas, held by a hairline
+ * alone (no shadow). Panels never nest, and a screen's hero sits on the
+ * canvas without one. Inside a panel, group content with space and rules.
  */
 export function Panel({ className, ...props }: HTMLAttributes<HTMLElement>) {
   return (
     <section
-      className={cn(
-        'min-w-0 rounded-panel border border-panel-line bg-surface shadow-panel',
-        className,
-      )}
+      className={cn('min-w-0 rounded-panel border border-panel-line bg-surface', className)}
       {...props}
     />
   );
@@ -38,13 +35,15 @@ export function PanelHeader({
         className,
       )}
     >
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1 basis-56">
         <h2 id={id} className="text-title text-ink">
           {title}
         </h2>
-        {description && <p className="text-body-sm text-muted">{description}</p>}
+        {description && <p className="mt-0.5 text-body-sm text-muted">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">{actions}</div>
+      )}
     </header>
   );
 }

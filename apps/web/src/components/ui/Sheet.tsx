@@ -35,11 +35,11 @@ export function Sheet({
         <Dialog.Overlay className="fixed inset-0 z-40 bg-overlay data-[state=closed]:animate-[fade-out_160ms_ease-in_forwards] data-[state=open]:animate-[fade-in_160ms_ease-out]" />
         <Dialog.Content
           className={cn(
-            'fixed top-0 bottom-0 z-50 flex w-full flex-col border-line bg-surface shadow-pop outline-none',
+            'fixed top-0 bottom-0 z-50 flex w-full flex-col bg-surface shadow-pop outline-none',
             // From 640px it floats inset from the edge with panel corners; on phones it fills the screen.
             side === 'right'
-              ? 'right-0 max-w-md border-l sm:top-3 sm:right-3 sm:bottom-3 sm:overflow-hidden sm:rounded-panel sm:border data-[state=closed]:animate-[slide-out-right_160ms_ease-in_forwards] data-[state=open]:animate-[slide-in-right_220ms_var(--ease-out-soft)]'
-              : 'left-0 max-w-[288px] border-r data-[state=closed]:animate-[slide-out-left_160ms_ease-in_forwards] data-[state=open]:animate-[slide-in-left_220ms_var(--ease-out-soft)]',
+              ? 'right-0 max-w-md sm:top-3 sm:right-3 sm:bottom-3 sm:overflow-hidden sm:rounded-panel data-[state=closed]:animate-[slide-out-right_160ms_ease-in_forwards] data-[state=open]:animate-[slide-in-right_220ms_var(--ease-out-soft)]'
+              : 'left-0 max-w-[288px] data-[state=closed]:animate-[slide-out-left_160ms_ease-in_forwards] data-[state=open]:animate-[slide-in-left_220ms_var(--ease-out-soft)]',
             className,
           )}
         >
@@ -50,16 +50,16 @@ export function Sheet({
             )}
           >
             <div>
-              <Dialog.Title className="text-[16px] font-semibold text-ink">{title}</Dialog.Title>
+              <Dialog.Title className="text-title text-ink">{title}</Dialog.Title>
               {description && (
-                <Dialog.Description className="mt-0.5 text-[13px] text-muted">
+                <Dialog.Description className="mt-0.5 text-body-sm text-muted">
                   {description}
                 </Dialog.Description>
               )}
             </div>
             <Dialog.Close
               aria-label={m.close}
-              className="-mr-2 flex size-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-hover hover:text-ink"
+              className="-mr-2 flex size-8 cursor-pointer items-center justify-center rounded-full text-muted hover:bg-hover hover:text-ink"
             >
               <X className="size-4" strokeWidth={2} />
             </Dialog.Close>

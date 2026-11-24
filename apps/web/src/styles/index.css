@@ -3,125 +3,141 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Montra design tokens: Monochrome
- * ────────────────────────────────
- * Black, white and neutral greys. Components reference only these semantic
- * names (bg-surface, text-muted, fill-chart-1 …) so the light and dark themes
- * stay in lockstep.
+ * Montra design tokens: Quiet Ledger
+ * ──────────────────────────────────
+ * Near-monochrome neutrals, ink as the one accent, green and red held back
+ * for meaning. Components reference only these semantic names (bg-surface,
+ * text-muted, fill-chart-1 …) so the light and dark themes stay in lockstep.
  *
  * Colour roles
- *   canvas → surface → raised   paper, panels, floating layers
- *   accent      ink: primary actions, the active navigation pill, focus, links
+ *   canvas → surface → raised   the page, resting panels, floating layers
+ *   sidebar     the navigation plane; the same paper as the canvas, a hairline apart
+ *   bar         the sticky top bar: the canvas, slightly see-through over content
+ *   accent      ink: the primary action, the active segment, focus, selection, links
  *   positive    money in and favourable change, nowhere else
  *   negative    money out, unfavourable change and errors, nowhere else
  *   warning     a payment or limit that is close; status only
- *   chart-1     ink capsules; chart-track the pale capsule behind them
+ *   chart-1     ink capsules and the balance line; chart-track the pale capsule behind
  *   chart-2…6   the grey ramp for a second series and for shares
  *   control     input and select boundaries (3:1 against the planes they sit on)
  *   faint       decorative only (placeholder glyphs); never text
  *
- * Every text pair below meets WCAG 2.2 AA (4.5:1) in both themes.
- * Light is the default theme; dark mirrors every role in neutral greys.
+ * Resting surfaces sit on a hairline and cast no shadow; only floating layers
+ * (menus, tooltips, sheets) do. Every text pair meets WCAG 2.2 AA (4.5:1) in
+ * both themes, muted on the hover fill included. Light is the default theme;
+ * dark mirrors every role in neutral greys.
  */
 :root {
-  --canvas: #f7f7f5;
-  --sidebar: #f2f2ef;
+  --canvas: #f5f5f7;
+  --sidebar: #f5f5f7;
   --surface: #ffffff;
   --raised: #ffffff;
-  --sunken: #f3f3f0;
-  --hover: #eeeeeb;
-  --line: #e8e8e5;
-  --line-soft: #f0f0ed;
-  --line-strong: #d6d6d2;
-  --control: #8c8c88;
-  --grid: #eeeeeb;
+  --sunken: #f2f2f4;
+  --hover: #ececef;
+  --pressed: #e3e3e7;
+  --line: #e5e5e8;
+  --line-soft: #efeff1;
+  --line-strong: #d2d2d7;
+  --control: #86868b;
+  --grid: #ececef;
   --selected: #ffffff;
-  --selected-line: #d6d6d2;
-  --panel-line: #e8e8e5;
+  --selected-line: #d2d2d7;
+  --panel-line: #e5e5e8;
 
-  --ink: #171717;
-  --ink-2: #454543;
-  --muted: #6b6b68;
-  --faint: #a3a3a0;
+  --ink: #1d1d1f;
+  --ink-2: #424245;
+  --muted: #67676c;
+  --faint: #a1a1a6;
 
-  --accent: #171717;
-  --accent-hover: #333331;
+  --accent: #1d1d1f;
+  --accent-hover: #3a3a3c;
   --accent-ink: #ffffff;
-  --accent-soft: #eeeeeb;
-  --accent-line: #cfcfcb;
+  --accent-soft: #ececef;
+  --accent-line: #d2d2d7;
 
   --positive: #17794b;
-  --positive-soft: #e8f3ec;
+  --positive-soft: #e7f3ec;
   --negative: #c2352b;
-  --negative-soft: #fbecea;
+  --negative-soft: #fbeceb;
   --warning: #8a5a00;
   --warning-soft: #f6eedc;
-  --info: #454543;
-  --info-soft: #eeeeeb;
+  --info: #424245;
+  --info-soft: #ececef;
 
-  --chart-1: #252525;
-  --chart-1-soft: #eeeeeb;
-  --chart-track: #e6e6e3;
-  --chart-2: #858585;
-  --chart-3: #555555;
-  --chart-4: #a3a3a0;
-  --chart-5: #c2c2be;
-  --chart-6: #d9d9d5;
+  --chart-1: #2c2c2e;
+  --chart-1-soft: #ececef;
+  --chart-track: #ececef;
+  --chart-2: #8e8e93;
+  --chart-3: #545458;
+  --chart-4: #aeaeb2;
+  --chart-5: #c7c7cc;
+  --chart-6: #dedee3;
 
-  --overlay: rgb(23 23 23 / 0.32);
-  --shadow-panel: 0 1px 2px rgb(23 23 23 / 0.04);
-  --shadow-pop: 0 12px 32px -12px rgb(23 23 23 / 0.16), 0 2px 6px -2px rgb(23 23 23 / 0.06);
+  --overlay: rgb(29 29 31 / 0.28);
+  --bar: rgb(245 245 247 / 0.82);
+  --shadow-panel: none;
+  /* The sliding thumb of a segmented control: a resting control, so barely there. */
+  --shadow-thumb: 0 1px 2px rgb(0 0 0 / 0.08), 0 1px 1px rgb(0 0 0 / 0.04);
+  --shadow-pop:
+    0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -6px rgb(0 0 0 / 0.1),
+    0 24px 48px -16px rgb(0 0 0 / 0.12);
   color-scheme: light;
 }
 
 .dark {
-  --canvas: #0f0f0f;
-  --sidebar: #0b0b0b;
-  --surface: #171717;
-  --raised: #1e1e1e;
-  --sunken: #131313;
-  --hover: #242424;
-  --line: #262626;
-  --line-soft: #1f1f1f;
-  --line-strong: #363636;
-  --control: #757575;
-  --grid: #222222;
-  --selected: #2a2a2a;
-  --selected-line: #363636;
-  --panel-line: #262626;
+  --canvas: #0b0b0c;
+  --sidebar: #0b0b0c;
+  --surface: #161618;
+  --raised: #1f1f21;
+  --sunken: #111113;
+  --hover: #262628;
+  --pressed: #303033;
+  --line: #262628;
+  --line-soft: #1c1c1e;
+  --line-strong: #3a3a3c;
+  --control: #7c7c80;
+  --grid: #1f1f21;
+  --selected: #2a2a2d;
+  --selected-line: #3a3a3c;
+  --panel-line: #232325;
 
-  --ink: #f5f5f3;
-  --ink-2: #c7c7c4;
-  --muted: #9a9a97;
-  --faint: #5e5e5c;
+  --ink: #f5f5f7;
+  --ink-2: #c7c7cc;
+  --muted: #98989d;
+  --faint: #5a5a5e;
 
-  --accent: #f5f5f3;
+  --accent: #f5f5f7;
   --accent-hover: #ffffff;
-  --accent-ink: #171717;
-  --accent-soft: #262626;
-  --accent-line: #404040;
+  --accent-ink: #1d1d1f;
+  --accent-soft: #262628;
+  --accent-line: #3a3a3c;
 
   --positive: #5cc08b;
-  --positive-soft: #16261d;
+  --positive-soft: #15261d;
   --negative: #f08a7e;
   --negative-soft: #2b1917;
   --warning: #d9a94e;
   --warning-soft: #2a2416;
-  --info: #c7c7c4;
-  --info-soft: #262626;
+  --info: #c7c7cc;
+  --info-soft: #262628;
 
-  --chart-1: #ededea;
-  --chart-1-soft: #262626;
-  --chart-track: #2a2a2a;
-  --chart-2: #8f8f8c;
-  --chart-3: #bdbdba;
-  --chart-4: #6a6a68;
-  --chart-5: #4f4f4d;
-  --chart-6: #3b3b3a;
+  --chart-1: #ededf0;
+  --chart-1-soft: #262628;
+  --chart-track: #2a2a2d;
+  --chart-2: #8e8e93;
+  --chart-3: #c7c7cc;
+  --chart-4: #636366;
+  --chart-5: #48484a;
+  --chart-6: #3a3a3c;
 
-  --overlay: rgb(0 0 0 / 0.64);
-  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3);
-  --shadow-pop: 0 16px 40px -16px rgb(0 0 0 / 0.7), 0 2px 8px -2px rgb(0 0 0 / 0.45);
+  --overlay: rgb(0 0 0 / 0.6);
+  --bar: rgb(11 11 12 / 0.8);
+  --shadow-panel: none;
+  --shadow-thumb: 0 1px 2px rgb(0 0 0 / 0.5);
+  /* Dark shadows barely read, so a floating layer also carries a faint light edge. */
+  --shadow-pop:
+    0 0 0 1px rgb(255 255 255 / 0.06), 0 12px 32px -8px rgb(0 0 0 / 0.6),
+    0 28px 56px -20px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
 
@@ -132,6 +148,7 @@
   --color-raised: var(--raised);
   --color-sunken: var(--sunken);
   --color-hover: var(--hover);
+  --color-pressed: var(--pressed);
   --color-line: var(--line);
   --color-line-soft: var(--line-soft);
   --color-line-strong: var(--line-strong);
@@ -171,21 +188,26 @@
   --color-chart-6: var(--chart-6);
 
   --color-overlay: var(--overlay);
+  --color-bar: var(--bar);
   --shadow-panel: var(--shadow-panel);
+  --shadow-thumb: var(--shadow-thumb);
   --shadow-pop: var(--shadow-pop);
 
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
 
   /*
-   * Type scale. Each step carries its own line height (and weight and
-   * tracking where they are part of the role), so nothing inherits the
-   * body's line height by accident. Figures are set at 600 so the money
-   * leads the page.
+   * Type scale. Few sizes, three weights (400, 500, 600). Each step carries
+   * its own line height, and weight and tracking where they belong to the
+   * role. Headlines and figures tighten as they grow; money is always
+   * tabular (see the tabular utility).
+   *
+   *   caption 12 · body-sm 13 · body 14 · body-lg 15 · title 17
+   *   figure-sm 20 · figure 28 · display 32 · figure-xl 40 · hero 56
    */
   --text-micro: 0.6875rem;
   --text-micro--line-height: 1rem;
-  --text-micro--letter-spacing: 0.06em;
+  --text-micro--letter-spacing: 0.01em;
   --text-micro--font-weight: 500;
   --text-caption: 0.75rem;
   --text-caption--line-height: 1rem;
@@ -194,10 +216,10 @@
   --text-body: 0.875rem;
   --text-body--line-height: 1.375rem;
   --text-body-lg: 0.9375rem;
-  --text-body-lg--line-height: 1.375rem;
+  --text-body-lg--line-height: 1.5rem;
   --text-title: 1.0625rem;
   --text-title--line-height: 1.5rem;
-  --text-title--letter-spacing: -0.015em;
+  --text-title--letter-spacing: -0.016em;
   --text-title--font-weight: 600;
   --text-figure-sm: 1.25rem;
   --text-figure-sm--line-height: 1.75rem;
@@ -205,26 +227,51 @@
   --text-figure-sm--font-weight: 600;
   --text-figure: 1.75rem;
   --text-figure--line-height: 2.125rem;
-  --text-figure--letter-spacing: -0.025em;
+  --text-figure--letter-spacing: -0.028em;
   --text-figure--font-weight: 600;
   --text-display: 2rem;
-  --text-display--line-height: 2.375rem;
-  --text-display--letter-spacing: -0.03em;
+  --text-display--line-height: 2.5rem;
+  --text-display--letter-spacing: -0.032em;
   --text-display--font-weight: 600;
   --text-figure-xl: 2.5rem;
-  --text-figure-xl--line-height: 2.75rem;
-  --text-figure-xl--letter-spacing: -0.03em;
+  --text-figure-xl--line-height: 2.875rem;
+  --text-figure-xl--letter-spacing: -0.036em;
   --text-figure-xl--font-weight: 600;
+  --text-hero: 3.5rem;
+  --text-hero--line-height: 3.75rem;
+  --text-hero--letter-spacing: -0.04em;
+  --text-hero--font-weight: 600;
 
-  /* Controls, the larger top-bar fields, and panels. Bars, segments and badges are full pills. */
+  /*
+   * Space runs on an 8px grid: Tailwind steps 2, 4, 6, 8, 10, 12, 16, 20
+   * (8 to 80px). The 4px steps (1, 3, 5) are for the inside of controls
+   * only. Named roles for the frame:
+   */
+  --spacing-gutter: 1rem;
+  --spacing-gutter-md: 2rem;
+  --spacing-gutter-lg: 3rem;
+  --spacing-section: 2.5rem;
+  --spacing-section-lg: 3.5rem;
+  --spacing-panel: 1.5rem;
+  --spacing-panel-lg: 2rem;
+
   /* Where the dashboard has room for three panels in its lower row. */
   --breakpoint-wide: 90rem;
 
   --radius-control: 10px;
   --radius-field: 12px;
-  --radius-panel: 16px;
+  --radius-panel: 20px;
 
+  /*
+   * Motion: short and calm. 150ms for hover and press, 200ms for a change of
+   * state, 250ms for anything that enters. The standard curve decelerates
+   * gently; the soft ease-out is kept for charts settling into new values.
+   */
+  --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 250ms;
 }
 
 @layer base {

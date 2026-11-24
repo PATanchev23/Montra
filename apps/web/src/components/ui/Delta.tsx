@@ -29,7 +29,7 @@ export function Delta({
   if (kind !== 'ratio' || ratio === null) {
     // Neutral on purpose: no arrow, no green or red.
     return (
-      <span className={cn('text-[13px] font-medium text-muted', className)}>
+      <span className={cn('text-body-sm font-medium text-muted', className)}>
         {kind === 'none' ? m.noChange : m.noEarlier}
       </span>
     );
@@ -41,7 +41,7 @@ export function Delta({
   return (
     <span
       className={cn(
-        'tabular inline-flex items-center gap-0.5 text-[13px] font-medium',
+        'tabular inline-flex items-center gap-0.5 text-body-sm font-medium',
         good === null ? 'text-muted' : good ? 'text-positive' : 'text-negative',
         className,
       )}

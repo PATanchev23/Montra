@@ -9,10 +9,10 @@ const primary = 'bg-accent text-accent-ink hover:bg-accent-hover';
 
 const variants: Record<Variant, string> = {
   primary,
-  secondary:
-    'border border-line-strong bg-raised text-ink hover:border-control hover:bg-hover data-[state=open]:bg-hover',
+  /* A quiet fill rather than an outline: fewer lines on the page. */
+  secondary: 'bg-hover text-ink hover:bg-pressed data-[state=open]:bg-pressed',
   ghost:
-    'text-muted hover:bg-hover hover:text-ink data-[state=open]:bg-hover data-[state=open]:text-ink',
+    'text-ink-2 hover:bg-hover hover:text-ink data-[state=open]:bg-hover data-[state=open]:text-ink',
   /**
    * Kept for pages not yet recomposed. Analysis has no colour of its own in
    * the monochrome system, so it renders as the primary (ink) action.
@@ -21,9 +21,9 @@ const variants: Record<Variant, string> = {
 };
 
 const sizes: Record<Size, string> = {
-  sm: 'h-8 gap-1.5 px-2.5 text-body-sm [&_svg]:size-3.5',
-  md: 'h-9 gap-2 px-3.5 text-body-sm [&_svg]:size-4',
-  lg: 'h-11 gap-2.5 px-5 text-body [&_svg]:size-4',
+  sm: 'h-8 gap-1.5 px-3 text-body-sm [&_svg]:size-3.5',
+  md: 'h-9 gap-2 px-4 text-body-sm [&_svg]:size-4',
+  lg: 'h-11 gap-2 px-6 text-body [&_svg]:size-4',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -43,7 +43,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       type={asChild ? undefined : type}
       className={cn(
-        'inline-flex shrink-0 cursor-pointer items-center justify-center rounded-control font-medium whitespace-nowrap transition-[background-color,border-color,color,filter] duration-150 select-none disabled:cursor-not-allowed disabled:opacity-45 [&_svg]:shrink-0',
+        // Capsules: the button takes the chart's shape.
+        'inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full font-medium whitespace-nowrap transition-[background-color,color,scale] duration-150 ease-[var(--ease-standard)] select-none active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100 [&_svg]:shrink-0',
         variants[variant],
         sizes[size],
         className,

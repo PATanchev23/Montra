@@ -11,7 +11,15 @@ import { fieldErrorId, fieldHintId } from './fieldIds';
  * other control; invalid fields switch both to the negative tone.
  */
 const fieldClass =
-  'h-9 w-full min-w-0 rounded-control border border-control bg-raised px-3 text-body-sm text-ink transition-colors placeholder:text-muted hover:border-ink-2 focus:outline-none focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-55 aria-invalid:border-negative aria-invalid:focus-visible:outline-negative';
+  'h-9 w-full min-w-0 rounded-control border border-control bg-raised px-3 text-body-sm text-ink transition-colors duration-150 placeholder:text-muted hover:border-ink-2 focus:outline-none focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent focus-visible:outline-solid disabled:cursor-not-allowed disabled:opacity-55 aria-invalid:border-negative aria-invalid:focus-visible:outline-negative';
+
+/*
+ * The top-bar search is a filled capsule with no outline: its glyph, its
+ * placeholder and its place in the bar identify it, so it can stay quiet.
+ * Focus raises it to the surface with the usual accent ring.
+ */
+const quietFieldClass =
+  'border-transparent bg-hover hover:border-transparent hover:bg-pressed focus-visible:border-transparent focus-visible:bg-raised';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
@@ -25,7 +33,7 @@ export const SearchField = forwardRef<
     value: string;
     onValueChange: (value: string) => void;
     trailing?: ReactNode;
-    /** `lg` is the 44px field in the top bar. */
+    /** `lg` is the 40px filled capsule in the top bar. */
     fieldSize?: 'md' | 'lg';
   }
 >(function SearchField(
@@ -40,7 +48,7 @@ export const SearchField = forwardRef<
         aria-hidden
         className={cn(
           'pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted',
-          large ? 'left-4 size-[18px]' : 'left-3 size-4',
+          large ? 'left-4 size-4' : 'left-3 size-4',
         )}
         strokeWidth={1.75}
       />
@@ -52,7 +60,7 @@ export const SearchField = forwardRef<
         className={cn(
           fieldClass,
           '[&::-webkit-search-cancel-button]:hidden',
-          large ? 'h-11 rounded-field pr-11 pl-11 text-body' : 'pr-9 pl-9',
+          large ? cn(quietFieldClass, 'h-10 rounded-full pr-11 pl-10 text-body') : 'pr-9 pl-9',
         )}
         {...props}
       />
@@ -62,7 +70,7 @@ export const SearchField = forwardRef<
           aria-label={m.clearSearch}
           onClick={() => onValueChange('')}
           className={cn(
-            'absolute top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-hover hover:text-ink',
+            'absolute top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-muted hover:bg-pressed hover:text-ink',
             large ? 'right-3' : 'right-2',
           )}
         >
@@ -97,12 +105,12 @@ export function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={htmlFor} className="text-[13px] font-medium text-ink-2">
+      <label htmlFor={htmlFor} className="text-body-sm font-medium text-ink-2">
         {label}
       </label>
       {children}
       {error ? (
-        <p id={fieldErrorId(htmlFor)} className="text-[12px] text-negative">
+        <p id={fieldErrorId(htmlFor)} className="text-caption text-negative">
           {error}
         </p>
       ) : (

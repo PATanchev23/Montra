@@ -77,7 +77,7 @@ function GlobalSearch() {
   }
 
   return (
-    <form role="search" onSubmit={submit} className="w-full max-w-[720px] min-w-0">
+    <form role="search" onSubmit={submit} className="w-full max-w-[560px] min-w-0">
       <SearchField
         ref={inputRef}
         fieldSize="lg"
@@ -86,7 +86,7 @@ function GlobalSearch() {
         placeholder={m.searchPlaceholder}
         aria-label={m.searchLabel}
         trailing={
-          <kbd className="hidden h-6 min-w-6 items-center justify-center rounded-md border border-line-strong px-1.5 font-mono text-caption text-muted sm:flex">
+          <kbd className="hidden h-6 min-w-6 items-center justify-center rounded-md bg-surface px-1.5 font-mono text-caption text-muted sm:flex">
             /
           </kbd>
         }
@@ -172,10 +172,10 @@ function Notifications() {
   return (
     <Menu>
       <MenuTrigger asChild>
-        <IconButton label={m.notifications} size="lg" bordered>
+        <IconButton label={m.notifications} size="md">
           <Bell strokeWidth={1.6} />
           {data.length > 0 && (
-            <span className="absolute top-2.5 right-2.5 size-2 rounded-full border-2 border-raised bg-ink" />
+            <span className="absolute top-2 right-2 size-2 rounded-full border-2 border-canvas bg-ink" />
           )}
         </IconButton>
       </MenuTrigger>
@@ -214,7 +214,7 @@ export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
   const m = useMessages(common);
   const search = hasSearch(location.pathname);
   return (
-    <div className="flex h-[72px] items-center gap-3 sm:gap-4">
+    <div className="flex h-16 items-center gap-3 sm:gap-4">
       <IconButton
         label={m.nav.openNavigation}
         className="hidden sm:inline-flex lg:hidden"
@@ -235,8 +235,7 @@ export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
         {search && (
           <IconButton
             label={m.topBar.searchLabel}
-            size="lg"
-            bordered
+            size="md"
             className="sm:hidden"
             onClick={() => navigate('/transactions')}
           >

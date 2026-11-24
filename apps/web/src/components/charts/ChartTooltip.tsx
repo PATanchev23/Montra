@@ -26,7 +26,7 @@ export function ChartTooltip({
     <div
       role="presentation"
       className={cn(
-        'pointer-events-none absolute z-10 min-w-44 rounded-field border border-line bg-raised px-3.5 py-3 whitespace-nowrap shadow-pop transition-[left,top] duration-150 ease-[var(--ease-out-soft)]',
+        'pointer-events-none absolute z-10 min-w-44 rounded-field bg-raised px-3.5 py-3 whitespace-nowrap shadow-pop transition-[left,top] duration-150 ease-[var(--ease-out-soft)]',
         side
           ? side === 'left' && '-translate-x-full'
           : [

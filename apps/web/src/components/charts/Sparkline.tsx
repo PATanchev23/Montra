@@ -20,6 +20,7 @@ export function Sparkline({
   width = 72,
   height = 28,
   dashed = false,
+  stretch = false,
   className,
 }: {
   values: number[];
@@ -27,6 +28,8 @@ export function Sparkline({
   width?: number;
   height?: number;
   dashed?: boolean;
+  /** Fill whatever box the class gives it, instead of keeping the width:height shape. */
+  stretch?: boolean;
   className?: string;
 }) {
   if (values.length < 2) return null;
@@ -46,21 +49,37 @@ export function Sparkline({
       width={width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio={stretch ? 'none' : undefined}
       aria-hidden
       className={cn('shrink-0 overflow-visible', tones[tone], className)}
     >
-      <motion.path
-        d={path}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.75}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeDasharray={dashed ? '4 3' : undefined}
-        initial={{ pathLength: dashed ? 1 : 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-      />
+      {stretch ? (
+        // Stretched, the line keeps its stroke weight on screen; a draw-in would measure
+        // the path in the wrong units and break it into dashes, so it is drawn whole.
+        <path
+          d={path}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.75}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray={dashed ? '4 3' : undefined}
+          vectorEffect="non-scaling-stroke"
+        />
+      ) : (
+        <motion.path
+          d={path}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.75}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray={dashed ? '4 3' : undefined}
+          initial={{ pathLength: dashed ? 1 : 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+        />
+      )}
     </svg>
   );
 }

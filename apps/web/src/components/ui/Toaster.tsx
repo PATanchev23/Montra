@@ -24,7 +24,7 @@ export function Toaster() {
           <Toast.Root
             key={id}
             onOpenChange={(open) => !open && dismiss(id)}
-            className="flex items-start gap-3 rounded-panel border border-line-strong bg-raised p-3.5 shadow-pop data-[state=open]:animate-[pop-in_180ms_var(--ease-out-soft)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)]"
+            className="flex items-start gap-3 rounded-field bg-raised p-3.5 shadow-pop data-[state=open]:animate-[pop-in_180ms_var(--ease-out-soft)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)]"
           >
             <span
               className={cn(

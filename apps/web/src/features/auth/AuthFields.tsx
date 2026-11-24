@@ -24,7 +24,7 @@ export function TextField({ label, hint, error, className, ...props }: TextField
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy(id, error, hint)}
-        className={cn('h-13 text-base', className)}
+        className={cn('h-12 rounded-field text-base', className)}
         {...props}
       />
     </Field>
@@ -49,7 +49,7 @@ export function PasswordField({ label, hint, error, className, ...props }: TextF
           spellCheck={false}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy(id, error, hint)}
-          className={cn('h-13 pr-12 text-base', className)}
+          className={cn('h-12 rounded-field pr-12 text-base', className)}
           {...props}
         />
         <button
@@ -58,7 +58,7 @@ export function PasswordField({ label, hint, error, className, ...props }: TextF
           aria-pressed={visible}
           aria-controls={id}
           onClick={() => setVisible((v) => !v)}
-          className="absolute top-1/2 right-1.5 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-ink"
+          className="absolute top-1/2 right-1.5 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-hover hover:text-ink"
         >
           <Icon className="size-[18px]" strokeWidth={1.6} />
         </button>

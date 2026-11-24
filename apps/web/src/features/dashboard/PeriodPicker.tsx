@@ -35,10 +35,10 @@ export function PeriodPicker() {
   return (
     <Menu>
       <MenuTrigger
-        className="flex h-11 shrink-0 cursor-pointer items-center gap-2.5 rounded-field border border-line-strong bg-surface px-3 text-body-sm font-medium text-ink transition-colors hover:border-control data-[state=open]:border-control sm:px-3.5"
+        className="flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-hover px-3 text-body-sm font-medium text-ink transition-colors duration-150 hover:bg-pressed data-[state=open]:bg-pressed sm:px-4"
         aria-label={m.picker.trigger(currentLabel)}
       >
-        <CalendarDays aria-hidden className="size-[18px] text-ink-2" strokeWidth={1.6} />
+        <CalendarDays aria-hidden className="size-4 text-ink-2" strokeWidth={1.75} />
         <span className="tabular hidden whitespace-nowrap lg:inline">
           {current ? rangeLabel(current.from, current.to) : currentLabel}
         </span>

@@ -2,12 +2,11 @@ import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 
 /**
- * A page's title, its one-line context and its actions. `eyebrow` is kept
- * only for pages that have not moved to the new system yet; new pages leave
- * it out and let the title speak.
+ * A page's title, its one-line context and its actions. The title speaks for
+ * itself: `eyebrow` is still accepted from pages not yet recomposed, but it is
+ * no longer drawn (no kicker above a title, see DESIGN.md).
  */
 export function PageHeader({
-  eyebrow,
   title,
   description,
   actions,
@@ -21,13 +20,12 @@ export function PageHeader({
   actionsClassName?: string;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+    <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
       <div className="min-w-0">
-        {eyebrow && <p className="eyebrow mb-2">{eyebrow}</p>}
-        <h1 className="text-[1.625rem] leading-8 font-semibold tracking-[-0.025em] text-balance text-ink sm:text-display">
-          {title}
-        </h1>
-        {description && <p className="mt-1.5 text-body-lg text-ink-2">{description}</p>}
+        <h1 className="text-figure text-balance text-ink sm:text-display">{title}</h1>
+        {description && (
+          <div className="mt-2 max-w-[68ch] text-body-lg text-muted">{description}</div>
+        )}
       </div>
       {actions && (
         <div className={cn('flex flex-wrap items-center gap-2', actionsClassName)}>{actions}</div>

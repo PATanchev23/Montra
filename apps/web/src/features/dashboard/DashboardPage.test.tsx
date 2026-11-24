@@ -58,8 +58,15 @@ const history = () => [
   }),
 ];
 
-/** A summary tile: net cash flow, income or expenses. */
-const kpi = (name: string) => screen.getByRole('group', { name });
+/** The capsule chart's panel, whose summary line carries the period's income ("€1,500.00 earned"). */
+const overview = () => screen.getByRole('region', { name: 'Cash flow overview' });
+/** The expense breakdown panel, whose ring centre carries the period's expenses. */
+const breakdown = () => screen.getByRole('region', { name: 'Expense breakdown' });
+/** Waits for the period's income, as the capsule chart's summary states it. */
+const findEarned = async (amount: string) =>
+  within(await screen.findByRole('region', { name: 'Cash flow overview' })).findByText(
+    new RegExp(`^${amount.replace(/[$.]/g, '\\$&')} earned`),
+  );
 
 beforeAll(polyfillRadix);
 beforeEach(() => {
@@ -74,16 +81,10 @@ describe('dashboard figures', () => {
     const api = ledgerServer({ transactions: history(), currency: 'USD' });
     renderTransactions('/');
 
-    expect(
-      await within(await screen.findByRole('group', { name: 'Income' })).findByText('US$1,500.00'),
-    ).toBeInTheDocument();
-    expect(within(kpi('Income')).getByText('+US$500.00')).toBeInTheDocument();
-    expect(within(kpi('Income')).getByText('50%')).toBeInTheDocument();
-    expect(within(kpi('Income')).getByText(/vs\. previous 30 days/)).toBeInTheDocument();
-    expect(within(kpi('Expenses')).getByText('US$400.44')).toBeInTheDocument();
-    expect(within(kpi('Expenses')).getByText('−US$99.56')).toBeInTheDocument();
-    expect(within(kpi('Net cash flow')).getByText('US$1,099.56')).toBeInTheDocument();
-    expect(within(kpi('Net cash flow')).getByText('+US$599.56')).toBeInTheDocument();
+    expect(await findEarned('US$1,500.00')).toBeInTheDocument();
+    expect(within(breakdown()).getByText('US$400.44')).toBeInTheDocument();
+    // The period's totals are the chart's and the ring's; there are no summary tiles.
+    expect(screen.queryByRole('group', { name: 'Net cash flow' })).not.toBeInTheDocument();
     expect(screen.getByText(/TechStore performed in the last 30 days/)).toBeInTheDocument();
     expect(screen.getByText(/11 Oct – 9 Nov 2026 · 3 transactions/)).toBeInTheDocument();
 
@@ -105,7 +106,7 @@ describe('dashboard figures', () => {
       ['Wholesale order', 'Website hosting', 'Facebook Ads', 'Marketplace payout', 'Office rent'],
     );
 
-    const chart = screen.getByRole('region', { name: 'Cash flow overview' });
+    const chart = overview();
     expect(
       within(chart).getByText(/US\$1,500\.00 earned · US\$50\.00 daily average/),
     ).toBeInTheDocument();
@@ -161,19 +162,33 @@ describe('dashboard figures', () => {
     expect(screen.queryByText(/Sample data|TechStore sample/)).not.toBeInTheDocument();
   });
 
+  it('opens with where cash stands and where it is heading', async () => {
+    ledgerServer({ transactions: history() });
+    renderTransactions('/');
+
+    // No bank balance entered yet: the panel says the figure counts from zero, and how to fix it.
+    const cash = await screen.findByRole('region', { name: 'Cash from your transactions' });
+    expect(await within(cash).findByText(/over the next 90 days/)).toBeInTheDocument();
+    expect(within(cash).getByText('Lowest ahead')).toBeInTheDocument();
+    expect(within(cash).getByText(/Balances start from 0 until you enter/)).toBeInTheDocument();
+    expect(within(cash).getByRole('link', { name: /Enter bank balance/ })).toHaveAttribute(
+      'href',
+      '/cash-flow',
+    );
+  });
+
   it('reloads for another reporting period', async () => {
     const api = ledgerServer({ transactions: history() });
     renderTransactions('/', <PeriodPicker />);
     const u = userEvent.setup();
-    await within(await screen.findByRole('group', { name: 'Income' })).findByText('€1,500.00');
+    await findEarned('€1,500.00');
 
     await u.click(screen.getByRole('button', { name: 'Reporting period: Last 30 days' }));
     await u.click(await screen.findByRole('menuitemradio', { name: /Last month/ }));
 
-    await waitFor(() => expect(within(kpi('Income')).getByText('€1,000.00')).toBeInTheDocument());
+    expect(await findEarned('€1,000.00')).toBeInTheDocument();
     expect(api.dashboardQueries().at(-1)).toEqual({ period: 'last-month' });
-    expect(within(kpi('Expenses')).getByText('€310.45')).toBeInTheDocument();
-    expect(within(kpi('Expenses')).getByText(/vs\. September/)).toBeInTheDocument();
+    expect(within(breakdown()).getAllByText('€310.45').length).toBeGreaterThan(0);
     expect(screen.getByText(/TechStore performed in October 2026/)).toBeInTheDocument();
     expect(screen.getByText(/1 – 31 Oct 2026 · 2 transactions/)).toBeInTheDocument();
     expect(
@@ -185,12 +200,12 @@ describe('dashboard figures', () => {
     const api = ledgerServer({ transactions: history() });
     renderTransactions('/');
     const u = userEvent.setup();
-    await within(await screen.findByRole('group', { name: 'Income' })).findByText('€1,500.00');
+    await findEarned('€1,500.00');
     expect(screen.getByRole('radio', { name: '30 days' })).toBeChecked();
 
     await u.click(screen.getByRole('radio', { name: '90 days' }));
 
-    await waitFor(() => expect(within(kpi('Income')).getByText('€2,500.00')).toBeInTheDocument());
+    expect(await findEarned('€2,500.00')).toBeInTheDocument();
     expect(api.dashboardQueries().at(-1)).toEqual({ period: '90d' });
     expect(screen.getByRole('radio', { name: '90 days' })).toBeChecked();
     expect(screen.getByText(/TechStore performed in the last 90 days/)).toBeInTheDocument();
@@ -207,7 +222,7 @@ describe('dashboard figures', () => {
     const api = ledgerServer({ transactions: history() });
     renderTransactions('/', <PeriodPicker />);
     const u = userEvent.setup();
-    await within(await screen.findByRole('group', { name: 'Income' })).findByText('€1,500.00');
+    await findEarned('€1,500.00');
 
     await u.click(screen.getByRole('button', { name: 'Reporting period: Last 30 days' }));
     await u.click(await screen.findByRole('menuitemradio', { name: /Custom range/ }));
@@ -235,8 +250,8 @@ describe('dashboard figures', () => {
         to: '2026-11-09',
       }),
     );
-    expect(await within(kpi('Income')).findByText('€2,500.00')).toBeInTheDocument();
-    expect(within(kpi('Expenses')).getByText('€900.44')).toBeInTheDocument();
+    expect(await findEarned('€2,500.00')).toBeInTheDocument();
+    expect(within(breakdown()).getAllByText('€900.44').length).toBeGreaterThan(0);
   });
 });
 
@@ -252,9 +267,7 @@ describe('dashboard states', () => {
     expect(await screen.findByText('Business not found.')).toBeInTheDocument();
     api.state.override = null;
     await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }));
-    expect(
-      await within(await screen.findByRole('group', { name: 'Income' })).findByText('€1,500.00'),
-    ).toBeInTheDocument();
+    expect(await findEarned('€1,500.00')).toBeInTheDocument();
   });
 
   it('keeps the layout for a business with no transactions, inviting the owner to start', async () => {
@@ -266,21 +279,15 @@ describe('dashboard states', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/0 transactions/)).toBeInTheDocument();
 
-    // Same tiles, €0.00, and no comparison, change or percentage to misread.
-    for (const name of ['Net cash flow', 'Income', 'Expenses']) {
-      const tile = kpi(name);
-      expect(within(tile).getByText('€0.00')).toBeInTheDocument();
-      expect(within(tile).getByText('No data yet')).toBeInTheDocument();
-      expect(within(tile).queryByText(/%|vs\./)).not.toBeInTheDocument();
-    }
+    // No change or percentage to misread anywhere.
+    expect(screen.queryByText(/vs\. previous/)).not.toBeInTheDocument();
 
     // The chart stays, readable by keyboard and screen reader, behind a note and an Import button.
     expect(
       screen.getByText('Add your first transactions to see your daily cash flow'),
     ).toBeInTheDocument();
-    const chart = screen.getByRole('region', { name: 'Cash flow overview' });
     expect(
-      within(chart).getByRole('table', { name: 'Income by day, Last 30 days' }),
+      within(overview()).getByRole('table', { name: 'Income by day, Last 30 days' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Import transactions' })).toHaveAttribute(
       'href',
@@ -319,10 +326,8 @@ describe('dashboard states', () => {
     renderTransactions('/');
 
     expect(await screen.findByText('No transactions yet.')).toBeInTheDocument();
-    expect(within(kpi('Income')).getByText('No data yet')).toBeInTheDocument();
     // In the chart panel: its description, and the note over the empty tracks.
-    const chart = screen.getByRole('region', { name: 'Cash flow overview' });
-    expect(within(chart).getAllByText('No transactions yet')).toHaveLength(2);
+    expect(within(overview()).getAllByText('No transactions yet')).toHaveLength(2);
     expect(screen.queryByRole('link', { name: /Import/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Add transaction' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'View all transactions' })).not.toBeInTheDocument();
@@ -342,7 +347,6 @@ describe('dashboard states', () => {
         'Добавете първите си транзакции, за да видите как се справя TechStore.',
       ),
     ).toBeInTheDocument();
-    expect(screen.getAllByText('Още няма данни')).toHaveLength(3);
     expect(screen.getByText('Все още няма разходи')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Импорт' })).toHaveAttribute(
       'href',
@@ -353,9 +357,7 @@ describe('dashboard states', () => {
   it('shows viewers the same figures as owners', async () => {
     ledgerServer({ role: 'VIEWER', transactions: history() });
     renderTransactions('/');
-    expect(
-      await within(await screen.findByRole('group', { name: 'Income' })).findByText('€1,500.00'),
-    ).toBeInTheDocument();
+    expect(await findEarned('€1,500.00')).toBeInTheDocument();
   });
 
   it('shows real zeros, not an empty state, when only the period is empty', async () => {
@@ -365,35 +367,9 @@ describe('dashboard states', () => {
 
     expect(await screen.findByText('No transactions in this period.')).toBeInTheDocument();
     expect(screen.getByText('No expenses in this period.')).toBeInTheDocument();
-    expect(within(kpi('Income')).getAllByText('€0.00')).toHaveLength(2);
-    // Nothing either side of the comparison: zero against zero is no change.
-    expect(within(kpi('Income')).getByText('No change')).toBeInTheDocument();
+    expect(await findEarned('€0.00')).toBeInTheDocument();
     expect(screen.queryByText('No data yet')).not.toBeInTheDocument();
     expect(screen.getByText(/Here’s how TechStore performed/)).toBeInTheDocument();
-  });
-
-  it('compares an empty period with the real period before it', async () => {
-    // 11 Oct – 9 Nov is empty; the period before holds €1,000 income and €500 expenses.
-    ledgerServer({ transactions: history().filter((t) => t.date < '2026-10-11') });
-    renderTransactions('/');
-
-    const income = await screen.findByRole('group', { name: 'Income' });
-    expect(await within(income).findByText('−€1,000.00')).toBeInTheDocument();
-    expect(within(income).getByText('100%')).toBeInTheDocument();
-    expect(within(income).getByText('€0.00')).toBeInTheDocument();
-    expect(within(kpi('Expenses')).getByText('100%')).toBeInTheDocument();
-    expect(screen.queryByText('No data yet')).not.toBeInTheDocument();
-  });
-
-  it('says "No earlier data", without an arrow or colour, when the period before is empty', async () => {
-    ledgerServer({ transactions: history().filter((t) => t.date >= '2026-11-01') });
-    renderTransactions('/');
-
-    const income = await screen.findByRole('group', { name: 'Income' });
-    const change = await within(income).findByText('No earlier data');
-    expect(change.querySelector('svg')).toBeNull();
-    expect(change.className).not.toMatch(/text-(positive|negative)/);
-    expect(within(income).queryByText(/NaN|Infinity/)).not.toBeInTheDocument();
   });
 });
 
@@ -402,7 +378,7 @@ describe('after changes', () => {
     ledgerServer({ transactions: history() });
     const router = renderTransactions('/');
     const u = userEvent.setup();
-    await within(await screen.findByRole('group', { name: 'Income' })).findByText('€1,500.00');
+    await findEarned('€1,500.00');
 
     await act(() => router.navigate('/transactions'));
     await u.click(await screen.findByRole('button', { name: 'New transaction' }));
@@ -416,8 +392,7 @@ describe('after changes', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     await act(() => router.navigate('/'));
-    expect(await within(kpi('Income')).findByText('€1,750.00')).toBeInTheDocument();
-    expect(within(kpi('Net cash flow')).getByText('€1,349.56')).toBeInTheDocument();
+    expect(await findEarned('€1,750.00')).toBeInTheDocument();
     expect(
       within(screen.getByRole('region', { name: 'Recent transactions' })).getByText('Consulting'),
     ).toBeInTheDocument();

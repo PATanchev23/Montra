@@ -19,7 +19,7 @@ export function Tooltip({
         <RadixTooltip.Content
           side={side}
           sideOffset={6}
-          className="z-50 max-w-64 rounded-control border border-line-strong bg-raised px-2.5 py-1.5 text-caption text-ink-2 shadow-pop"
+          className="z-50 max-w-64 rounded-lg bg-raised px-2.5 py-1.5 text-caption text-ink-2 shadow-pop"
         >
           {content}
         </RadixTooltip.Content>

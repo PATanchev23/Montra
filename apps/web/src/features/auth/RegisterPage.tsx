@@ -96,7 +96,7 @@ export function RegisterPage() {
           variant="primary"
           size="lg"
           disabled={register.isPending}
-          className="mt-2 h-13 w-full"
+          className="mt-2 h-12 w-full"
         >
           {register.isPending && <Loader2 className="animate-spin" />}
           {register.isPending ? m.submitting : m.submit}

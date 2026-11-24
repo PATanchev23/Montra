@@ -50,7 +50,10 @@ export function CashFlowOverview({
   const formatValue = (cents: number) => money(cents, { currency });
 
   return (
-    <Panel className="flex flex-col p-5 sm:p-6" aria-labelledby="cash-flow-overview">
+    <Panel
+      className="flex flex-col justify-between p-5 sm:p-6"
+      aria-labelledby="cash-flow-overview"
+    >
       <PanelHeader
         id="cash-flow-overview"
         title={m.title}
@@ -79,8 +82,8 @@ export function CashFlowOverview({
         }
       />
 
-      {/* The plot takes whatever height the row gives it, never less than a readable chart. */}
-      <div className="relative mt-6 min-h-[240px] flex-1 sm:min-h-[300px]">
+      {/* A low plot: it takes up spare height in the row, but never more than 300px, so the capsules stay short. */}
+      <div className="relative mt-6 h-[220px] sm:h-auto sm:max-h-[300px] sm:min-h-[260px] sm:flex-1">
         {!data ? (
           <ChartSkeleton />
         ) : (
@@ -153,7 +156,7 @@ function ChartSkeleton() {
     <div aria-hidden className="absolute inset-0 flex items-end gap-[2.2%] pb-8 pl-10">
       {heights.map((h, i) => (
         <div key={i} className="flex h-full flex-1 items-end justify-center">
-          <Skeleton className="w-full max-w-11 rounded-full" style={{ height: `${h}%` }} />
+          <Skeleton className="w-full max-w-8 rounded-full" style={{ height: `${h}%` }} />
         </div>
       ))}
     </div>

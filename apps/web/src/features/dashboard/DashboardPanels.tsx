@@ -28,7 +28,7 @@ function ViewAll({ to, label }: { to: string; label: string }) {
     <Link
       to={to}
       aria-label={label}
-      className="group inline-flex items-center gap-1.5 rounded-md text-body-sm font-medium whitespace-nowrap text-ink hover:underline"
+      className="group inline-flex items-center gap-1.5 rounded-md text-body-sm leading-6 font-medium whitespace-nowrap text-ink hover:underline"
     >
       {m.viewAll}
       <ArrowRight
@@ -41,11 +41,7 @@ function ViewAll({ to, label }: { to: string; label: string }) {
 }
 
 function PanelNote({ children }: { children: ReactNode }) {
-  return (
-    <p className="mt-4 rounded-control bg-sunken px-4 py-6 text-center text-body-sm text-muted">
-      {children}
-    </p>
-  );
+  return <p className="mt-4 px-4 py-8 text-center text-body-sm text-muted">{children}</p>;
 }
 
 // ── Expense breakdown ────────────────────────────────────────────────────
@@ -86,13 +82,13 @@ export function ExpenseBreakdownPanel({
       <PanelHeader
         id="breakdown-title"
         // Title at the top, as in the overview beside it, with the period on its baseline.
-        className="items-baseline"
+        className="flex-nowrap items-baseline"
         title={m.breakdown}
         actions={periodLabel && <span className="text-body-sm text-muted">{periodLabel}</span>}
       />
       {!breakdown || !data ? (
         <div className="mt-5 flex flex-col items-center gap-6 @md:flex-row">
-          <Skeleton className="size-[156px] shrink-0 rounded-full" />
+          <Skeleton className="size-[128px] shrink-0 rounded-full" />
           <div className="w-full flex-1 space-y-4">
             {[0, 1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-4 w-full" />
@@ -103,7 +99,7 @@ export function ExpenseBreakdownPanel({
         <div className="mt-5 flex flex-col items-center gap-x-8 gap-y-4 @md:flex-row">
           <div
             aria-hidden
-            className="size-[156px] shrink-0 rounded-full border-[25px] border-chart-track"
+            className="size-[128px] shrink-0 rounded-full border-[12px] border-chart-track"
           />
           <p className="text-body text-muted">{m.noExpensesYet}</p>
         </div>
@@ -113,8 +109,8 @@ export function ExpenseBreakdownPanel({
         <div className="mt-5 flex flex-col items-center gap-x-8 gap-y-5 @md:flex-row">
           <DonutChart
             ariaLabel={m.expensesByCategory}
-            size={156}
-            thickness={25}
+            size={128}
+            thickness={12}
             active={active}
             onActiveChange={setActive}
             items={items.map((item, i) => ({
@@ -128,7 +124,7 @@ export function ExpenseBreakdownPanel({
                 <span className="tabular text-body-lg font-semibold tracking-[-0.02em] text-ink">
                   {money(activeItem?.cents ?? breakdown.totalCents, { currency })}
                 </span>
-                <span className="max-w-[104px] truncate text-caption text-muted">
+                <span className="max-w-[88px] truncate text-caption text-muted">
                   {activeItem?.name ?? m.total}
                 </span>
               </>
@@ -146,7 +142,7 @@ export function ExpenseBreakdownPanel({
                 onFocus={() => setActive(item.name)}
                 onBlur={() => setActive(null)}
                 className={cn(
-                  'flex items-baseline gap-3 py-2 transition-opacity duration-200',
+                  'flex items-baseline gap-3 py-1.5 transition-opacity duration-200',
                   active && active !== item.name && 'opacity-45',
                 )}
               >
@@ -187,7 +183,17 @@ export function ExpenseBreakdownPanel({
   );
 }
 
+/**
+ * The lower row's panels share the row's grid (title row, description row,
+ * content), so their titles, descriptions and lists line up across panels
+ * and the panels end together, however a heading wraps in either language.
+ */
+const ROW_PANEL = 'row-span-3 grid grid-cols-1 grid-rows-subgrid gap-y-0';
+
 // ── Recent transactions ──────────────────────────────────────────────────
+
+/** As many rows as Upcoming payments shows, so the two panels side by side end level. */
+const RECENT_ROWS = 5;
 
 /** The business's latest entries, newest first, whatever the period. */
 export function RecentTransactionsPanel({
@@ -201,14 +207,14 @@ export function RecentTransactionsPanel({
   const today = data ? parseISO(data.today) : new Date();
   const m = useMessages(dashboardMessages).panels;
   return (
-    <Panel className="p-5 sm:p-6" aria-labelledby="recent-title">
+    <Panel className={cn(ROW_PANEL, 'p-5 sm:p-6')} aria-labelledby="recent-title">
       <PanelHeader
         id="recent-title"
-        className="items-start"
+        className="min-h-0 flex-nowrap items-start"
         title={m.recent}
-        description={m.recentHint}
         actions={!noData && <ViewAll to="/transactions" label={m.viewAllTransactions} />}
       />
+      <p className="mt-0.5 text-body-sm text-muted">{m.recentHint}</p>
       <div className="mt-2">
         {!data ? (
           <LedgerSkeleton />
@@ -216,7 +222,7 @@ export function RecentTransactionsPanel({
           <PanelNote>{m.noneRecorded}</PanelNote>
         ) : (
           <ul aria-label={m.latest} className="divide-y divide-line">
-            {data.recent.map((t) => (
+            {data.recent.slice(0, RECENT_ROWS).map((t) => (
               <LedgerRow
                 key={t.id}
                 icon={<TypeIcon type={t.type} />}
@@ -254,7 +260,7 @@ export function NotYetPanel({
   className?: string;
 }) {
   return (
-    <Panel className={cn('p-5 sm:p-6', className)} aria-labelledby={id}>
+    <Panel className={cn(ROW_PANEL, 'p-5 sm:p-6', className)} aria-labelledby={id}>
       <PanelHeader id={id} title={title} />
       <PanelNote>{note}</PanelNote>
     </Panel>
@@ -271,14 +277,14 @@ export function UpcomingPaymentsPanel({ className }: { className?: string }) {
   const items = data?.upcoming.slice(0, 5);
   const today = data ? parseISO(data.today) : new Date();
   return (
-    <Panel className={cn('p-5 sm:p-6', className)} aria-labelledby="upcoming-title">
+    <Panel className={cn(ROW_PANEL, 'p-5 sm:p-6', className)} aria-labelledby="upcoming-title">
       <PanelHeader
         id="upcoming-title"
-        className="items-start"
+        className="min-h-0 flex-nowrap items-start"
         title={m.upcoming}
-        description={m.upcomingHint}
         actions={<ViewAll to="/cash-flow#upcoming" label={m.viewAllUpcoming} />}
       />
+      <p className="mt-0.5 text-body-sm text-muted">{m.upcomingHint}</p>
       <div className="mt-2">
         {isError ? (
           <ErrorState title={m.upcomingError} onRetry={() => refetch()} />
@@ -345,102 +351,94 @@ export function ScenarioPreviewPanel({ className }: { className?: string }) {
     money(cents, { decimals: 0, sign, currency: preview?.currency });
 
   return (
-    <Panel className={cn('flex flex-col p-5 sm:p-6', className)} aria-labelledby="scenario-title">
+    <Panel className={cn(ROW_PANEL, 'p-5 sm:p-6', className)} aria-labelledby="scenario-title">
       <PanelHeader
         id="scenario-title"
-        className="items-start"
+        className="min-h-0 flex-nowrap items-start"
         title={m.scenario}
-        description={m.scenarioHint}
         actions={<ViewAll to="/simulations" label={m.viewAllScenarios} />}
       />
-      {failed ? (
-        <ErrorState
-          title={m.scenarioError}
-          onRetry={() => (presets.isError ? presets.refetch() : result.refetch())}
-        />
-      ) : presets.data && !preset ? (
-        <PanelNote>{m.noScenario}</PanelNote>
-      ) : !preview || !text || !preset ? (
-        <>
-          <Skeleton className="mt-4 h-4 w-4/5" />
-          <Skeleton className="mt-4 h-[156px] w-full rounded-field" />
-          <Skeleton className="mt-auto h-11 w-full rounded-control" />
-        </>
-      ) : (
-        <>
-          <p className="mt-4 text-body-sm text-ink-2">{text.description}</p>
-          {/* The two sides share rows, so their figures line up however their labels wrap. */}
-          <div className="mt-4 grid grid-cols-2 grid-rows-[repeat(4,auto)] divide-x divide-line rounded-field bg-sunken">
-            <div
-              className="row-span-4 grid min-w-0 grid-rows-subgrid p-4"
-              role="group"
-              aria-label={m.currentPlan}
-            >
-              <p className="text-body-sm text-ink-2">{m.currentPlan}</p>
-              <p className="tabular mt-1 text-figure-sm text-ink">
-                {fmt(preview.baselineEndCents)}
-              </p>
-              <p className="text-caption text-muted">{horizon}</p>
-              <Sparkline
-                values={preview.baseline.map((p) => p.balanceCents)}
-                tone="ink"
-                width={120}
-                height={36}
-                className="mt-3 h-9 w-full"
-              />
+      <p className="mt-0.5 text-body-sm text-muted">{m.scenarioHint}</p>
+      <div className="flex min-h-0 flex-col">
+        {failed ? (
+          <ErrorState
+            title={m.scenarioError}
+            onRetry={() => (presets.isError ? presets.refetch() : result.refetch())}
+          />
+        ) : presets.data && !preset ? (
+          <PanelNote>{m.noScenario}</PanelNote>
+        ) : !preview || !text || !preset ? (
+          <>
+            <Skeleton className="mt-4 h-4 w-4/5" />
+            <Skeleton className="mt-4 h-[156px] w-full rounded-field" />
+            <Skeleton className="mt-6 h-9 w-40 rounded-full" />
+          </>
+        ) : (
+          <>
+            <p className="mt-4 text-body-sm text-ink-2">{text.description}</p>
+            {/* The two sides share rows, so their figures line up however their labels wrap. */}
+            <div className="mt-5 grid flex-1 grid-cols-2 grid-rows-[auto_auto_auto_1fr] divide-x divide-line border-y border-line">
+              <div
+                className="row-span-4 grid min-w-0 grid-rows-subgrid py-4 pr-4"
+                role="group"
+                aria-label={m.currentPlan}
+              >
+                <p className="text-body-sm text-ink-2">{m.currentPlan}</p>
+                <p className="tabular mt-1 text-figure-sm text-ink">
+                  {fmt(preview.baselineEndCents)}
+                </p>
+                <p className="text-caption text-muted">{horizon}</p>
+                <Sparkline
+                  values={preview.baseline.map((p) => p.balanceCents)}
+                  tone="ink"
+                  width={120}
+                  height={36}
+                  stretch
+                  className="mt-3 h-full min-h-9 w-full"
+                />
+              </div>
+              <div
+                className="row-span-4 grid min-w-0 grid-rows-subgrid py-4 pl-4"
+                role="group"
+                aria-label={text.name}
+              >
+                <p className="line-clamp-2 text-body-sm text-ink-2" title={text.name}>
+                  {text.name}
+                </p>
+                <p className="tabular mt-1 text-figure-sm text-ink">
+                  {fmt(preview.scenarioEndCents)}
+                </p>
+                <p className="tabular text-caption text-muted">
+                  <span
+                    className={cn(
+                      'font-medium',
+                      delta < 0 ? 'text-negative' : delta > 0 ? 'text-positive' : 'text-ink-2',
+                    )}
+                  >
+                    {fmt(delta, 'always')}
+                  </span>{' '}
+                  {m.vsPlan}
+                </p>
+                <Sparkline
+                  values={preview.projection.map((p) => p.balanceCents)}
+                  tone="ink"
+                  dashed
+                  width={120}
+                  height={36}
+                  stretch
+                  className="mt-3 h-full min-h-9 w-full"
+                />
+              </div>
             </div>
-            <div
-              className="row-span-4 grid min-w-0 grid-rows-subgrid p-4"
-              role="group"
-              aria-label={text.name}
-            >
-              <p className="line-clamp-2 text-body-sm text-ink-2" title={text.name}>
-                {text.name}
-              </p>
-              <p className="tabular mt-1 text-figure-sm text-ink">
-                {fmt(preview.scenarioEndCents)}
-              </p>
-              <p className="tabular text-caption text-muted">
-                <span
-                  className={cn(
-                    'font-medium',
-                    delta < 0 ? 'text-negative' : delta > 0 ? 'text-positive' : 'text-ink-2',
-                  )}
-                >
-                  {fmt(delta, 'always')}
-                </span>{' '}
-                {m.vsPlan}
-              </p>
-              <Sparkline
-                values={preview.projection.map((p) => p.balanceCents)}
-                tone="ink"
-                dashed
-                width={120}
-                height={36}
-                className="mt-3 h-9 w-full"
-              />
-            </div>
-          </div>
-          <div className="mt-4 mb-5">
-            <h3 id="scenario-assumptions" className="text-caption text-muted">
-              {m.assumptions}
-            </h3>
-            <ul aria-labelledby="scenario-assumptions" className="divide-y divide-line">
-              {text.assumptions.map((assumption) => (
-                <li key={assumption} className="py-2 text-body-sm text-ink-2">
-                  {assumption}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <Button asChild variant="primary" size="lg" className="mt-auto w-full">
-            <Link to={`/simulations?scenario=${preset.id}`}>
-              <Play className="fill-current" />
-              {m.run}
-            </Link>
-          </Button>
-        </>
-      )}
+            <Button asChild variant="primary" className="mt-6 self-start">
+              <Link to={`/simulations?scenario=${preset.id}`}>
+                <Play className="fill-current" />
+                {m.run}
+              </Link>
+            </Button>
+          </>
+        )}
+      </div>
     </Panel>
   );
 }

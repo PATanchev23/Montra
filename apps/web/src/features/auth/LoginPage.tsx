@@ -78,7 +78,7 @@ export function LoginPage() {
           variant="primary"
           size="lg"
           disabled={login.isPending}
-          className="mt-2 h-13 w-full"
+          className="mt-2 h-12 w-full"
         >
           {login.isPending && <Loader2 className="animate-spin" />}
           {login.isPending ? m.submitting : m.submit}

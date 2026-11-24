@@ -64,8 +64,8 @@ const SCROLLBAR = SCROLL_NOTE + 14;
 const TOOLTIP_WIDTH = 208;
 /** Approximate width of one character of a 12px axis label. */
 const CHAR = 6.6;
-/** How much of its band a single capsule fills. */
-const FILL = 0.76;
+/** How much of its band a single capsule fills: wide enough to read as a capsule, with room between. */
+const FILL = 0.68;
 
 export function CapsuleBarChart({
   categories,
@@ -74,8 +74,8 @@ export function CapsuleBarChart({
   height: heightProp = 260,
   formatTick = thousands,
   formatValue = formatTick,
-  tickCount = 5,
-  maxBarWidth = 44,
+  tickCount = 3,
+  maxBarWidth = 32,
   minBarWidth,
   renderTooltip,
   describe,
@@ -308,16 +308,14 @@ export function CapsuleBarChart({
                 ))}
               </defs>
 
-              {ticks.map((tick) => (
-                <line
-                  key={tick}
-                  x1={0}
-                  x2={contentWidth}
-                  y1={Math.round(y(tick)) + 0.5}
-                  y2={Math.round(y(tick)) + 0.5}
-                  className="stroke-grid"
-                />
-              ))}
+              {/* No gridlines: the tracks already show the scale. Only the baseline is drawn. */}
+              <line
+                x1={0}
+                x2={contentWidth}
+                y1={Math.round(y(0)) + 0.5}
+                y2={Math.round(y(0)) + 0.5}
+                className="stroke-line"
+              />
 
               {categories.map((category, i) => {
                 const center = band * i + band / 2;
@@ -366,8 +364,8 @@ export function CapsuleBarChart({
                               reduceMotion
                                 ? { duration: 0 }
                                 : {
-                                    duration: 0.55,
-                                    delay: Math.min(0.012 * i, 0.3),
+                                    duration: 0.4,
+                                    delay: Math.min(0.01 * i, 0.2),
                                     ease: [0.22, 1, 0.36, 1],
                                   }
                             }

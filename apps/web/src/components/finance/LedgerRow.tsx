@@ -27,7 +27,7 @@ export function LedgerRow({
   className?: string;
 }) {
   return (
-    <li className={cn('flex items-center gap-3.5 py-3', className)}>
+    <li className={cn('flex items-center gap-4 py-3', className)}>
       {icon ?? (categoryId && <CategoryIcon categoryId={categoryId} />)}
       <div className="min-w-0 flex-1">
         <p className="truncate text-body font-medium text-ink" title={title}>
@@ -47,8 +47,8 @@ export function LedgerSkeleton({ rows = 5 }: { rows?: number }) {
   return (
     <ul aria-hidden className="divide-y divide-line">
       {Array.from({ length: rows }, (_, i) => (
-        <li key={i} className="flex items-center gap-3.5 py-3">
-          <span className="size-9 animate-pulse rounded-control bg-hover" />
+        <li key={i} className="flex items-center gap-4 py-3">
+          <span className="size-9 animate-pulse rounded-full bg-hover" />
           <span className="flex-1 space-y-2">
             <span className="block h-3.5 w-32 animate-pulse rounded bg-hover" />
             <span className="block h-3 w-20 animate-pulse rounded bg-hover" />

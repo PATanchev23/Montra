@@ -41,15 +41,15 @@ export function SegmentedControl<T extends string>({
             className={cn(
               'relative flex-1 cursor-pointer rounded-full font-medium whitespace-nowrap transition-colors duration-150',
               size === 'sm' ? 'h-7 px-3 text-caption' : 'h-8 px-4 text-body-sm',
-              active ? 'text-accent-ink' : 'text-ink-2 hover:text-ink',
+              active ? 'text-ink' : 'text-ink-2 hover:text-ink',
             )}
           >
-            {/* The ink pill glides between segments; the same capsule the charts are drawn with. */}
+            {/* A raised capsule glides between segments: the chart's shape, kept quiet. */}
             {active && (
               <motion.span
                 layoutId={indicatorId}
-                className="absolute inset-0 rounded-full bg-accent"
-                transition={{ type: 'spring', stiffness: 520, damping: 42 }}
+                className="absolute inset-0 rounded-full bg-selected shadow-thumb"
+                transition={{ type: 'spring', stiffness: 520, damping: 44 }}
               />
             )}
             <span className="relative">{option.label}</span>

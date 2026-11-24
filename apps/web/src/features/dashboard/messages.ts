@@ -54,7 +54,17 @@ export const dashboardMessages = defineMessages(
       chooseDates: 'Choose dates on the dashboard',
     },
     thousandsSuffix: 'k',
-    kpi: { net: 'Net cash flow', income: 'Income', expenses: 'Expenses' },
+    hero: {
+      title: 'Cash today',
+      titleUnset: 'Cash from your transactions',
+      projected: (date: string) => `Projected for ${date}`,
+      over: (days: number) => `over the next ${days} days`,
+      lowest: 'Lowest ahead',
+      on: (date: string) => `on ${date}`,
+      belowBuffer: (amount: string) => `Below your ${amount} warning level`,
+      aboveBuffer: (amount: string) => `Above your ${amount} warning level`,
+      error: 'Could not load your cash position',
+    },
     overview: {
       title: 'Cash flow overview',
       fallback: 'Income and expenses over the period',
@@ -109,7 +119,6 @@ export const dashboardMessages = defineMessages(
       currentPlan: 'Current plan',
       balanceIn: (days: number) => `Balance in ${days} days`,
       vsPlan: 'vs. plan',
-      assumptions: 'Assumptions',
       run: 'Run simulation',
       scenarioStart:
         'Once your transactions are in, you can test a decision here before you make it.',
@@ -167,7 +176,17 @@ export const dashboardMessages = defineMessages(
       chooseDates: 'Изберете дати на таблото',
     },
     thousandsSuffix: ' хил.',
-    kpi: { net: 'Нетен паричен поток', income: 'Приходи', expenses: 'Разходи' },
+    hero: {
+      title: 'Наличност днес',
+      titleUnset: 'Наличност според транзакциите',
+      projected: (date: string) => `Прогноза за ${date}`,
+      over: (days: number) => `през следващите ${days} дни`,
+      lowest: 'Най-ниско занапред',
+      on: (date: string) => `на ${date}`,
+      belowBuffer: (amount: string) => `Под прага за предупреждение от ${amount}`,
+      aboveBuffer: (amount: string) => `Над прага за предупреждение от ${amount}`,
+      error: 'Наличността не може да се зареди',
+    },
     overview: {
       title: 'Паричен поток',
       fallback: 'Приходи и разходи за периода',
@@ -222,7 +241,6 @@ export const dashboardMessages = defineMessages(
       currentPlan: 'Текущ план',
       balanceIn: (days: number) => `Баланс след ${days} дни`,
       vsPlan: 'спрямо плана',
-      assumptions: 'Допускания',
       run: 'Пусни симулацията',
       scenarioStart:
         'Щом транзакциите ви са тук, ще можете да тествате решение, преди да го вземете.',

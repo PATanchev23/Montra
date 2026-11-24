@@ -16,6 +16,7 @@ import { useUiStore } from '../../stores/ui';
 import { firstName } from '../auth/access';
 import { useCurrentMembership, useSignedInUser } from '../auth/currentUser';
 import { CashFlowOverview } from './CashFlowOverview';
+import { CashPosition } from './CashPosition';
 import {
   ExpenseBreakdownPanel,
   NotYetPanel,
@@ -23,7 +24,6 @@ import {
   ScenarioPreviewPanel,
   UpcomingPaymentsPanel,
 } from './DashboardPanels';
-import { KpiCards } from './KpiCards';
 import { dashboardMessages } from './messages';
 import { customRangeProblem, describePeriod, rangeLabel } from './period';
 
@@ -31,18 +31,18 @@ import { customRangeProblem, describePeriod, rangeLabel } from './period';
 const QUICK_RANGES = ['7d', '30d', '90d'] as const;
 
 /**
- * The dashboard: the period's net cash flow, income and expenses; how the
- * period ran, bar by bar; where the money went; the latest entries; and what
- * comes next. Everything is live from the API except the two forward-looking
- * panels, which are labelled as sample data.
+ * The dashboard: first where cash stands today and where it is heading
+ * (CashPosition, the balance line); then how the chosen period ran, bar by
+ * bar, with its income or expenses in the chart's summary; where the money
+ * went; the latest entries; and what comes next. There are no separate
+ * summary tiles. Everything is live from the API.
  *
  * A business with no transactions at all keeps the same layout, so nothing
- * jumps when the first import lands: the tiles show €0.00 with "No data yet",
- * the charts step back behind a note, and the sample panels give way to plain
- * notes (sample data never reaches an account that has recorded nothing). An
- * owner is offered Import and Add transaction; a viewer, who can do neither,
- * is just told there is nothing yet. A period that is merely empty is not
- * this case: its zeros and comparison are real and shown as they are.
+ * jumps when the first import lands: the charts step back behind a note, and
+ * the forward-looking panels give way to plain notes. An owner is offered
+ * Import and Add transaction; a viewer, who can do neither, is just told
+ * there is nothing yet. A period that is merely empty is not this case: its
+ * zeros are real and shown as they are.
  */
 export function DashboardPage() {
   const { user } = useSignedInUser();
@@ -139,6 +139,8 @@ export function DashboardPage() {
         }
       />
 
+      <CashPosition canEdit={canEdit} />
+
       {rangeProblem ? (
         <Panel>
           <EmptyState icon={CalendarRange} title={m.states.checkRange} body={rangeProblem} />
@@ -155,8 +157,6 @@ export function DashboardPage() {
             isPlaceholderData && 'opacity-60',
           )}
         >
-          <KpiCards data={shown} comparisonLabel={text?.comparison ?? ''} noData={noData} />
-
           <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,352px)]">
             <CashFlowOverview
               data={shown}

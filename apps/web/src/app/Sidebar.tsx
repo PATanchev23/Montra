@@ -19,7 +19,6 @@ import { NavLink, useMatch, useNavigate } from 'react-router';
 import { useLogout } from '../api/auth';
 import { useBilling } from '../api/billing';
 import { Logo } from '../components/Logo';
-import { Badge } from '../components/ui/Badge';
 import { IconButton } from '../components/ui/IconButton';
 import {
   Menu,
@@ -60,15 +59,20 @@ function SidebarLink({
       onClick={onNavigate}
       aria-label={collapsed ? label : undefined}
       className={cn(
-        'group flex h-11 items-center gap-3.5 rounded-control text-body transition-colors duration-150',
-        collapsed ? 'justify-center px-0' : 'px-3.5',
-        // The page you are on is the one ink pill in the rail.
-        isActive
-          ? 'bg-accent font-medium text-accent-ink'
-          : 'text-ink-2 hover:bg-hover hover:text-ink',
+        'group flex h-10 items-center gap-3 rounded-control text-body transition-colors duration-150',
+        collapsed ? 'justify-center px-0' : 'px-3',
+        // The page you are on is marked quietly: a soft fill and ink text, nothing louder.
+        isActive ? 'bg-hover font-medium text-ink' : 'text-ink-2 hover:bg-hover/60 hover:text-ink',
       )}
     >
-      <Icon aria-hidden className="size-[18px] shrink-0" strokeWidth={1.75} />
+      <Icon
+        aria-hidden
+        className={cn(
+          'size-[18px] shrink-0',
+          isActive ? 'text-ink' : 'text-muted group-hover:text-ink-2',
+        )}
+        strokeWidth={isActive ? 1.85 : 1.6}
+      />
       {!collapsed && <span className="truncate">{label}</span>}
     </NavLink>
   );
@@ -107,12 +111,12 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
     <Menu>
       <MenuTrigger
         className={cn(
-          'flex w-full cursor-pointer items-center gap-3 rounded-field p-2 text-left transition-colors hover:bg-hover data-[state=open]:bg-hover',
+          'flex w-full cursor-pointer items-center gap-3 rounded-control p-2 text-left transition-colors duration-150 hover:bg-hover/60 data-[state=open]:bg-hover',
           collapsed && 'justify-center',
         )}
         aria-label={m.account.menu}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-hover text-body-sm font-medium text-ink">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-hover text-body-sm font-medium text-ink">
           {user.name[0]}
         </span>
         {!collapsed && (
@@ -176,15 +180,21 @@ function UpgradeButton({ collapsed, onNavigate }: { collapsed: boolean; onNaviga
     <PlansDialogTrigger
       aria-label={collapsed ? m.upgrade : undefined}
       className={cn(
-        'flex h-11 w-full cursor-pointer items-center gap-3.5 rounded-control text-body text-ink-2 transition-colors duration-150 hover:bg-hover hover:text-ink',
-        collapsed ? 'justify-center px-0' : 'px-3.5',
+        'group flex h-10 w-full cursor-pointer items-center gap-2.5 rounded-control text-body text-ink-2 transition-colors duration-150 hover:bg-hover/60 hover:text-ink',
+        collapsed ? 'justify-center px-0' : 'px-3',
       )}
     >
-      <Sparkles aria-hidden className="size-[18px] shrink-0" strokeWidth={1.75} />
+      <Sparkles
+        aria-hidden
+        className="size-[18px] shrink-0 text-muted group-hover:text-ink-2"
+        strokeWidth={1.6}
+      />
       {!collapsed && (
         <>
           <span className="flex-1 truncate text-left">{m.upgrade}</span>
-          {plan && <Badge>{m.names[plan]}</Badge>}
+          {plan && (
+            <span className="shrink-0 text-micro font-normal text-muted">{m.names[plan]}</span>
+          )}
         </>
       )}
     </PlansDialogTrigger>
@@ -223,10 +233,10 @@ export function Sidebar({
   const m = useMessages(common);
 
   return (
-    <div className={cn('flex h-full flex-col px-4 pt-6 pb-4', collapsed && 'px-3.5', className)}>
+    <div className={cn('flex h-full flex-col px-4 pt-6 pb-4', collapsed && 'px-4', className)}>
       <div
         className={cn(
-          'flex h-11 items-center justify-between pl-2',
+          'flex h-10 items-center justify-between pl-2',
           collapsed && 'h-auto flex-col gap-3 pl-0',
         )}
       >
@@ -242,28 +252,25 @@ export function Sidebar({
         )}
       </div>
 
-      <nav aria-label={m.nav.primary} className="mt-8 flex flex-col gap-1">
+      <nav aria-label={m.nav.primary} className="mt-8 flex flex-col gap-0.5">
         {primaryNav.map((item) => (
           <SidebarLink key={item.to} item={item} collapsed={collapsed} onNavigate={onNavigate} />
         ))}
       </nav>
 
-      <nav
-        aria-label={m.nav.secondary}
-        className="mt-6 flex flex-col gap-1 border-t border-line pt-6"
-      >
+      <nav aria-label={m.nav.secondary} className="mt-8 flex flex-col gap-0.5">
         {secondaryNav.map((item) => (
           <SidebarLink key={item.to} item={item} collapsed={collapsed} onNavigate={onNavigate} />
         ))}
       </nav>
 
-      <div className="mt-auto flex flex-col gap-3 pt-6">
+      <div className="mt-auto flex flex-col gap-2 pt-6">
         <UpgradeButton collapsed={collapsed} onNavigate={onNavigate} />
         {!collapsed && membership && (
           <NavLink
             to="/settings#business"
             onClick={onNavigate}
-            className="flex items-center gap-3 rounded-field border border-line bg-surface px-3.5 py-3 shadow-panel transition-colors hover:border-line-strong"
+            className="group flex items-center gap-3 rounded-control px-3 py-2.5 transition-colors duration-150 hover:bg-hover/60"
           >
             <span className="min-w-0 flex-1">
               <span className="block truncate text-body-sm font-medium text-ink">
@@ -273,7 +280,11 @@ export function Sidebar({
                 {m.account[roleLabels[membership.role]]} · {membership.business.currency}
               </span>
             </span>
-            <ChevronRight aria-hidden className="size-4 shrink-0 text-muted" strokeWidth={1.75} />
+            <ChevronRight
+              aria-hidden
+              className="size-4 shrink-0 text-muted transition-transform duration-150 group-hover:translate-x-0.5"
+              strokeWidth={1.75}
+            />
           </NavLink>
         )}
         <AccountMenu collapsed={collapsed} />

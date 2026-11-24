@@ -66,7 +66,6 @@ function ForecastChart({ className }: { className?: string }) {
       .x((p) => x(parseISO(p.date)))
       .y0((p) => y(p.lowCents ?? p.balanceCents))
       .y1((p) => y(p.highCents ?? p.balanceCents))(points.slice(split - 1)) ?? '';
-  const grid = y.ticks(3).filter((t) => y(t) > PLOT_TOP && y(t) < bottom - 8);
   const months = eachMonthOfInterval({
     start: parseISO(points[0]!.date),
     end: parseISO(end.date),
@@ -84,23 +83,10 @@ function ForecastChart({ className }: { className?: string }) {
         height={height}
         className="absolute inset-0 block overflow-visible text-chart-1"
       >
-        {grid.map((tick) => (
-          <line
-            key={tick}
-            x1={0}
-            x2={width}
-            y1={Math.round(y(tick)) + 0.5}
-            y2={Math.round(y(tick)) + 0.5}
-            className="stroke-line-strong"
-            strokeDasharray="1 5"
-            strokeLinecap="round"
-          />
-        ))}
-
         <motion.path
           d={range}
           className="fill-chart-1"
-          fillOpacity={0.16}
+          fillOpacity={0.1}
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={later(0.8)}
@@ -115,7 +101,7 @@ function ForecastChart({ className }: { className?: string }) {
           d={history}
           fill="none"
           stroke="currentColor"
-          strokeWidth={2}
+          strokeWidth={1.75}
           strokeLinecap="round"
           strokeLinejoin="round"
           initial={reduceMotion ? false : { pathLength: 0 }}
@@ -126,8 +112,8 @@ function ForecastChart({ className }: { className?: string }) {
           d={projection}
           fill="none"
           stroke="currentColor"
-          strokeWidth={2}
-          strokeDasharray="5 5"
+          strokeWidth={1.75}
+          strokeDasharray="4 5"
           strokeLinecap="round"
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -210,7 +196,7 @@ function ForecastLegend() {
   const m = useMessages(authMessages).layout;
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-body-sm text-muted">
-      <span className="rounded-full bg-hover px-3 py-1.5 font-medium text-ink">{m.sample}</span>
+      <span className="rounded-full bg-hover px-3 py-1 font-medium text-ink-2">{m.sample}</span>
       <span className="inline-flex items-center gap-2">
         <span className="h-0.5 w-5 rounded-full bg-chart-1" /> {m.actual}
       </span>
@@ -235,15 +221,15 @@ function ForecastPanel({ className }: { className?: string }) {
   return (
     <section
       aria-labelledby="auth-story"
-      className={`dark flex flex-col rounded-[24px] bg-[var(--auth-panel)] p-6 text-ink [--auth-panel:var(--sunken)] in-[.dark]:ring-1 in-[.dark]:ring-line in-[.dark]:[--auth-panel:var(--surface)] sm:p-10 xl:p-14 ${className ?? ''}`}
+      className={`dark flex flex-col rounded-[28px] bg-[var(--auth-panel)] p-6 text-ink [--auth-panel:var(--sunken)] in-[.dark]:ring-1 in-[.dark]:ring-line in-[.dark]:[--auth-panel:var(--surface)] sm:p-10 xl:p-14 ${className ?? ''}`}
     >
       <h2
         id="auth-story"
-        className="max-w-[500px] text-[2rem] leading-[1.08] font-semibold tracking-[-0.035em] text-pretty text-ink sm:text-[2.875rem]"
+        className="max-w-[520px] text-display text-pretty text-ink sm:text-[2.75rem] sm:leading-[1.08] sm:tracking-[-0.038em]"
       >
         {m.headline} {m.headlineTail}
       </h2>
-      <p className="mt-5 max-w-[48ch] text-body-lg text-pretty text-ink-2 sm:text-[1.0625rem] sm:leading-7">
+      <p className="mt-6 max-w-[48ch] text-body-lg text-pretty text-muted sm:text-[1.0625rem] sm:leading-7">
         {m.lead}
       </p>
 
@@ -279,11 +265,11 @@ export function AuthLayout({ children }: { children?: ReactNode }) {
           {children ?? <Outlet />}
         </main>
 
-        <p className="hidden text-body-sm text-ink-2 lg:block">{m.footer}</p>
+        <p className="hidden text-body-sm text-muted lg:block">{m.footer}</p>
       </div>
 
       <ForecastPanel className="mx-3 mb-3 sm:mx-6 sm:mb-6 lg:mx-0 lg:my-4 lg:mr-4 lg:min-h-[calc(100dvh-2rem)]" />
-      <p className="px-5 pb-8 text-body-sm text-ink-2 sm:px-10 lg:hidden">{m.footer}</p>
+      <p className="px-5 pb-8 text-body-sm text-muted sm:px-10 lg:hidden">{m.footer}</p>
     </div>
   );
 }
@@ -292,7 +278,7 @@ export function AuthLayout({ children }: { children?: ReactNode }) {
 export function AuthHeading({ title, description }: { title: string; description: ReactNode }) {
   return (
     <header className="mb-9">
-      <h1 className="text-[2rem] leading-[1.1] font-semibold tracking-[-0.03em] text-balance text-ink sm:text-[2.25rem]">
+      <h1 className="text-display text-balance text-ink sm:text-[2.25rem] sm:leading-[2.625rem] sm:tracking-[-0.034em]">
         {title}
       </h1>
       <p className="mt-3 text-body-lg text-pretty text-muted sm:text-base">{description}</p>

@@ -6,7 +6,7 @@ import { cn } from '../lib/cn';
 import { tabBarNav, type NavItem } from './navigation';
 
 const tabClass =
-  'relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] leading-none font-medium transition-colors';
+  'relative flex h-16 flex-col items-center justify-center gap-1 text-micro leading-none transition-colors duration-150';
 
 function Tab({ item }: { item: NavItem }) {
   const m = useMessages(common);
@@ -42,7 +42,7 @@ export function MobileTabBar({ onOpenMore }: { onOpenMore: () => void }) {
   return (
     <nav
       aria-label={m.nav.primary}
-      className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] sm:hidden"
+      className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bar pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150 sm:hidden"
     >
       <div className="grid grid-cols-5">
         {tabBarNav.map((item) => (

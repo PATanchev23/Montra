@@ -22,6 +22,7 @@ const twMerge = extendTailwindMerge({
         'figure',
         'display',
         'figure-xl',
+        'hero',
       ],
     },
   },

@@ -39,7 +39,7 @@ export function AppShell() {
 
       <aside
         className={cn(
-          'no-print hidden shrink-0 border-r border-line bg-sidebar transition-[width] duration-200 ease-[var(--ease-out-soft)] lg:block',
+          'no-print hidden shrink-0 border-r border-line bg-sidebar transition-[width] duration-[var(--duration-slow)] ease-[var(--ease-standard)] lg:block',
           collapsed ? 'w-[76px]' : 'w-[248px]',
         )}
       >
@@ -60,7 +60,8 @@ export function AppShell() {
       </Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="no-print sticky top-0 z-20 bg-canvas px-4 sm:px-6 lg:px-8">
+        {/* The bar lets scrolled content show through faintly, so the page reads as one continuous plane. */}
+        <header className="no-print sticky top-0 z-20 bg-bar px-gutter backdrop-blur-xl backdrop-saturate-150 sm:px-gutter-md xl:px-gutter-lg">
           <div className="mx-auto max-w-[1440px]">
             <TopBar onOpenNavigation={() => setNavOpen(true)} />
           </div>
@@ -71,8 +72,8 @@ export function AppShell() {
           key={location.pathname}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="pb-tabbar mx-auto w-full max-w-[1440px] px-4 pt-2 sm:px-6 sm:pb-12 lg:px-8 lg:pt-3"
+          transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+          className="pb-tabbar mx-auto w-full max-w-[1440px] px-gutter pt-4 sm:px-gutter-md sm:pb-16 xl:px-gutter-lg"
         >
           <Outlet />
         </motion.main>

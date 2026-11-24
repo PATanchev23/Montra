@@ -20,13 +20,13 @@ export function TypeIcon({
     <span
       aria-hidden
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-[10px]',
+        'flex shrink-0 items-center justify-center rounded-full',
         size === 'sm' ? 'size-8' : 'size-9',
-        'bg-sunken text-ink-2',
+        'bg-hover text-ink-2',
         className,
       )}
     >
-      <Icon className={size === 'sm' ? 'size-4' : 'size-[18px]'} strokeWidth={1.75} />
+      <Icon className={size === 'sm' ? 'size-4' : 'size-[18px]'} strokeWidth={1.5} />
     </span>
   );
 }

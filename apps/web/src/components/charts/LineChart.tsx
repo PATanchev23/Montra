@@ -47,6 +47,9 @@ const toneClass = {
 } as const;
 
 const MARGIN = { top: 16, right: 8, bottom: 30, left: 40 };
+/** The gap between a value label and the plot, and the width of one 11px label character. */
+const TICK_GAP = 12;
+const TICK_CHAR = 6.2;
 
 /** How the chart moves to new figures: quick to leave, gentle to land. */
 const MORPH = { duration: 0.45, ease: [0.22, 1, 0.36, 1] } as const;
@@ -124,10 +127,6 @@ export function LineChart({
 
   const first = parseISO(dates[0]!);
   const last = parseISO(dates.at(-1)!);
-  const x = scaleTime()
-    .domain([first, last])
-    .range([MARGIN.left, Math.max(MARGIN.left + 1, width - MARGIN.right)]);
-
   const values = [
     ...series.flatMap((s) => s.points.map((p) => p.value)),
     ...(band ?? []).flatMap((b) => [b.low, b.high]),
@@ -141,7 +140,15 @@ export function LineChart({
     .range([height - MARGIN.bottom, MARGIN.top])
     .nice(5);
   // Nothing to scale: label the baseline only, not a column of fractions that all read 0.
-  const ticks = min === 0 && max === 0 ? [0] : y.ticks(5);
+  const ticks = min === 0 && max === 0 ? [0] : y.ticks(4);
+  // The value labels get the room their longest label needs ("30 хил." is wider than "30k").
+  const left = Math.max(
+    MARGIN.left,
+    TICK_GAP + 4 + Math.max(...ticks.map((t) => formatTick(t).length)) * TICK_CHAR,
+  );
+  const x = scaleTime()
+    .domain([first, last])
+    .range([left, Math.max(left + 1, width - MARGIN.right)]);
   const months = eachMonthOfInterval({ start: first, end: last }).filter((m) => m >= first);
 
   const toXY = (p: LinePoint) => [x(parseISO(p.date)), y(p.value)] as [number, number];
@@ -204,12 +211,12 @@ export function LineChart({
         >
           <defs>
             <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="currentColor" stopOpacity={0.2} />
-              <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
+              <stop offset="0%" stopColor="currentColor" stopOpacity={0.04} />
+              <stop offset="100%" stopColor="currentColor" stopOpacity={0.04} />
             </linearGradient>
           </defs>
 
-          {/* Gridlines slide to where the new scale puts them; ones the scale gains or loses fade. */}
+          {/* Tick labels slide to where the new scale puts them; ones the scale gains or loses fade. Only zero gets a line. */}
           <AnimatePresence initial={false}>
             {ticks.map((tick) => (
               <motion.g
@@ -219,16 +226,17 @@ export function LineChart({
                 exit={{ opacity: 0 }}
                 transition={MORPH}
               >
-                <line
-                  x1={MARGIN.left}
-                  x2={width - MARGIN.right}
-                  y1={0.5}
-                  y2={0.5}
-                  className="stroke-grid"
-                  strokeDasharray="2 5"
-                />
+                {tick === 0 && (
+                  <line
+                    x1={left}
+                    x2={width - MARGIN.right}
+                    y1={0.5}
+                    y2={0.5}
+                    className="stroke-line"
+                  />
+                )}
                 <text
-                  x={MARGIN.left - 12}
+                  x={left - TICK_GAP}
                   y={0}
                   dy="0.32em"
                   textAnchor="end"
@@ -262,27 +270,25 @@ export function LineChart({
                   .y1((b) => y(b.high))(band) ?? ''
               }
               className="fill-chart-1"
-              fillOpacity={0.1}
+              fillOpacity={0.06}
             />
           )}
 
           {threshold && (
             <g>
               <line
-                x1={MARGIN.left}
+                x1={left}
                 x2={width - MARGIN.right}
                 y1={y(threshold.value)}
                 y2={y(threshold.value)}
-                className="stroke-negative"
-                strokeOpacity={0.6}
-                strokeDasharray="4 4"
+                className="stroke-control"
+                strokeDasharray="3 4"
               />
               <text
                 x={width - MARGIN.right}
                 y={y(threshold.value) - 6}
                 textAnchor="end"
-                className="fill-negative text-[11px]"
-                fillOpacity={0.85}
+                className="fill-muted text-[11px]"
               >
                 {threshold.label}
               </text>
@@ -333,7 +339,7 @@ export function LineChart({
                     d={lineGen(actual.map(toXY)) ?? ''}
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth={2}
+                    strokeWidth={1.75}
                     strokeLinecap="round"
                     initial={{ pathLength: 0 }}
                     animate={{ pathLength: 1 }}
@@ -346,7 +352,7 @@ export function LineChart({
                     d={lineGen(projected.map(toXY)) ?? ''}
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth={2}
+                    strokeWidth={1.75}
                     strokeDasharray="5 5"
                     strokeLinecap="round"
                     initial={{ opacity: 0 }}
