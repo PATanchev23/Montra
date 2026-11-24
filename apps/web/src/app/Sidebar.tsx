@@ -1,7 +1,7 @@
 import {
   Activity,
   Check,
-  ChevronRight,
+  Plus,
   Languages,
   ChevronsUpDown,
   LogOut,
@@ -25,11 +25,18 @@ import {
   MenuContent,
   MenuItem,
   MenuLabel,
+  MenuRadioGroup,
+  MenuRadioItem,
   MenuSeparator,
   MenuTrigger,
 } from '../components/ui/Menu';
 import { Tooltip } from '../components/ui/Tooltip';
-import { useSignedInUser } from '../features/auth/currentUser';
+import {
+  useBusinessAllowance,
+  useCurrentMembership,
+  useSignedInUser,
+} from '../features/auth/currentUser';
+import { businessMessages } from '../features/businesses/messages';
 import { plansMessages } from '../features/plans/messages';
 import { PlansDialog, PlansDialogTrigger } from '../features/plans/PlansDialog';
 import { LANGUAGE_NAMES, LANGUAGES, useLanguage, useMessages } from '../i18n';
@@ -170,6 +177,93 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+/**
+ * The business this session works in, and the way to the others: a menu of
+ * every business the account can open (its role and currency in each), then
+ * adding another while the plan allows it, or the plans when it does not.
+ * Switching keeps the page, since every page reads the current business.
+ */
+function BusinessSwitcher({ onNavigate }: { onNavigate?: () => void }) {
+  const navigate = useNavigate();
+  const { memberships } = useSignedInUser();
+  const current = useCurrentMembership();
+  const setBusinessId = useUiStore((s) => s.setBusinessId);
+  const allowance = useBusinessAllowance();
+  const m = useMessages(common);
+  const s = useMessages(businessMessages).switcher;
+  const go = (to: string) => {
+    navigate(to);
+    onNavigate?.();
+  };
+
+  return (
+    <Menu>
+      <MenuTrigger
+        aria-label={s.label(current.business.name)}
+        className="group flex w-full cursor-pointer items-center gap-3 rounded-control px-3 py-2.5 text-left transition-colors duration-150 hover:bg-hover/60 data-[state=open]:bg-hover"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-body-sm font-medium text-ink">
+            {current.business.name}
+          </span>
+          <span className="tabular block truncate text-caption text-muted">
+            {m.account[roleLabels[current.role]]} · {current.business.currency}
+          </span>
+        </span>
+        <ChevronsUpDown aria-hidden className="size-4 shrink-0 text-muted" strokeWidth={1.75} />
+      </MenuTrigger>
+      <MenuContent side="top" align="start" className="w-64">
+        <MenuLabel>{s.heading}</MenuLabel>
+        <MenuRadioGroup
+          value={current.business.id}
+          onValueChange={(id) => {
+            setBusinessId(id);
+            onNavigate?.();
+          }}
+        >
+          {memberships.map(({ business, role }) => (
+            <MenuRadioItem
+              key={business.id}
+              value={business.id}
+              className="h-auto py-2"
+              hint={`${role === 'OWNER' ? s.owner : s.viewer} · ${business.currency}`}
+            >
+              {business.name}
+            </MenuRadioItem>
+          ))}
+        </MenuRadioGroup>
+        <MenuSeparator />
+        {allowance.canAdd ? (
+          <MenuItem className="h-auto py-2" onSelect={() => go('/businesses/new')}>
+            <Plus />
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span>{s.add}</span>
+              <span className="tabular text-micro text-muted">
+                {s.addHint(allowance.owned, allowance.limit!)}
+              </span>
+            </span>
+          </MenuItem>
+        ) : (
+          allowance.isOwner &&
+          allowance.limit !== undefined && (
+            <MenuItem className="h-auto py-2" onSelect={() => go('/plans')}>
+              <Sparkles />
+              <span className="flex min-w-0 flex-col leading-tight">
+                <span>{s.upgrade}</span>
+                <span className="text-micro text-muted">{s.upgradeHint}</span>
+              </span>
+            </MenuItem>
+          )
+        )}
+        <MenuItem onSelect={() => go('/settings#business')}>
+          <Settings />
+          {s.settings}
+        </MenuItem>
+      </MenuContent>
+    </Menu>
+  );
+}
+
 /** Upgrade, with the plan the account is on; opens the plans dialog. */
 function UpgradeButton({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -229,7 +323,6 @@ export function Sidebar({
   onNavigate?: () => void;
   className?: string;
 }) {
-  const [membership] = useSignedInUser().memberships;
   const m = useMessages(common);
 
   return (
@@ -266,27 +359,7 @@ export function Sidebar({
 
       <div className="mt-auto flex flex-col gap-2 pt-6">
         <UpgradeButton collapsed={collapsed} onNavigate={onNavigate} />
-        {!collapsed && membership && (
-          <NavLink
-            to="/settings#business"
-            onClick={onNavigate}
-            className="group flex items-center gap-3 rounded-control px-3 py-2.5 transition-colors duration-150 hover:bg-hover/60"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-body-sm font-medium text-ink">
-                {membership.business.name}
-              </span>
-              <span className="tabular block truncate text-caption text-muted">
-                {m.account[roleLabels[membership.role]]} · {membership.business.currency}
-              </span>
-            </span>
-            <ChevronRight
-              aria-hidden
-              className="size-4 shrink-0 text-muted transition-transform duration-150 group-hover:translate-x-0.5"
-              strokeWidth={1.75}
-            />
-          </NavLink>
-        )}
+        {!collapsed && <BusinessSwitcher onNavigate={onNavigate} />}
         <AccountMenu collapsed={collapsed} />
       </div>
     </div>

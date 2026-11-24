@@ -55,6 +55,12 @@ const appRoutes: RouteObject[] = [
     }),
   },
   {
+    path: 'businesses/new',
+    lazy: async () => ({
+      Component: (await import('../features/businesses/NewBusinessPage')).NewBusinessPage,
+    }),
+  },
+  {
     path: 'status',
     lazy: async () => ({
       Component: (await import('../features/status/SystemStatusPage')).SystemStatusPage,

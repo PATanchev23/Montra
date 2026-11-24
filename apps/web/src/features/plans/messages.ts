@@ -45,6 +45,7 @@ export const plansMessages = defineMessages(
         'CSV and Excel import, up to 500 rows a month',
       ],
       pro: [
+        'Up to 3 businesses',
         '90-day cash forecast',
         'What-if simulations',
         'Reports and CSV export',
@@ -72,6 +73,7 @@ export const plansMessages = defineMessages(
         support: 'Priority support',
       },
       oneBusiness: '1',
+      upToThree: 'Up to 3',
       upToFive: 'Up to 5',
       importLimit: '500 rows a month',
       unlimited: 'Unlimited',
@@ -128,6 +130,7 @@ export const plansMessages = defineMessages(
         'Импорт от CSV и Excel, до 500 реда на месец',
       ],
       pro: [
+        'До 3 бизнеса',
         'Прогноза за паричния поток за 90 дни',
         'Симулации „какво ако“',
         'Отчети и експорт в CSV',
@@ -155,6 +158,7 @@ export const plansMessages = defineMessages(
         support: 'Приоритетна поддръжка',
       },
       oneBusiness: '1',
+      upToThree: 'До 3',
       upToFive: 'До 5',
       importLimit: '500 реда на месец',
       unlimited: 'Неограничен',

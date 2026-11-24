@@ -4,6 +4,15 @@ import { z } from 'zod';
 export const planIdSchema = z.enum(['free', 'pro', 'business']);
 export type PlanId = z.infer<typeof planIdSchema>;
 
+/**
+ * How many businesses an account may own on each plan. Only businesses the
+ * account owns count; read-only access to someone else's does not. Moving to
+ * a smaller plan never takes a business away: every one already owned stays
+ * usable, and only adding another is refused until the account is back under
+ * its plan's limit.
+ */
+export const BUSINESS_LIMITS: Record<PlanId, number> = { free: 1, pro: 3, business: 5 };
+
 /** The plans that are paid for through Stripe. */
 export const paidPlanIdSchema = z.enum(['pro', 'business']);
 export type PaidPlanId = z.infer<typeof paidPlanIdSchema>;
@@ -21,7 +30,8 @@ export const BILLING_ERROR_CODES = {
 
 /**
  * The signed-in account's plan. Subscriptions belong to the account, not to a
- * business: Business covers up to five businesses.
+ * business: Pro covers up to three businesses and Business up to five (see
+ * BUSINESS_LIMITS).
  */
 export const billingResponseSchema = z.object({
   plan: planIdSchema,

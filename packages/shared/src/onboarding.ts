@@ -116,3 +116,22 @@ export const completeOnboardingResponseSchema = z.object({
   membership: membershipSummarySchema,
 });
 export type CompleteOnboardingResponse = z.infer<typeof completeOnboardingResponseSchema>;
+
+/**
+ * POST /businesses: another business for an account that already owns one,
+ * from the same answers onboarding asks for. Allowed while the account owns
+ * fewer businesses than its plan's limit (BUSINESS_LIMITS).
+ */
+export const createBusinessRequestSchema = onboardingSubmissionSchema;
+export type CreateBusinessRequest = z.infer<typeof createBusinessRequestSchema>;
+
+export const createBusinessResponseSchema = z.object({ membership: membershipSummarySchema });
+export type CreateBusinessResponse = z.infer<typeof createBusinessResponseSchema>;
+
+/** Why POST /businesses refused, for the web app to explain. */
+export const BUSINESS_ERROR_CODES = {
+  /** The account owns as many businesses as its plan allows. */
+  LIMIT_REACHED: 'BUSINESS_LIMIT_REACHED',
+  /** The account owns no business yet: the first one is created through onboarding. */
+  ONBOARD_FIRST: 'BUSINESS_ONBOARD_FIRST',
+} as const;

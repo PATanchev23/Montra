@@ -7,6 +7,7 @@ import { Providers } from '../app/Providers';
 import { RequireAuth, RequireBusiness } from '../features/auth/guards';
 import { BudgetsPage } from '../features/budgets/BudgetsPage';
 import { CashFlowPage } from '../features/cashflow/CashFlowPage';
+import { NewBusinessPage } from '../features/businesses/NewBusinessPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { ReportsPage } from '../features/reports/ReportsPage';
 import { SimulationsPage } from '../features/simulations/SimulationsPage';
@@ -43,6 +44,8 @@ export function renderTransactions(url = '/transactions', chrome?: ReactNode) {
                   { path: 'reports', element: <ReportsPage /> },
                   // A stand-in for the account pages, for the top bar's tests.
                   { path: 'settings', element: <p>Settings</p> },
+                  { path: 'plans', element: <p>Plans</p> },
+                  { path: 'businesses/new', element: <NewBusinessPage /> },
                 ],
               },
             ],

@@ -1,8 +1,5 @@
 import {
-  currencySchema,
-  DEFAULT_TIMEZONE,
   ONBOARDING_ERROR_CODES,
-  todayIn,
   onboardingDraftSchema,
   onboardingSubmissionSchema,
   type CompleteOnboardingResponse,
@@ -11,15 +8,11 @@ import {
   type SaveOnboardingRequest,
 } from '@montra/shared';
 import type { Db } from '../../db';
-import { Prisma } from '../../generated/prisma/client';
+import type { Prisma } from '../../generated/prisma/client';
 import type { OnboardingProgressGetPayload } from '../../generated/prisma/models';
 import { AppError } from '../../lib/app-error';
-import { slugify, suffixedSlug } from '../../lib/slug';
-import { toDbDate } from '../transactions/service';
+import { createOwnedBusiness, isUniqueViolation, SLUG_ATTEMPTS } from '../businesses/service';
 import { onboardingSummary } from './status';
-
-/** Attempts at finding a free slug when concurrent sign-ups pick the same one. */
-const SLUG_ATTEMPTS = 4;
 
 const progressSelect = {
   currentStep: true,
@@ -137,42 +130,15 @@ async function attemptCompletion(
       },
     );
   }
-  const { businessDetails: details, financialPreferences: preferences = {} } = submission.data;
-  // The balance was typed as "today": it is recorded as of the day setup
-  // finishes, where the business is, and forecasts carry it forward from there.
-  const balance = preferences.bankBalanceCents ?? null;
-  const balanceDate = balance === null ? null : toDbDate(todayWhere(details.timezone));
-
   return db.$transaction(async (tx) => {
-    const base = slugify(details.name);
-    const plainTaken = await tx.business.findUnique({
-      where: { slug: base },
-      select: { id: true },
-    });
-    const slug = preferPlainSlug && !plainTaken ? base : suffixedSlug(base);
-
-    const business = await tx.business.create({
-      data: {
-        slug,
-        name: details.name,
-        currency: details.currency,
-        timezone: details.timezone,
-        industry: details.industry || null,
-        fiscalYearStartMonth: preferences.fiscalYearStartMonth,
-        lowBalanceThresholdCents: preferences.lowBalanceThresholdCents ?? null,
-        cashBalanceCents: balance,
-        cashBalanceDate: balanceDate,
-      },
-      select: { id: true, slug: true, name: true, currency: true, timezone: true },
-    });
-    await tx.membership.create({ data: { userId, businessId: business.id, role: 'OWNER' } });
+    const membership = await createOwnedBusiness(tx, userId, submission.data, preferPlainSlug);
 
     // Matching updatedAt means the row is exactly the draft validated above.
     // A concurrent completion or save changes it, so of two racing requests
     // exactly one gets here; the other's business and membership roll back.
     const { count } = await tx.onboardingProgress.updateMany({
       where: { userId, completedAt: null, updatedAt: row.updatedAt },
-      data: { completedAt: new Date(), businessId: business.id, currentStep: 'REVIEW' },
+      data: { completedAt: new Date(), businessId: membership.business.id, currentStep: 'REVIEW' },
     });
     if (count !== 1) {
       const latest = await tx.onboardingProgress.findUnique({
@@ -191,25 +157,6 @@ async function attemptCompletion(
       where: { userId },
       select: progressSelect,
     });
-    return {
-      onboarding: toProgress(completed),
-      membership: {
-        role: 'OWNER',
-        business: { ...business, currency: currencySchema.parse(business.currency) },
-      },
-    };
+    return { onboarding: toProgress(completed), membership };
   });
-}
-
-function isUniqueViolation(err: unknown): boolean {
-  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
-}
-
-function todayWhere(timeZone: string): string {
-  try {
-    return todayIn(timeZone);
-  } catch {
-    // Time zones are validated on save; this guards against one later dropped from the runtime.
-    return todayIn(DEFAULT_TIMEZONE);
-  }
 }

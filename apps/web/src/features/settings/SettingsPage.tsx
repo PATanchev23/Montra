@@ -14,7 +14,7 @@ import { StatusDot } from '../../components/ui/StatusDot';
 import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
 import { useUiStore, type NotificationPrefs, type ThemePreference } from '../../stores/ui';
-import { useSignedInUser } from '../auth/currentUser';
+import { useCurrentMembership, useSignedInUser } from '../auth/currentUser';
 import { LanguageSwitch } from '../../components/LanguageSwitch';
 import { useMessages } from '../../i18n';
 import {
@@ -151,7 +151,7 @@ export function SettingsPage() {
   const health = useHealth();
   const status = deriveStatus(health.data, health.error);
   const { user, memberships } = useSignedInUser();
-  const membership = memberships[0];
+  const membership = useCurrentMembership();
   const m = useMessages(settingsMessages);
   const plans = useMessages(plansMessages);
   const billing = useBilling().data;

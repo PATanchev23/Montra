@@ -137,6 +137,8 @@ describe('demo accounts', () => {
 
       for (const method of ['POST', 'PUT', 'PATCH', 'DELETE'] as const) {
         for (const url of [`/api/v1/businesses/${techstoreId}`, '/api/v1/businesses']) {
+          // POST /businesses exists (adding a business of one's own); it is checked below.
+          if (method === 'POST' && url === '/api/v1/businesses') continue;
           const res = await app.inject({
             method,
             url,
@@ -146,6 +148,18 @@ describe('demo accounts', () => {
           expect(res.statusCode, `${method} ${url}`).toBe(404);
         }
       }
+
+      // Adding a business acts only on the caller, and only for an account that
+      // owns one already: the viewer owns none, so it is sent to onboarding.
+      const added = await app.inject({
+        method: 'POST',
+        url: '/api/v1/businesses',
+        headers: bearer(accessToken),
+        payload: {
+          businessDetails: { name: 'TechStore', currency: 'EUR', timezone: 'Europe/Sofia' },
+        },
+      });
+      expect(added.statusCode).toBe(409);
 
       // Onboarding acts only on the caller: it gives the viewer a business of
       // their own (by design), never TechStore or a better role in it.
@@ -327,7 +341,7 @@ describe('write surface of the API', () => {
   afterAll(() => app.close());
 
   /*
-   * Account, onboarding and billing writes act only on the caller (the billing
+   * Account, onboarding, billing and adding a business act only on the caller (the billing
    * webhook only on an event signed by Stripe). Every write under
    * /businesses/{businessId} must be OWNER-only: the test below calls each of
    * them as the demo viewer. A new write route must be added here.
@@ -346,6 +360,7 @@ describe('write surface of the API', () => {
       'POST /api/v1/billing/checkout',
       'POST /api/v1/billing/portal',
       'POST /api/v1/billing/webhook',
+      'POST /api/v1/businesses',
       'POST /api/v1/businesses/{businessId}/imports',
       'POST /api/v1/businesses/{businessId}/imports/{importId}/confirm',
       'POST /api/v1/businesses/{businessId}/transactions',

@@ -43,6 +43,13 @@ interface UiState {
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
 
+  /**
+   * The business the app last showed, so it opens there again. Only a hint:
+   * a business the account can no longer open falls back to its first.
+   */
+  businessId: string | null;
+  setBusinessId: (businessId: string) => void;
+
   notifications: NotificationPrefs;
   setNotification: (key: keyof NotificationPrefs, value: boolean) => void;
 
@@ -100,6 +107,9 @@ export const useUiStore = create<UiState>()(
 
       sidebarCollapsed: false,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+
+      businessId: null,
+      setBusinessId: (businessId) => set({ businessId }),
 
       notifications: {
         desktop: false,

@@ -26,6 +26,10 @@ import {
   trendBuckets,
   transactionListQuerySchema,
   updateTransactionRequestSchema,
+  BUSINESS_LIMITS,
+  createBusinessRequestSchema,
+  type MembershipSummary,
+  type PlanId,
   type ColumnMapping,
   type CurrentUserResponse,
   type DashboardResponse,
@@ -78,6 +82,10 @@ export interface LedgerOptions {
   budgets?: BudgetLimit[];
   /** What the business sells, as answered in onboarding. */
   industry?: string | null;
+  /** The account's plan, as GET /billing reports it (Free by default). */
+  plan?: PlanId;
+  /** More businesses the account can open, after TechStore. */
+  otherBusinesses?: MembershipSummary[];
 }
 
 type Handler = (url: URL, init: RequestInit) => Response | Promise<Response>;
@@ -129,8 +137,10 @@ export function ledgerServer(options: LedgerOptions = {}) {
           timezone: 'Europe/Sofia',
         },
       },
+      ...(options.otherBusinesses ?? []),
     ],
   });
+  const plan = options.plan ?? 'free';
 
   const canWrite = () => role === 'OWNER' && !state.refuseWrites;
   const bodyOf = (init: RequestInit) => JSON.parse((init.body as string | undefined) ?? 'null');
@@ -289,6 +299,49 @@ export function ledgerServer(options: LedgerOptions = {}) {
   const routes: [string, RegExp, Handler][] = [
     ['POST', /^\/api\/v1\/auth\/refresh$/, () => jsonResponse(authBody(me))],
     ['GET', /^\/api\/v1\/auth\/me$/, () => jsonResponse(me)],
+    [
+      'GET',
+      /^\/api\/v1\/billing$/,
+      () =>
+        jsonResponse({
+          plan,
+          status: null,
+          cancelAtPeriodEnd: false,
+          currentPeriodEnd: null,
+          configured: false,
+          testMode: false,
+          canSubscribe: role === 'OWNER',
+          canManage: false,
+        }),
+    ],
+    [
+      'POST',
+      /^\/api\/v1\/businesses$/,
+      (_url, init) => {
+        // The API's rule: owners only, within the plan's limit of owned businesses.
+        const body = createBusinessRequestSchema.safeParse(bodyOf(init));
+        if (!body.success) return invalid();
+        const owned = me.memberships.filter((m) => m.role === 'OWNER').length;
+        if (owned === 0)
+          return apiError(409, 'BUSINESS_ONBOARD_FIRST', 'Set up your first business.');
+        if (owned >= BUSINESS_LIMITS[plan]) {
+          return apiError(403, 'BUSINESS_LIMIT_REACHED', 'Your plan’s business limit is reached.');
+        }
+        const details = body.data.businessDetails;
+        const membership: MembershipSummary = {
+          role: 'OWNER',
+          business: {
+            id: `biz-new-${nextId++}`,
+            slug: details.name.toLowerCase().replace(/\W+/g, '-'),
+            name: details.name,
+            currency: details.currency,
+            timezone: details.timezone,
+          },
+        };
+        me.memberships.push(membership);
+        return jsonResponse({ membership }, 201);
+      },
+    ],
     ['GET', new RegExp(`^${BASE}/transactions$`), (url) => list(url)],
     ['GET', new RegExp(`^${BASE}/transactions/categories$`), () => categories()],
     ['GET', new RegExp(`^${BASE}/dashboard$`), (url) => dashboard(url)],

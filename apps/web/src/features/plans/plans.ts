@@ -29,7 +29,7 @@ export type Availability = boolean | CompareKey;
 
 /** The comparison table, row by row: Free, Pro, Business. */
 export const COMPARISON: { row: RowKey; plans: Record<PlanId, Availability> }[] = [
-  { row: 'businesses', plans: { free: 'oneBusiness', pro: 'oneBusiness', business: 'upToFive' } },
+  { row: 'businesses', plans: { free: 'oneBusiness', pro: 'upToThree', business: 'upToFive' } },
   { row: 'dashboard', plans: { free: true, pro: true, business: true } },
   { row: 'budgets', plans: { free: true, pro: true, business: true } },
   { row: 'import', plans: { free: 'importLimit', pro: 'unlimited', business: 'unlimited' } },
