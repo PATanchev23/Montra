@@ -21,6 +21,7 @@ import { count, formatDate, money, percent } from '../../lib/format';
 import { useOpenCount, useStayMounted } from '../../lib/presence';
 import { useCurrentMembership } from '../auth/currentUser';
 import { BudgetEditorSheet } from './BudgetEditorSheet';
+import { BudgetOutlook } from './BudgetOutlook';
 import { budgetMessages } from './messages';
 
 type SortKey = 'usage' | 'amount' | 'name';
@@ -138,7 +139,7 @@ export function BudgetsPage() {
                 )}
               </Panel>
             )}
-          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
             <Panel className="overflow-hidden" aria-labelledby="budget-categories">
               <div className="px-5 pt-5 pb-3 sm:px-6">
                 <PanelHeader
@@ -194,7 +195,11 @@ export function BudgetsPage() {
                 </ul>
               )}
             </Panel>
-            <SpendShare month={data} />
+            {/* The rail under "Where it went" carries what the month still holds. */}
+            <div className="flex min-w-0 flex-col gap-6">
+              <SpendShare month={data} />
+              <BudgetOutlook month={data} className="flex-1" />
+            </div>
           </div>
         </div>
       )}
@@ -387,17 +392,17 @@ function SpendShare({ month }: { month: Month | undefined }) {
       <PanelHeader id="spend-share" title={m.title} description={m.description} />
       {month && total === 0 ? (
         // Nothing spent: an empty ring and no legend, rather than a donut of zeros.
-        <div className="mt-6 flex flex-col items-center gap-4">
-          <div aria-hidden className="size-44 rounded-full border-20 border-chart-track" />
+        <div className="mt-5 flex items-center gap-5">
+          <div aria-hidden className="size-30 shrink-0 rounded-full border-14 border-chart-track" />
           <p className="text-body text-muted">{page.noSpending}</p>
         </div>
       ) : month ? (
-        <>
-          <div className="mt-6 flex justify-center">
+        <div className="mt-5 flex items-center gap-5">
+          <div className="shrink-0">
             <DonutChart
               ariaLabel={m.chart}
-              size={176}
-              thickness={20}
+              size={120}
+              thickness={14}
               active={active}
               onActiveChange={setActive}
               items={items.map((item, i) => ({
@@ -408,37 +413,39 @@ function SpendShare({ month }: { month: Month | undefined }) {
               }))}
               center={
                 <>
-                  <span className="tabular text-[20px] font-semibold tracking-[-0.02em] text-ink">
+                  <span className="tabular text-body font-semibold tracking-[-0.01em] text-ink">
                     {fmt(activeItem?.value ?? total)}
                   </span>
-                  <span className="text-[12px] text-muted">{activeItem?.id ?? m.spent}</span>
+                  <span className="max-w-20 truncate text-caption text-muted">
+                    {activeItem?.id ?? m.spent}
+                  </span>
                 </>
               }
             />
           </div>
-          <ul className="mt-6 space-y-2.5">
+          <ul className="min-w-0 flex-1 space-y-1.5">
             {items.map((item, i) => (
               <li
                 key={item.id}
                 onMouseEnter={() => setActive(item.id)}
                 onMouseLeave={() => setActive(null)}
+                title={`${item.id}: ${fmt(item.value)}`}
                 className={cn(
-                  'flex items-center gap-2.5 text-[13px] transition-opacity',
+                  'flex items-center gap-2 text-body-sm transition-opacity duration-200',
                   active && active !== item.id && 'opacity-45',
                 )}
               >
-                <span className={cn('size-2.5 rounded-full', rankSwatches[i])} />
-                <span className="flex-1 truncate text-ink-2">{item.id}</span>
-                <span className="tabular text-muted">{fmt(item.value)}</span>
-                <span className="tabular w-10 text-right font-medium text-ink">
+                <span className={cn('size-2 shrink-0 rounded-full', rankSwatches[i])} />
+                <span className="min-w-0 flex-1 truncate text-ink-2">{item.id}</span>
+                <span className="tabular shrink-0 font-medium text-ink">
                   {percent(total ? item.value / total : 0)}
                 </span>
               </li>
             ))}
           </ul>
-        </>
+        </div>
       ) : (
-        <Skeleton className="mx-auto mt-6 size-44 rounded-full" />
+        <Skeleton className="mt-5 size-30 rounded-full" />
       )}
     </Panel>
   );

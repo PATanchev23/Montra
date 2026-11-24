@@ -304,6 +304,45 @@ describe('budgets', () => {
     expect(screen.queryByText(/^No spending recorded/)).not.toBeInTheDocument();
   });
 
+  it('sets what is still due this month against what the budgets have left', async () => {
+    // The fake's today is 9 November: November's rent is paid, a deposit is dated ahead.
+    ledgerServer({
+      transactions: [
+        ...shop(),
+        transaction({
+          id: 'deposit',
+          type: 'EXPENSE',
+          amountCents: 120_000,
+          description: 'Storage unit deposit',
+          category: 'Rent',
+          date: '2026-11-20',
+        }),
+      ],
+      budgets: [{ category: 'Rent', limitCents: 200_000 }],
+    });
+    renderTransactions('/budgets');
+    const u = userEvent.setup();
+
+    const due = await screen.findByRole('region', { name: 'Still to pay this month' });
+    expect(await within(due).findByText('Storage unit deposit')).toBeInTheDocument();
+    // €2,000 budget, €1,200 spent: €800 left against €1,200 due, said in words.
+    expect(within(due).getByText('€1,200 due')).toBeInTheDocument();
+    expect(within(due).getByText(/€800 left in the budgets/)).toBeInTheDocument();
+    expect(within(due).getByText('€400 more than the budgets have left')).toBeInTheDocument();
+
+    // A month that is over has nothing left to pay: it shows how the last six months ran.
+    await u.click(screen.getByRole('button', { name: 'Previous month' }));
+    const history = await screen.findByRole('region', { name: 'Last six months' });
+    expect(
+      within(history).getByRole('table', {
+        name: 'Spending in budgeted categories over the last six months',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Still to pay this month' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('recommends limits in the editor, which the owner can take and adjust', async () => {
     const api = ledgerServer({ transactions: shop() });
     renderTransactions('/budgets');
