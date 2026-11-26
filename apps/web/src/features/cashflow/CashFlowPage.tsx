@@ -1,5 +1,14 @@
 import type { CashFlowResponse } from '@montra/shared';
-import { ArrowDownRight, ArrowUpRight, ChevronDown, Landmark } from 'lucide-react';
+import {
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  ChevronDown,
+  Equal,
+  Landmark,
+  Minus,
+  Plus,
+} from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useCashFlow } from '../../api/finance';
 import { CapsuleBarChart } from '../../components/charts/CapsuleBarChart';
@@ -15,7 +24,7 @@ import { ErrorState, Skeleton } from '../../components/ui/States';
 import { useMessages } from '../../i18n';
 import { common } from '../../i18n/common';
 import { cn } from '../../lib/cn';
-import { formatDate, money, relativeDay, type MoneyOptions } from '../../lib/format';
+import { formatDate, money, percent, relativeDay, type MoneyOptions } from '../../lib/format';
 import { useOpenCount, useStayMounted } from '../../lib/presence';
 import { useCurrentMembership } from '../auth/currentUser';
 import { axisFormatter } from '../dashboard/axis';
@@ -77,9 +86,14 @@ export function CashFlowPage() {
       ) : (
         <>
           {data && <MismatchNote data={data} canEdit={canEdit} onEdit={() => setEditing(true)} />}
-          <Summary data={data} empty={empty} onEdit={() => setEditing(true)} />
-          <BalanceProjection data={data} empty={empty} />
-          <MonthlyComparison data={data} empty={empty} />
+          {/* From 1280px the figures stand in a rail beside the two charts. */}
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+            <Overview data={data} empty={empty} onEdit={() => setEditing(true)} />
+            <div className="flex min-w-0 flex-col gap-6">
+              <BalanceProjection data={data} empty={empty} />
+              <MonthlyComparison data={data} empty={empty} />
+            </div>
+          </div>
           <UpcomingTable data={data} />
         </>
       )}
@@ -186,33 +200,67 @@ function StartNote({
   );
 }
 
-/** A labelled figure: the label, the figure, a quiet line beneath. Kept as siblings in one box. */
-function Figure({
+const operatorIcons = { plus: Plus, minus: Minus, equals: Equal, then: ArrowRight } as const;
+type Operator = keyof typeof operatorIcons;
+
+/**
+ * The sign before a figure of the statement. The projection's arrow sits in
+ * a dashed ring, the way projected values are drawn on the charts.
+ */
+function OperatorMark({ kind }: { kind: Operator | undefined }) {
+  if (!kind) return <span aria-hidden className="size-7 shrink-0" />;
+  const Icon = operatorIcons[kind];
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'grid size-7 shrink-0 place-items-center rounded-full text-ink-2',
+        kind === 'then' ? 'border border-dashed border-control' : 'bg-sunken',
+      )}
+    >
+      <Icon className="size-3.5" strokeWidth={2.25} />
+    </span>
+  );
+}
+
+/** One line of the rail: a mark, its label with a quiet line beneath, and the figure at the right. */
+function Line({
+  mark,
   label,
-  value,
   hint,
+  children,
   className,
 }: {
+  mark: ReactNode;
   label: string;
-  value: ReactNode;
   hint?: ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
   return (
-    <div className={cn('min-w-0', className)}>
-      <p className="truncate text-body-sm text-muted">{label}</p>
-      {value}
-      {hint !== undefined && <p className="truncate text-body-sm text-muted">{hint}</p>}
+    <div className={cn('flex items-center gap-4 py-5', className)}>
+      {mark}
+      <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4">
+        <dt className="truncate text-body-sm text-muted">{label}</dt>
+        <dd
+          className={cn('col-start-2 row-start-1 text-right', hint !== undefined && 'row-span-2')}
+        >
+          {children}
+        </dd>
+        {hint !== undefined && <p className="truncate text-body-sm text-muted">{hint}</p>}
+      </div>
     </div>
   );
 }
 
 /**
- * The figures the forecast is built on, in one row: where the twelve months
- * opened, what came in and went out, where the balance is today and where it
- * is projected to be. All the same size: none is the page's hero.
+ * The rail beside the charts: the figures the forecast is built on, read as
+ * a statement (where the twelve months opened, plus what came in, minus what
+ * went out, is the balance today, which runs on to the projection), then
+ * what the next 90 days hold. Under 1280px it sits above the charts, its two
+ * halves side by side from 768px.
  */
-function Summary({
+function Overview({
   data,
   empty,
   onEdit,
@@ -222,15 +270,30 @@ function Summary({
   onEdit: () => void;
 }) {
   const s = useMessages(cashFlowMessages).stats;
+  const t = useMessages(cashFlowMessages).balance;
   const noDataYet = useMessages(common).delta.noData;
   const stats = data?.stats;
   const fmt = amount(data);
+  const threshold = data?.settings.lowBalanceThresholdCents ?? null;
+  const change = stats ? stats.projectedCents - stats.closingCents : 0;
+  const Arrow = change < 0 ? ArrowDownRight : ArrowUpRight;
+  const figure = 'tabular truncate text-figure-sm text-ink';
+  const blank = <span aria-hidden className="size-7 shrink-0" />;
+  /** A figure once it has loaded, the "no data yet" line for a business without transactions. */
+  const show = (node: () => ReactNode) =>
+    !stats ? (
+      <Skeleton className="h-7 w-24" />
+    ) : empty.noData ? (
+      <span className="text-body-sm text-muted">{noDataYet}</span>
+    ) : (
+      node()
+    );
   const items: {
     label: string;
     hint: string;
     value: number | undefined;
+    operator?: Operator;
     tone?: string;
-    sign?: 'always';
   }[] = [
     {
       label: s.opening,
@@ -241,49 +304,110 @@ function Summary({
       label: s.moneyIn,
       hint: s.last12,
       value: stats?.incomeCents,
+      operator: 'plus',
       tone: 'text-positive',
-      sign: 'always',
     },
-    // 0 - x, not -x: no expenses is €0, never a negative zero ("−€0").
-    { label: s.moneyOut, hint: s.last12, value: stats ? 0 - stats.expenseCents : undefined },
+    // The minus sign is the operator's: the figure itself is what went out.
+    { label: s.moneyOut, hint: s.last12, value: stats?.expenseCents, operator: 'minus' },
     {
       label: s.today,
       hint: data ? formatDate(data.today, 'd MMM yyyy') : '',
       value: stats?.closingCents,
+      operator: 'equals',
     },
-    { label: s.projected, hint: s.in90, value: stats?.projectedCents },
+    { label: s.projected, hint: s.in90, value: stats?.projectedCents, operator: 'then' },
   ];
 
   return (
-    <Panel className="p-5 sm:p-6" aria-label={s.summary}>
-      <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-3 xl:grid-cols-5">
-        {items.map((item) => (
-          <Figure
-            key={item.label}
-            label={item.label}
-            value={
-              item.value === undefined ? (
-                <Skeleton className="mt-2 h-7 w-28" />
+    <Panel className="flex flex-col p-5 sm:p-6" aria-labelledby="cash-overview">
+      <PanelHeader id="cash-overview" title={s.title} />
+      <div className="mt-3 grid flex-1 gap-x-10 gap-y-4 md:grid-cols-2 xl:grid-cols-1 xl:content-between">
+        <dl>
+          {items.map((item, i) => (
+            <Line
+              key={item.label}
+              mark={<OperatorMark kind={item.operator} />}
+              label={item.label}
+              hint={empty.noData ? noDataYet : item.hint}
+              className={cn(
+                i > 0 && 'border-t border-line-soft',
+                // The total is ruled off, as on a statement; the projection follows it, dashed.
+                item.operator === 'equals' && 'border-line-strong',
+                item.operator === 'then' && 'border-dashed border-line-strong',
+              )}
+            >
+              {item.value === undefined ? (
+                <Skeleton className="h-7 w-24" />
               ) : (
+                <p className={cn(figure, !empty.noData && item.tone)}>{fmt(item.value)}</p>
+              )}
+            </Line>
+          ))}
+        </dl>
+
+        <section
+          aria-labelledby="cash-ahead"
+          className="flex flex-col border-t border-line pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-10 xl:border-t xl:border-l-0 xl:pt-5 xl:pl-0"
+        >
+          <h3 id="cash-ahead" className="text-body font-medium text-ink">
+            {s.ahead}
+          </h3>
+          <dl className="mt-1">
+            <Line
+              // The ring that marks this point on the balance line.
+              mark={
+                <span aria-hidden className="grid size-7 shrink-0 place-items-center">
+                  <span className="size-2.5 rounded-full border-2 border-chart-1" />
+                </span>
+              }
+              label={t.lowest}
+              hint={
+                stats && !empty.noData ? t.on(formatDate(stats.lowestDate, 'd MMM')) : undefined
+              }
+            >
+              {show(() => (
+                <p className={figure}>{fmt(stats!.lowestCents)}</p>
+              ))}
+            </Line>
+            <Line mark={blank} label={t.headroom} className="border-t border-line-soft">
+              {show(() =>
+                threshold === null ? (
+                  <span className="text-body-sm text-muted">{t.noBuffer}</span>
+                ) : (
+                  <p
+                    className={cn(
+                      figure,
+                      stats!.lowestCents < threshold ? 'text-negative' : 'text-positive',
+                    )}
+                  >
+                    {fmt(stats!.lowestCents - threshold)}
+                  </p>
+                ),
+              )}
+            </Line>
+            <Line mark={blank} label={t.change} className="border-t border-line-soft">
+              {show(() => (
+                // The change carries an arrow and a sign as well as its colour.
                 <p
                   className={cn(
-                    'tabular mt-1 truncate text-figure-sm text-ink',
-                    !empty.noData && item.tone,
+                    figure,
+                    'inline-flex items-center gap-0.5',
+                    change < 0 ? 'text-negative' : change > 0 ? 'text-positive' : 'text-ink',
                   )}
                 >
-                  {fmt(item.value, { sign: item.sign ?? 'auto' })}
+                  {change !== 0 && <Arrow aria-hidden className="size-4" strokeWidth={2} />}
+                  {fmt(change, { sign: 'always' })}
                 </p>
-              )
-            }
-            hint={empty.noData ? noDataYet : item.hint}
-          />
-        ))}
+              ))}
+            </Line>
+          </dl>
+          {data && (
+            <div className="mt-auto border-t xl:mt-5 border-line pt-4 empty:hidden">
+              <StartNote data={data} canEdit={empty.canEdit} onEdit={onEdit} />
+            </div>
+          )}
+        </section>
       </div>
-      {data && (
-        <div className="mt-6 border-t border-line pt-4 empty:hidden">
-          <StartNote data={data} canEdit={empty.canEdit} onEdit={onEdit} />
-        </div>
-      )}
     </Panel>
   );
 }
@@ -303,10 +427,6 @@ function BalanceProjection({ data, empty }: { data: Data | undefined; empty: Emp
   const fmt = amount(data);
   const threshold = data?.settings.lowBalanceThresholdCents ?? null;
   const stats = data?.stats;
-  const missing = <span className="font-normal text-muted">{c.delta.noData}</span>;
-  const change = stats ? stats.projectedCents - stats.closingCents : 0;
-  const Arrow = change < 0 ? ArrowDownRight : ArrowUpRight;
-  const value = 'tabular mt-1 text-body-lg font-medium';
 
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="balance-projection">
@@ -314,24 +434,16 @@ function BalanceProjection({ data, empty }: { data: Data | undefined; empty: Emp
         id="balance-projection"
         title={t.title}
         description={noData ? c.noTransactions.title : t.description}
-        actions={
-          <Legend
-            items={[
-              { label: t.balance, swatch: 'bg-chart-1' },
-              { label: t.projection, swatch: 'border-chart-1', dashed: true },
-              { label: t.range, swatch: 'bg-chart-1/25' },
-            ]}
-          />
-        }
       />
       <div className="relative mt-6">
         {!data ? (
-          <Skeleton className="h-[280px] w-full" />
+          <Skeleton className="h-[260px] w-full" />
         ) : (
           <>
             <div className={noData ? 'opacity-40' : undefined}>
               <LineChart
-                height={280}
+                height={260}
+                detailed
                 ariaLabel={t.chart}
                 formatTick={axisFormatter(
                   Math.max(0, ...data.balance.map((p) => p.highCents ?? p.balanceCents)),
@@ -353,6 +465,24 @@ function BalanceProjection({ data, empty }: { data: Data | undefined; empty: Emp
                   .filter((p) => p.projected && p.lowCents !== undefined)
                   .map((p) => ({ date: p.date, low: p.lowCents!, high: p.highCents! }))}
                 markers={noData ? [] : [{ date: data.today, label: t.today }]}
+                callouts={
+                  noData || !stats
+                    ? []
+                    : [
+                        { date: data.today, value: stats.closingCents, solid: true },
+                        {
+                          date: stats.lowestDate,
+                          value: stats.lowestCents,
+                          label: t.lowestAt(fmt(stats.lowestCents)),
+                          below: true,
+                        },
+                        {
+                          date: data.balance.at(-1)!.date,
+                          value: stats.projectedCents,
+                          label: fmt(stats.projectedCents),
+                        },
+                      ]
+                }
                 threshold={
                   noData || threshold === null
                     ? undefined
@@ -395,73 +525,45 @@ function BalanceProjection({ data, empty }: { data: Data | undefined; empty: Emp
           </>
         )}
       </div>
-      {data && stats && (
-        <dl className="mt-6 grid gap-x-8 gap-y-4 border-t border-line pt-5 sm:grid-cols-3">
-          <div>
-            <dt className="text-body-sm text-muted">{t.lowest}</dt>
-            <dd className={cn(value, 'text-ink')}>
-              {noData ? (
-                missing
-              ) : (
-                <>
-                  {fmt(stats.lowestCents)}{' '}
-                  <span className="font-normal text-muted">
-                    {t.on(formatDate(stats.lowestDate, 'd MMM'))}
-                  </span>
-                </>
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-body-sm text-muted">{t.headroom}</dt>
-            <dd
-              className={cn(
-                value,
-                threshold !== null && stats.lowestCents < threshold
-                  ? 'text-negative'
-                  : 'text-positive',
-              )}
-            >
-              {noData ? (
-                missing
-              ) : threshold === null ? (
-                <span className="font-normal text-muted">{t.noBuffer}</span>
-              ) : (
-                fmt(stats.lowestCents - threshold)
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-body-sm text-muted">{t.change}</dt>
-            <dd className={cn(value, 'text-ink')}>
-              {noData ? (
-                missing
-              ) : (
-                // The change carries an arrow and a sign as well as its colour.
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-0.5',
-                    change < 0 ? 'text-negative' : change > 0 ? 'text-positive' : 'text-ink',
-                  )}
-                >
-                  {change !== 0 && <Arrow aria-hidden className="size-4" strokeWidth={2} />}
-                  {fmt(change, { sign: 'always' })}
-                </span>
-              )}
-            </dd>
-          </div>
-        </dl>
-      )}
+      <div className="mt-5 border-t border-line pt-4">
+        <Legend
+          items={[
+            { label: t.balance, swatch: 'bg-chart-1' },
+            { label: t.projection, swatch: 'border-chart-1', dashed: true },
+            { label: t.range, swatch: 'bg-chart-1/25' },
+          ]}
+        />
+      </div>
     </Panel>
   );
 }
 
-/** The last twelve months and the next three: what came in and went out each month, as paired capsules. */
+/** The year's result as a sentence, with its amount set in the colour of what it means. */
+function YearResult({ text, amount, tone }: { text: string; amount: string; tone: string }) {
+  const at = text.indexOf(amount);
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <span className={cn('font-semibold', tone)}>{amount}</span>
+      {text.slice(at + amount.length)}
+    </>
+  );
+}
+
+/**
+ * The last twelve months and the next three, one capsule a month: ink for
+ * what was spent out of what came in, and on top of it a green cap for what
+ * was kept or a red one for what was spent beyond it. Beneath, the year's
+ * result in one plain line.
+ */
 function MonthlyComparison({ data, empty }: { data: Data | undefined; empty: Empty }) {
   const t = useMessages(cashFlowMessages).monthly;
   const page = useMessages(cashFlowMessages).page;
   const c = useMessages(common);
   const fmt = amount(data);
+  const stats = data?.stats;
+  const kept = stats ? stats.incomeCents - stats.expenseCents : 0;
 
   return (
     <Panel className="p-5 sm:p-6" aria-labelledby="monthly-comparison">
@@ -469,25 +571,16 @@ function MonthlyComparison({ data, empty }: { data: Data | undefined; empty: Emp
         id="monthly-comparison"
         title={t.title}
         description={empty.noData ? c.noTransactions.title : t.description}
-        actions={
-          <Legend
-            items={[
-              { label: t.income, swatch: 'bg-chart-1' },
-              { label: t.expenses, swatch: 'bg-chart-2' },
-              { label: t.projected, swatch: 'border-chart-1', dashed: true },
-            ]}
-          />
-        }
       />
       <div className="relative mt-6">
         {!data ? (
-          <Skeleton className="h-[240px] w-full" />
+          <Skeleton className="h-[230px] w-full" />
         ) : (
           <>
             <div className={empty.noData ? 'opacity-40' : undefined}>
               <CapsuleBarChart
-                layout="grouped"
-                height={240}
+                layout="kept"
+                height={230}
                 ariaLabel={t.chart}
                 formatTick={axisFormatter(
                   Math.max(0, ...data.months.flatMap((m) => [m.incomeCents, m.expenseCents])),
@@ -521,14 +614,15 @@ function MonthlyComparison({ data, empty }: { data: Data | undefined; empty: Emp
                           <span className="font-normal text-chart-1">{t.projectedSuffix}</span>
                         )}
                       </TooltipTitle>
-                      <TooltipRow swatch="bg-chart-1" label={t.income} value={fmt(m.incomeCents)} />
+                      <TooltipRow label={t.income} value={fmt(m.incomeCents)} />
                       <TooltipRow
-                        swatch="bg-chart-2"
+                        swatch="bg-chart-1"
                         label={t.expenses}
                         value={fmt(m.expenseCents)}
                       />
                       <div className="mt-1.5 border-t border-line pt-1.5">
                         <TooltipRow
+                          swatch={m.netCents >= 0 ? 'bg-chart-2' : 'bg-negative'}
                           label={t.net}
                           value={fmt(m.netCents, { sign: 'always' })}
                           emphasis
@@ -542,6 +636,31 @@ function MonthlyComparison({ data, empty }: { data: Data | undefined; empty: Emp
             {empty.noData && <EmptyChartNote canEdit={empty.canEdit} ownerText={page.chartOwner} />}
           </>
         )}
+      </div>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-line pt-5">
+        <p className="tabular text-body text-ink-2">
+          {!stats || empty.noData ? (
+            <span className="text-muted">{c.delta.noData}</span>
+          ) : (
+            <YearResult
+              text={
+                kept >= 0
+                  ? t.keptYear(fmt(kept), percent(stats.incomeCents ? kept / stats.incomeCents : 0))
+                  : t.overYear(fmt(-kept))
+              }
+              amount={fmt(Math.abs(kept))}
+              tone={kept >= 0 ? 'text-ink' : 'text-negative'}
+            />
+          )}
+        </p>
+        <Legend
+          items={[
+            { label: t.spent, swatch: 'bg-chart-1' },
+            { label: t.kept, swatch: 'bg-chart-2' },
+            { label: t.overspent, swatch: 'bg-negative' },
+            { label: t.projected, swatch: 'border-chart-1', dashed: true },
+          ]}
+        />
       </div>
     </Panel>
   );

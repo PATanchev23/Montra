@@ -69,6 +69,8 @@ export const cashFlowMessages = defineMessages(
       saved: 'Bank balance saved',
     },
     stats: {
+      title: 'Where your cash stands',
+      ahead: 'The next 90 days',
       opening: 'Opening balance',
       moneyIn: 'Money in',
       moneyOut: 'Money out',
@@ -80,11 +82,19 @@ export const cashFlowMessages = defineMessages(
     },
     monthly: {
       title: 'Income vs. expenses',
-      description: 'Monthly totals · the last three months are projected from your history',
+      description:
+        'What you spent each month, with what you kept on top, or in red what you spent beyond it.',
       income: 'Income',
       expenses: 'Expenses',
+      spent: 'Spent',
+      kept: 'Kept',
+      overspent: 'Spent more than came in',
       projected: 'Projected',
       chart: 'Monthly income and expenses, with three projected months',
+      keptYear: (amount: string, percent: string) =>
+        `Over the last 12 months you kept ${amount}, ${percent} of what came in.`,
+      overYear: (amount: string) =>
+        `Over the last 12 months you spent ${amount} more than came in.`,
       projectedSuffix: ' · projected',
       net: 'Net',
     },
@@ -103,6 +113,7 @@ export const cashFlowMessages = defineMessages(
       headroom: 'Headroom above buffer',
       change: 'Change over 90 days',
       noBuffer: 'No warning level set',
+      lowestAt: (amount: string) => `Lowest ${amount}`,
     },
     upcoming: {
       title: 'Next 30 days',
@@ -191,6 +202,8 @@ export const cashFlowMessages = defineMessages(
       saved: 'Наличността е запазена',
     },
     stats: {
+      title: 'Къде са парите ви',
+      ahead: 'Следващите 90 дни',
       opening: 'Начален баланс',
       moneyIn: 'Постъпления',
       moneyOut: 'Плащания',
@@ -202,11 +215,19 @@ export const cashFlowMessages = defineMessages(
     },
     monthly: {
       title: 'Приходи и разходи',
-      description: 'Месечни суми · последните три месеца са прогноза въз основа на историята ви',
+      description:
+        'Колко сте похарчили всеки месец, а отгоре – колко е останало или, в червено, колко сте похарчили над постъпилото.',
       income: 'Приходи',
       expenses: 'Разходи',
+      spent: 'Похарчено',
+      kept: 'Останало',
+      overspent: 'Похарчено над постъпилото',
       projected: 'Прогноза',
       chart: 'Месечни приходи и разходи, с три прогнозни месеца',
+      keptYear: (amount: string, percent: string) =>
+        `За последните 12 месеца ви останаха ${amount}, ${percent} от постъпилото.`,
+      overYear: (amount: string) =>
+        `За последните 12 месеца похарчихте ${amount} повече, отколкото постъпи.`,
       projectedSuffix: ' · прогноза',
       net: 'Нетно',
     },
@@ -225,6 +246,7 @@ export const cashFlowMessages = defineMessages(
       headroom: 'Запас над резерва',
       change: 'Промяна за 90 дни',
       noBuffer: 'Няма зададено ниво за предупреждение',
+      lowestAt: (amount: string) => `Най-ниско ${amount}`,
     },
     upcoming: {
       title: 'Следващите 30 дни',

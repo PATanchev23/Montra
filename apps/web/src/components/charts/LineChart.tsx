@@ -32,6 +32,15 @@ export interface LinePoint {
   projected?: boolean;
 }
 
+/** A labelled point on the line: a ring with a short label above or below it, or a solid "you are here" dot. */
+export interface LineCallout {
+  date: string;
+  value: number;
+  label?: string;
+  below?: boolean;
+  solid?: boolean;
+}
+
 export interface LineSeries {
   id: string;
   label: string;
@@ -47,6 +56,8 @@ const toneClass = {
 } as const;
 
 const MARGIN = { top: 16, right: 8, bottom: 30, left: 40 };
+/** The detailed chart keeps room above the plot for the marker pills. */
+const DETAILED_TOP = 40;
 /** The gap between a value label and the plot, and the width of one 11px label character. */
 const TICK_GAP = 12;
 const TICK_CHAR = 6.2;
@@ -95,6 +106,8 @@ export function LineChart({
   renderTooltip,
   ariaLabel,
   className,
+  detailed = false,
+  callouts = [],
 }: {
   series: LineSeries[];
   band?: { date: string; low: number; high: number }[];
@@ -105,8 +118,16 @@ export function LineChart({
   renderTooltip?: (date: string) => ReactNode;
   ariaLabel: string;
   className?: string;
+  /**
+   * The full reading for a page that is about this line: history fades into
+   * the canvas, markers become ink pills above the plot, and the ground under
+   * a threshold is shaded as the place the balance should not go.
+   */
+  detailed?: boolean;
+  callouts?: LineCallout[];
 }) {
   const [ref, { width }] = useElementSize<HTMLDivElement>();
+  const top = detailed ? DETAILED_TOP : MARGIN.top;
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const gradientId = useId();
   const msg = useMessages(common);
@@ -137,7 +158,7 @@ export function LineChart({
   const pad = (max - min) * 0.08 || 1;
   const y = scaleLinear()
     .domain([Math.min(0, min - pad) < 0 && min >= 0 ? 0 : min - pad, max + pad])
-    .range([height - MARGIN.bottom, MARGIN.top])
+    .range([height - MARGIN.bottom, top])
     .nice(5);
   // Nothing to scale: label the baseline only, not a column of fractions that all read 0.
   const ticks = min === 0 && max === 0 ? [0] : y.ticks(4);
@@ -211,8 +232,8 @@ export function LineChart({
         >
           <defs>
             <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="currentColor" stopOpacity={0.04} />
-              <stop offset="100%" stopColor="currentColor" stopOpacity={0.04} />
+              <stop offset="0%" stopColor="currentColor" stopOpacity={detailed ? 0.11 : 0.04} />
+              <stop offset="100%" stopColor="currentColor" stopOpacity={detailed ? 0 : 0.04} />
             </linearGradient>
           </defs>
 
@@ -276,12 +297,24 @@ export function LineChart({
 
           {threshold && (
             <g>
+              {/* Below the warning level is ground the balance should not reach. */}
+              {detailed && y(threshold.value) < height - MARGIN.bottom && (
+                <rect
+                  x={left}
+                  y={y(threshold.value)}
+                  width={Math.max(0, width - MARGIN.right - left)}
+                  height={height - MARGIN.bottom - y(threshold.value)}
+                  className="fill-negative"
+                  fillOpacity={0.06}
+                />
+              )}
               <line
                 x1={left}
                 x2={width - MARGIN.right}
                 y1={y(threshold.value)}
                 y2={y(threshold.value)}
-                className="stroke-control"
+                className={detailed ? 'stroke-negative' : 'stroke-control'}
+                strokeOpacity={detailed ? 0.55 : 1}
                 strokeDasharray="3 4"
               />
               <text
@@ -295,24 +328,60 @@ export function LineChart({
             </g>
           )}
 
-          {markers.map((marker) => (
-            <g key={marker.date}>
-              <line
-                x1={x(parseISO(marker.date))}
-                x2={x(parseISO(marker.date))}
-                y1={MARGIN.top - 4}
-                y2={height - MARGIN.bottom}
-                className="stroke-line-strong"
-              />
-              <text
-                x={x(parseISO(marker.date)) + 6}
-                y={MARGIN.top + 6}
-                className="fill-muted text-[11px] font-medium"
-              >
-                {marker.label}
-              </text>
-            </g>
-          ))}
+          {markers.map((marker) => {
+            if (!detailed) return null;
+            const mx = x(parseISO(marker.date));
+            const pill = marker.label.length * 6.3 + 18;
+            return (
+              <g key={marker.date}>
+                <line
+                  x1={mx}
+                  x2={mx}
+                  y1={top - 12}
+                  y2={height - MARGIN.bottom}
+                  className="stroke-line-strong"
+                  strokeDasharray="2 3"
+                />
+                <rect
+                  x={mx - pill / 2}
+                  y={4}
+                  width={pill}
+                  height={22}
+                  rx={11}
+                  className="fill-accent"
+                />
+                <text
+                  x={mx}
+                  y={15}
+                  dy="0.35em"
+                  textAnchor="middle"
+                  className="fill-accent-ink text-[11px] font-medium"
+                >
+                  {marker.label}
+                </text>
+              </g>
+            );
+          })}
+
+          {!detailed &&
+            markers.map((marker) => (
+              <g key={marker.date}>
+                <line
+                  x1={x(parseISO(marker.date))}
+                  x2={x(parseISO(marker.date))}
+                  y1={top - 4}
+                  y2={height - MARGIN.bottom}
+                  className="stroke-line-strong"
+                />
+                <text
+                  x={x(parseISO(marker.date)) + 6}
+                  y={top + 6}
+                  className="fill-muted text-[11px] font-medium"
+                >
+                  {marker.label}
+                </text>
+              </g>
+            ))}
 
           {series.map((s) => {
             const actual = s.points.filter((p) => !p.projected);
@@ -328,7 +397,10 @@ export function LineChart({
                     d={
                       area()
                         .curve(curveMonotoneX)
-                        .y0(height - MARGIN.bottom)(all) ?? ''
+                        // The detailed chart fills what happened; the projection keeps only its range.
+                        .y0(height - MARGIN.bottom)(
+                        detailed && actual.length > 1 ? actual.map(toXY) : all,
+                      ) ?? ''
                     }
                     fill={`url(#${gradientId})`}
                   />
@@ -339,7 +411,7 @@ export function LineChart({
                     d={lineGen(actual.map(toXY)) ?? ''}
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth={1.75}
+                    strokeWidth={detailed ? 2 : 1.75}
                     strokeLinecap="round"
                     initial={{ pathLength: 0 }}
                     animate={{ pathLength: 1 }}
@@ -352,7 +424,7 @@ export function LineChart({
                     d={lineGen(projected.map(toXY)) ?? ''}
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth={1.75}
+                    strokeWidth={detailed ? 2 : 1.75}
                     strokeDasharray="5 5"
                     strokeLinecap="round"
                     initial={{ opacity: 0 }}
@@ -364,12 +436,45 @@ export function LineChart({
             );
           })}
 
+          {callouts.map((c) => {
+            const cx = x(parseISO(c.date));
+            const cy = y(c.value);
+            const nearEnd = cx > width - MARGIN.right - 70;
+            return (
+              <g key={`${c.date}-${c.label ?? ''}`} pointerEvents="none">
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={c.solid ? 5 : 4.5}
+                  strokeWidth={c.solid ? 3 : 2}
+                  className={
+                    c.solid ? 'fill-chart-1 stroke-surface' : 'fill-surface stroke-chart-1'
+                  }
+                />
+                {c.label && (
+                  <text
+                    // Below a point, the label leans right, clear of the line arriving from the left.
+                    x={nearEnd ? cx - 2 : c.below ? cx + 4 : cx}
+                    y={c.below ? cy + 21 : cy - 13}
+                    textAnchor={nearEnd ? 'end' : c.below ? 'start' : 'middle'}
+                    // A halo in the panel colour keeps the label legible over the line and its range.
+                    className="tabular fill-ink stroke-surface text-[11.5px] font-semibold [paint-order:stroke]"
+                    strokeWidth={4}
+                    strokeLinejoin="round"
+                  >
+                    {c.label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
           {activeDate && (
             <g pointerEvents="none">
               <line
                 x1={activeX}
                 x2={activeX}
-                y1={MARGIN.top}
+                y1={top}
                 y2={height - MARGIN.bottom}
                 className="stroke-line-strong"
               />

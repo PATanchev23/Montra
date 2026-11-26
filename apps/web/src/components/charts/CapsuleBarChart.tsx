@@ -28,6 +28,12 @@ import { common } from '../../i18n/common';
  *                     from a zero line, the second hangs below it (money in
  *                     above, money out below), each capsule a full band wide.
  *
+ *   layout="kept"     money in against money out in one capsule per period,
+ *                     on a pale track: ink is what was spent out of what came
+ *                     in, a grey cap above it what was kept, a red cap what
+ *                     was spent beyond it. The capsule's height is the larger
+ *                     of the two, so the cap is the month's net at a glance.
+ *
  * Projected categories render hatched with a dashed outline.
  *
  * A capsule never gets thinner than `minBarWidth`. When the plot cannot hold
@@ -55,8 +61,19 @@ export interface CapsuleSeries {
   tone: 'primary' | 'secondary';
 }
 
-const toneFill = { primary: 'fill-chart-1', secondary: 'fill-chart-2' } as const;
-const toneStroke = { primary: 'stroke-chart-1', secondary: 'stroke-chart-2' } as const;
+const toneFill = {
+  primary: 'fill-chart-1',
+  secondary: 'fill-chart-2',
+  positive: 'fill-positive',
+  negative: 'fill-negative',
+} as const;
+const toneStroke = {
+  primary: 'stroke-chart-1',
+  secondary: 'stroke-chart-2',
+  positive: 'stroke-positive',
+  negative: 'stroke-negative',
+} as const;
+type Tone = keyof typeof toneFill;
 
 const TOP = 8;
 const BOTTOM = 32;
@@ -69,6 +86,28 @@ const TOOLTIP_WIDTH = 208;
 const CHAR = 6.6;
 /** How much of its band a single capsule fills: wide enough to read as a capsule, with room between. */
 const FILL = 0.68;
+/** The least a kept or overspent cap shows above the ink, so a small month still reads as one. */
+const MIN_CAP = 6;
+
+/**
+ * The kept layout's two capsules for one period, back to front: the larger
+ * of money in and money out, grey when it is money in (what was kept) and
+ * red when it is money out (spent beyond it), then the ink of what was spent
+ * out of what came in.
+ */
+function keptCapsules(income: number, expense: number) {
+  const capsules: { id: 'cap' | 'spent'; value: number; tone: Tone }[] = [];
+  if (income !== expense) {
+    capsules.push({
+      id: 'cap',
+      value: Math.max(income, expense),
+      tone: income > expense ? 'secondary' : 'negative',
+    });
+  }
+  const spent = Math.min(income, expense);
+  if (spent > 0) capsules.push({ id: 'spent', value: spent, tone: 'primary' });
+  return capsules;
+}
 
 export function CapsuleBarChart({
   categories,
@@ -87,7 +126,7 @@ export function CapsuleBarChart({
 }: {
   categories: CapsuleCategory[];
   series: CapsuleSeries[];
-  layout?: 'track' | 'grouped' | 'diverging';
+  layout?: 'track' | 'grouped' | 'diverging' | 'kept';
   /** A fixed height in pixels, or `fill` to take the height of the element it sits in. */
   height?: number | 'fill';
   formatTick?: (value: number) => string;
@@ -144,7 +183,8 @@ export function CapsuleBarChart({
 
   const floor = minBarWidth ?? (width >= 480 ? 0 : 12);
   const naturalBand = count ? plotWidth / count : 0;
-  const minBand = layout === 'track' ? floor / FILL : 0;
+  const tracked = layout === 'track' || layout === 'kept';
+  const minBand = tracked ? floor / FILL : 0;
   const scrolls = count > 0 && plotWidth > 0 && naturalBand < minBand;
   const band = scrolls ? minBand : naturalBand;
   const contentWidth = scrolls ? band * count : plotWidth;
@@ -154,7 +194,7 @@ export function CapsuleBarChart({
 
   const barWidth = Math.max(
     2,
-    layout === 'track'
+    tracked
       ? Math.min(maxBarWidth, band * FILL)
       : layout === 'diverging'
         ? Math.min(maxBarWidth * 0.62, band * FILL)
@@ -305,7 +345,7 @@ export function CapsuleBarChart({
           >
             <svg width={contentWidth} height={height} aria-hidden className="block">
               <defs>
-                {(['primary', 'secondary'] as const).map((tone) => (
+                {(Object.keys(toneFill) as Tone[]).map((tone) => (
                   <pattern
                     key={tone}
                     id={`${patternId}-${tone}`}
@@ -329,7 +369,7 @@ export function CapsuleBarChart({
               </defs>
 
               {/* The tracks show the scale; without them, faint lines at the ticks do. */}
-              {layout !== 'track' &&
+              {!tracked &&
                 ticks
                   .filter((t) => t !== 0)
                   .map((t) => (
@@ -361,7 +401,7 @@ export function CapsuleBarChart({
                     (active === null || Math.abs(i - active) * band >= labelRoom));
                 return (
                   <g key={category.key}>
-                    {layout === 'track' && (
+                    {tracked && (
                       <rect
                         x={center - barWidth / 2}
                         y={TOP}
@@ -376,7 +416,7 @@ export function CapsuleBarChart({
                     )}
 
                     {/* A quiet period, with no tracks to mark it: a dot on the baseline keeps the rhythm. */}
-                    {layout !== 'track' && drawn.every((s) => !(s.values[i] ?? 0)) && (
+                    {!tracked && drawn.every((s) => !(s.values[i] ?? 0)) && (
                       <circle
                         cx={center}
                         cy={layout === 'diverging' ? zero : baseline - 3}
@@ -389,40 +429,91 @@ export function CapsuleBarChart({
                       className="transition-opacity duration-200 ease-[var(--ease-out-soft)]"
                       opacity={stepBack ? 0.32 : 1}
                     >
-                      {drawn.map((s, si) => {
-                        const { top, h } = barGeometry(
-                          s.values[i] ?? 0,
-                          layout === 'diverging' && si === 1,
-                        );
-                        const x =
-                          layout !== 'grouped'
-                            ? center - barWidth / 2
-                            : center - barWidth - gap / 2 + si * (barWidth + gap);
-                        const projected = category.projected;
-                        return (
-                          <motion.rect
-                            key={s.id}
-                            x={x}
-                            width={barWidth}
-                            rx={radius}
-                            initial={reduceMotion ? false : { y: zero, height: 0 }}
-                            animate={{ y: top, height: h }}
-                            transition={
-                              reduceMotion
-                                ? { duration: 0 }
-                                : {
-                                    duration: 0.4,
-                                    delay: Math.min(0.01 * i, 0.2),
-                                    ease: [0.22, 1, 0.36, 1],
-                                  }
+                      {layout === 'kept' &&
+                        keptCapsules(drawn[0]?.values[i] ?? 0, drawn[1]?.values[i] ?? 0).map(
+                          ({ id, value, tone }, _, all) => {
+                            const spent = all.find((c) => c.id === 'spent');
+                            const under = spent ? barGeometry(spent.value).top : zero;
+                            let { top, h } = barGeometry(value);
+                            if (id === 'cap' && spent) {
+                              top = Math.max(TOP, Math.min(top, under - MIN_CAP));
+                              // It ends inside the ink's straight sides, so no colour shows down its edges.
+                              h = Math.min(zero, under + barWidth) - top;
                             }
-                            className={projected ? toneStroke[s.tone] : toneFill[s.tone]}
-                            fill={projected ? `url(#${patternId}-${s.tone})` : undefined}
-                            strokeWidth={projected ? 1.25 : 0}
-                            strokeDasharray={projected ? '3 3' : undefined}
-                          />
-                        );
-                      })}
+                            const projected = category.projected;
+                            return (
+                              <g key={id}>
+                                {/* A hatched capsule is see-through: a solid one beneath keeps the cap out of the spending. */}
+                                {projected && id === 'spent' && (
+                                  <rect
+                                    x={center - barWidth / 2}
+                                    y={top}
+                                    width={barWidth}
+                                    height={h}
+                                    rx={radius}
+                                    className="fill-chart-track"
+                                  />
+                                )}
+                                <motion.rect
+                                  x={center - barWidth / 2}
+                                  width={barWidth}
+                                  rx={radius}
+                                  initial={reduceMotion ? false : { y: zero, height: 0 }}
+                                  animate={{ y: top, height: h }}
+                                  transition={
+                                    reduceMotion
+                                      ? { duration: 0 }
+                                      : {
+                                          duration: 0.55,
+                                          delay:
+                                            Math.min(0.025 * i, 0.3) + (id === 'cap' ? 0 : 0.08),
+                                          ease: [0.22, 1, 0.36, 1],
+                                        }
+                                  }
+                                  className={projected ? toneStroke[tone] : toneFill[tone]}
+                                  fill={projected ? `url(#${patternId}-${tone})` : undefined}
+                                  strokeWidth={projected ? 1.25 : 0}
+                                  strokeDasharray={projected ? '3 3' : undefined}
+                                />
+                              </g>
+                            );
+                          },
+                        )}
+                      {layout !== 'kept' &&
+                        drawn.map((s, si) => {
+                          const { top, h } = barGeometry(
+                            s.values[i] ?? 0,
+                            layout === 'diverging' && si === 1,
+                          );
+                          const x =
+                            layout !== 'grouped'
+                              ? center - barWidth / 2
+                              : center - barWidth - gap / 2 + si * (barWidth + gap);
+                          const projected = category.projected;
+                          return (
+                            <motion.rect
+                              key={s.id}
+                              x={x}
+                              width={barWidth}
+                              rx={radius}
+                              initial={reduceMotion ? false : { y: zero, height: 0 }}
+                              animate={{ y: top, height: h }}
+                              transition={
+                                reduceMotion
+                                  ? { duration: 0 }
+                                  : {
+                                      duration: 0.4,
+                                      delay: Math.min(0.01 * i, 0.2),
+                                      ease: [0.22, 1, 0.36, 1],
+                                    }
+                              }
+                              className={projected ? toneStroke[s.tone] : toneFill[s.tone]}
+                              fill={projected ? `url(#${patternId}-${s.tone})` : undefined}
+                              strokeWidth={projected ? 1.25 : 0}
+                              strokeDasharray={projected ? '3 3' : undefined}
+                            />
+                          );
+                        })}
                     </g>
 
                     {labelled && (
