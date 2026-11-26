@@ -115,6 +115,19 @@ export const transactionSortSchema = z.enum(TRANSACTION_SORTS);
 export type TransactionSort = z.infer<typeof transactionSortSchema>;
 
 export const TRANSACTION_PAGE_SIZE_DEFAULT = 25;
+export const TRANSACTION_SEARCH_MAX = 100;
+
+/**
+ * The amount a search reads as, in cents: whole units with up to two
+ * decimals after a point or a comma, an optional currency sign around them.
+ * Null when the text is not an amount.
+ */
+export function searchAmountCents(q: string): number | null {
+  const match = /^[€$£]?\s*(\d{1,9})(?:[.,](\d{1,2}))?\s*(?:€|лв\.?)?$/i.exec(q.trim());
+  if (!match) return null;
+  const cents = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
+  return cents > 0 ? cents : null;
+}
 export const TRANSACTION_PAGE_SIZE_MAX = 100;
 
 /** GET /businesses/:businessId/transactions query string. Filters combine with AND. */
@@ -135,6 +148,17 @@ export const transactionListQuerySchema = z
     to: transactionDateSchema.optional(),
     /** Newest first by default; ties are broken consistently, so pages never overlap. */
     sort: transactionSortSchema.default('date_desc'),
+    /**
+     * Text to look for, ignoring case: in the description or the category,
+     * or, when it reads as an amount ("450", "1450,50"), that exact amount.
+     * Blank is no search.
+     */
+    q: z
+      .string()
+      .trim()
+      .max(TRANSACTION_SEARCH_MAX, `Search for at most ${TRANSACTION_SEARCH_MAX} characters.`)
+      .optional()
+      .transform((q) => q || undefined),
   })
   .refine((query) => !query.from || !query.to || query.from <= query.to, {
     error: '`from` must not be after `to`.',

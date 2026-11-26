@@ -1,4 +1,5 @@
 import {
+  searchAmountCents,
   TRANSACTION_ERROR_CODES,
   type CreateTransactionRequest,
   type Transaction,
@@ -76,10 +77,20 @@ const orderBy: Record<TransactionSort, Prisma.TransactionOrderByWithRelationInpu
 export async function listTransactions(
   db: Db,
   businessId: string,
-  { page, pageSize, type, category, from, to, sort }: TransactionListQuery,
+  { page, pageSize, type, category, from, to, sort, q }: TransactionListQuery,
 ): Promise<TransactionListResponse> {
+  const amount = q ? searchAmountCents(q) : null;
+  const text = q?.replace(/[\\%_]/g, (c) => `\\${c}`);
   const where: Prisma.TransactionWhereInput = {
     businessId,
+    // `contains` becomes ILIKE, where % and _ are wildcards: escaped, a search is taken literally.
+    ...(q && {
+      OR: [
+        { description: { contains: text, mode: 'insensitive' } },
+        { category: { contains: text, mode: 'insensitive' } },
+        ...(amount !== null ? [{ amountCents: amount }] : []),
+      ],
+    }),
     ...(type && { type }),
     ...(category && { category: { equals: category, mode: 'insensitive' } }),
     ...((from || to) && {

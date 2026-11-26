@@ -670,13 +670,12 @@ describe('the top bar', () => {
     expect(screen.getByText('€450 spent of €100')).toBeInTheDocument();
   });
 
-  it('shows the search on the money pages but not on account pages', async () => {
+  it('offers the search on every page, account pages included', async () => {
     ledgerServer();
     renderTransactions('/settings', topBar);
 
     await screen.findByText('Settings');
-    expect(screen.queryByRole('search')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Search transactions' })).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Search' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
   });
 
@@ -684,13 +683,89 @@ describe('the top bar', () => {
     ledgerServer();
     const router = renderTransactions('/transactions?q=acme&range=all', topBar);
 
-    const field = await screen.findByRole('searchbox', { name: 'Search transactions' });
+    const field = await screen.findByRole('combobox', { name: 'Search' });
     expect(field).toHaveValue('acme');
 
     await router.navigate('/cash-flow');
-    await waitFor(() =>
-      expect(screen.getByRole('searchbox', { name: 'Search transactions' })).toHaveValue(''),
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Search' })).toHaveValue(''));
+  });
+
+  it('finds pages by name or by what they hold, and opens one from the keyboard', async () => {
+    ledgerServer({ transactions: shop() });
+    const router = renderTransactions('/cash-flow', topBar);
+    const u = userEvent.setup();
+
+    const field = await screen.findByRole('combobox', { name: 'Search' });
+    await u.type(field, 'language');
+    const listbox = await screen.findByRole('listbox', { name: 'Search' });
+    expect(within(listbox).getByRole('option', { name: /Settings/ })).toBeInTheDocument();
+
+    await u.keyboard('{ArrowDown}');
+    expect(field).toHaveAttribute(
+      'aria-activedescendant',
+      within(listbox).getByRole('option', { name: /Settings/ }).id,
     );
+    await u.keyboard('{Enter}');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/settings'));
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('finds budgets, categories and transactions, and opens the transaction chosen', async () => {
+    ledgerServer({
+      transactions: shop(),
+      budgets: [{ category: 'Rent', limitCents: 150_000 }],
+    });
+    const router = renderTransactions('/', topBar);
+    const u = userEvent.setup();
+
+    await u.type(await screen.findByRole('combobox', { name: 'Search' }), 'rent');
+    const listbox = await screen.findByRole('listbox', { name: 'Search' });
+    const group = (name: string) => within(listbox).getByRole('group', { name });
+
+    expect(await within(listbox).findByRole('group', { name: 'Budgets' })).toHaveTextContent(
+      '€1,500 a month',
+    );
+    expect(group('Categories')).toHaveTextContent('5 transactions');
+    const rents = await within(listbox).findAllByRole('option', { name: /Shop rent/ });
+    // Five rents, five shown, so no "show all".
+    expect(rents).toHaveLength(5);
+    expect(within(listbox).queryByRole('option', { name: /Show all/ })).not.toBeInTheDocument();
+
+    await u.click(rents[0]!);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/transactions'));
+    expect(router.state.location.search).toContain('q=rent');
+    const sheet = await screen.findByRole('dialog', { name: 'Transaction details' });
+    expect(within(sheet).getAllByText('Shop rent')).not.toHaveLength(0);
+  });
+
+  it('lists every matching transaction on Enter, by text or by amount', async () => {
+    ledgerServer({ transactions: shop() });
+    const router = renderTransactions('/budgets', topBar);
+    const u = userEvent.setup();
+
+    await u.type(await screen.findByRole('combobox', { name: 'Search' }), '450{Enter}');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/transactions'));
+    const shown = await screen.findByText(
+      /Showing transactions whose description, category or amount matches “450”/,
+    );
+    expect(await screen.findByText('Search ads')).toBeInTheDocument();
+    expect(screen.queryByText('Shop rent')).not.toBeInTheDocument();
+
+    // The notice's own "Clear search", not the field's.
+    await u.click(within(shown).getByRole('button', { name: 'Clear search' }));
+    expect(await screen.findAllByText('Shop rent')).not.toHaveLength(0);
+  });
+
+  it('offers a viewer pages and transactions but no actions', async () => {
+    ledgerServer({ transactions: shop(), role: 'VIEWER' });
+    renderTransactions('/', topBar);
+    const u = userEvent.setup();
+
+    await u.type(await screen.findByRole('combobox', { name: 'Search' }), 'import');
+    const listbox = await screen.findByRole('listbox', { name: 'Search' });
+    expect(within(listbox).queryByRole('group', { name: 'Actions' })).not.toBeInTheDocument();
+    // Shown under the field, and announced.
+    expect(await screen.findAllByText(/Nothing matches “import”/)).toHaveLength(2);
   });
 });
 

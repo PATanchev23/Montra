@@ -37,6 +37,7 @@ import {
   type ImportSource,
   type MembershipRole,
   type Transaction,
+  searchAmountCents,
 } from '@montra/shared';
 import { vi } from 'vitest';
 import { apiError, authBody, jsonResponse, profile } from './authApi';
@@ -148,10 +149,17 @@ export function ledgerServer(options: LedgerOptions = {}) {
   function list(url: URL) {
     const query = transactionListQuerySchema.safeParse(Object.fromEntries(url.searchParams));
     if (!query.success) return apiError(400, 'VALIDATION_ERROR', 'The request is invalid.');
-    const { page, pageSize, type, category, from, to, sort } = query.data;
+    const { page, pageSize, type, category, from, to, sort, q } = query.data;
+    // The API's search: description or category containing the text, or the amount it reads as.
+    const needle = q?.toLowerCase();
+    const amount = q ? searchAmountCents(q) : null;
     const items = state.transactions
       .filter(
         (t) =>
+          (!needle ||
+            t.description.toLowerCase().includes(needle) ||
+            t.category.toLowerCase().includes(needle) ||
+            t.amountCents === amount) &&
           (!type || t.type === type) &&
           (!category || t.category.toLowerCase() === category.toLowerCase()) &&
           (!from || t.date >= from) &&

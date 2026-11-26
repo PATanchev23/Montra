@@ -75,7 +75,7 @@ export interface TransactionFilters {
   to: string;
   sort: SortKey;
   page: number;
-  /** A search from the top bar. The transactions API has no text search yet. */
+  /** Text from the top bar's search: description, category or amount. Empty for none. */
   q: string;
 }
 
@@ -134,6 +134,7 @@ export function listParamsFrom(
       sort: filters.sort,
       type: apiType[filters.type],
       category: filters.category || undefined,
+      q: filters.q || undefined,
       ...bounds,
     },
     rangeError,

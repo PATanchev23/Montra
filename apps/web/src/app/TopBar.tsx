@@ -1,10 +1,9 @@
-import { Bell, Menu as MenuIcon, Search } from 'lucide-react';
-import { DropdownMenu } from 'radix-ui';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router';
+import { Bell, Menu as MenuIcon, Search, X } from 'lucide-react';
+import { Dialog, DropdownMenu } from 'radix-ui';
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { Logo } from '../components/Logo';
 import { IconButton } from '../components/ui/IconButton';
-import { SearchField } from '../components/ui/Input';
 import { Menu, MenuContent, MenuLabel, MenuTrigger } from '../components/ui/Menu';
 import { useCurrentMembership } from '../features/auth/currentUser';
 import { useDesktopNotifications } from '../features/notifications/desktop';
@@ -13,82 +12,39 @@ import { PeriodPicker } from '../features/dashboard/PeriodPicker';
 import { useMessages } from '../i18n';
 import { common } from '../i18n/common';
 import { cn } from '../lib/cn';
+import { GlobalSearch } from './GlobalSearch';
 
-/**
- * The pages about the business's own money, where looking up a transaction,
- * supplier or category is a natural next step. Account and system pages
- * (Settings, Plans, System status, not found) leave the search out: it only
- * searches transactions, so there it would read as searching that page.
- */
-const SEARCH_PAGES = ['/', '/transactions', '/budgets', '/cash-flow', '/simulations', '/reports'];
-
-function hasSearch(pathname: string) {
-  return SEARCH_PAGES.includes(pathname.replace(/(.)\/+$/, '$1'));
-}
-
-/** The query the transactions list is filtered by, or '' on any other page. */
-function useUrlQuery() {
-  const location = useLocation();
-  const [params] = useSearchParams();
-  return location.pathname.replace(/\/+$/, '') === '/transactions'
-    ? (params.get('q')?.trim() ?? '')
-    : '';
-}
-
-function GlobalSearch() {
-  const navigate = useNavigate();
-  const urlQuery = useUrlQuery();
-  const [value, setValue] = useState(urlQuery);
-  const inputRef = useRef<HTMLInputElement>(null);
+/** The search on phones: the same search, full screen, opened from the top bar's search button. */
+function SearchDialog() {
+  const [open, setOpen] = useState(false);
   const m = useMessages(common).topBar;
-
-  // "/" focuses search from anywhere, like most finance and dev tools.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-      if (
-        event.key === '/' &&
-        !['INPUT', 'TEXTAREA'].includes(target.tagName) &&
-        !target.isContentEditable
-      ) {
-        event.preventDefault();
-        inputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
-  // Follow the list's query: filled in from a /transactions?q= link, emptied by
-  // the page's "Clear search" or by leaving it (state adjusted during render, not in an effect).
-  const [shownQuery, setShownQuery] = useState(urlQuery);
-  if (urlQuery !== shownQuery) {
-    setShownQuery(urlQuery);
-    setValue(urlQuery);
-  }
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    const q = value.trim();
-    navigate(q ? `/transactions?q=${encodeURIComponent(q)}&range=all` : '/transactions');
-  }
-
   return (
-    <form role="search" onSubmit={submit} className="w-full max-w-[560px] min-w-0">
-      <SearchField
-        ref={inputRef}
-        fieldSize="lg"
-        value={value}
-        onValueChange={setValue}
-        placeholder={m.searchPlaceholder}
-        aria-label={m.searchLabel}
-        trailing={
-          <kbd className="hidden h-6 min-w-6 items-center justify-center rounded-md bg-surface px-1.5 font-mono text-caption text-muted sm:flex">
-            /
-          </kbd>
-        }
-      />
-    </form>
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Trigger asChild>
+        <IconButton label={m.searchLabel} size="md">
+          <Search />
+        </IconButton>
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-overlay data-[state=open]:animate-[fade-in_160ms_ease-out]" />
+        <Dialog.Content
+          aria-describedby={undefined}
+          className="fixed inset-0 z-50 flex flex-col bg-surface outline-none data-[state=open]:animate-[fade-in_160ms_ease-out]"
+        >
+          <Dialog.Title className="sr-only">{m.searchLabel}</Dialog.Title>
+          <div className="flex min-h-0 flex-1 flex-col pt-[env(safe-area-inset-top)]">
+            <div className="flex items-center justify-end px-4 pt-3">
+              <Dialog.Close asChild>
+                <IconButton label={m.search.close} size="md">
+                  <X />
+                </IconButton>
+              </Dialog.Close>
+            </div>
+            <GlobalSearch variant="dialog" onDone={() => setOpen(false)} />
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
@@ -146,14 +102,13 @@ function Notifications() {
 
 /**
  * One line above every page: navigation access where the sidebar is hidden,
- * search (on the money pages, see SEARCH_PAGES) and notifications. On the dashboard it also
- * carries the date range the dashboard reports on.
+ * search (pages, budgets, categories and transactions, so it belongs on every
+ * page) and notifications. On the dashboard it also carries the date range
+ * the dashboard reports on.
  */
 export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
   const location = useLocation();
-  const navigate = useNavigate();
   const m = useMessages(common);
-  const search = hasSearch(location.pathname);
   return (
     <div className="flex h-16 items-center gap-3 sm:gap-4">
       <IconButton
@@ -166,23 +121,14 @@ export function TopBar({ onOpenNavigation }: { onOpenNavigation: () => void }) {
       <span className="sm:hidden">
         <Logo />
       </span>
-      {search && (
-        <div className="hidden min-w-0 flex-1 sm:block">
-          <GlobalSearch />
-        </div>
-      )}
+      <div className="hidden min-w-0 flex-1 sm:block">
+        <GlobalSearch />
+      </div>
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         {location.pathname === '/' && <PeriodPicker />}
-        {search && (
-          <IconButton
-            label={m.topBar.searchLabel}
-            size="md"
-            className="sm:hidden"
-            onClick={() => navigate('/transactions')}
-          >
-            <Search />
-          </IconButton>
-        )}
+        <span className="sm:hidden">
+          <SearchDialog />
+        </span>
         <Notifications />
       </div>
     </div>

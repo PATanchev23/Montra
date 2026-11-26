@@ -37,8 +37,9 @@ export const transactionMessages = defineMessages(
       viewOnlyHint:
         'You can read transactions and imports. Only the business owner can add, change, delete or import them.',
       viewOnly: 'View only',
-      searchUnavailable: (q: string) =>
-        `Searching by text isn’t available yet, so “${q}” is not applied. Use the type, category and date filters instead.`,
+      searchResults: (q: string) =>
+        `Showing transactions whose description, category or amount matches “${q}”.`,
+      clearSearch: 'Clear search',
       dismiss: 'Dismiss',
       checkRange: 'Check the date range',
       checkRangeBody: 'The start date must be on or before the end date.',
@@ -164,8 +165,9 @@ export const transactionMessages = defineMessages(
       viewOnlyHint:
         'Можете да преглеждате транзакции и импорти. Само собственикът на бизнеса може да ги добавя, променя, изтрива или импортира.',
       viewOnly: 'Само преглед',
-      searchUnavailable: (q: string) =>
-        `Търсенето по текст все още не е налично, затова „${q}“ не е приложено. Вместо това използвайте филтрите за тип, категория и дата.`,
+      searchResults: (q: string) =>
+        `Показани са транзакциите, чието описание, категория или сума съвпада с „${q}“.`,
+      clearSearch: 'Изчисти търсенето',
       dismiss: 'Скрий',
       checkRange: 'Проверете периода',
       checkRangeBody: 'Началната дата трябва да е преди или същата като крайната.',

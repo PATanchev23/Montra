@@ -14,7 +14,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useLocation, useSearchParams } from 'react-router';
 import { errorMessage } from '../../api/client';
 import {
   fetchTransactions,
@@ -117,6 +117,17 @@ export function TransactionsPage() {
     canEdit && openImport ? { importId: null } : null,
   );
   const [exporting, setExporting] = useState(false);
+
+  // A transaction picked in the top bar's search arrives in the navigation state: open it,
+  // once per navigation (state adjusted during render, not in an effect), so the same
+  // transaction picked twice opens again.
+  const location = useLocation();
+  const picked = (location.state as { openTransaction?: Transaction } | null)?.openTransaction;
+  const [openedFor, setOpenedFor] = useState<string | null>(null);
+  if (picked && openedFor !== location.key) {
+    setOpenedFor(location.key);
+    setSheet({ mode: 'view', transaction: picked });
+  }
   useEffect(() => {
     if (!openImport && !openNew) return;
     setSearchParams(
@@ -201,13 +212,13 @@ export function TransactionsPage() {
           />
           {filters.q && (
             <FormNotice tone="neutral">
-              {m.searchUnavailable(filters.q)}{' '}
+              {m.searchResults(filters.q)}{' '}
               <button
                 type="button"
                 onClick={() => update({ q: '' })}
                 className="cursor-pointer font-medium text-ink underline-offset-2 hover:underline"
               >
-                {m.dismiss}
+                {m.clearSearch}
               </button>
             </FormNotice>
           )}

@@ -30,6 +30,8 @@ export interface TransactionListParams {
   category?: string;
   from?: string;
   to?: string;
+  /** Text to look for in the description or category, or an amount. */
+  q?: string;
 }
 
 export const transactionKeys = {
@@ -90,8 +92,12 @@ export function useHasTransactions(businessId: string) {
 }
 
 /** Categories in use, for the filter and the form's suggestions. */
-export function useTransactionCategories(businessId: string) {
+export function useTransactionCategories(
+  businessId: string,
+  { enabled = true }: { enabled?: boolean } = {},
+) {
   return useQuery({
+    enabled,
     queryKey: transactionKeys.categories(businessId),
     queryFn: ({ signal }) =>
       authorizedRequest(`${transactionsPath(businessId)}/categories`, {

@@ -77,8 +77,13 @@ export function useUpdateCashSettings(businessId: string) {
 }
 
 /** `month` is yyyy-mm; undefined is this month in the business's time zone. */
-export function useBudgets(businessId: string, month: string | undefined) {
+export function useBudgets(
+  businessId: string,
+  month: string | undefined,
+  { enabled = true }: { enabled?: boolean } = {},
+) {
   return useQuery({
+    enabled,
     queryKey: financeKeys.budgets(businessId, month),
     queryFn: ({ signal }) =>
       authorizedRequest(`${base(businessId)}/budgets${month ? `?month=${month}` : ''}`, {

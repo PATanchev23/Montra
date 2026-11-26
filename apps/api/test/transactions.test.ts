@@ -276,6 +276,33 @@ describe('transactions API', () => {
       ]);
     });
 
+    it('searches descriptions and categories ignoring case, and amounts as written', async () => {
+      await history();
+      // Every description reads "INCOME <date>" or "EXPENSE <date>".
+      expect((await list('?q=expense')).total).toBe(5);
+      expect((await list('?q=advert')).total).toBe(2);
+      expect((await list('?q=2026-10-05')).total).toBe(2);
+      // An amount, with a comma or a point: €450.00 is the rent.
+      expect((await list('?q=450')).items.map((t) => t.category)).toEqual(['Rent']);
+      expect((await list('?q=450,00')).total).toBe(1);
+      expect((await list('?q=12.00')).items.map((t) => t.amountCents)).toEqual([1200]);
+      // Combined with the other filters; wildcards are literal; blank is no search.
+      expect((await list('?q=sales&type=EXPENSE')).total).toBe(0);
+      expect((await list('?q=%25')).total).toBe(0);
+      expect((await list('?q=%20%20')).total).toBe(10);
+      // Never another business's.
+      expect((await list('?q=elsewhere')).total).toBe(0);
+    });
+
+    it('refuses a search longer than 100 characters', async () => {
+      const res = await request(
+        'GET',
+        `${base(ctx.business.id)}?q=${'a'.repeat(101)}`,
+        ctx.owner.token,
+      );
+      expect(res.statusCode).toBe(400);
+    });
+
     it('lists the categories in use, merging case, with counts by type', async () => {
       await history();
       const res = await request('GET', `${base(ctx.business.id)}/categories`, ctx.viewer.token);
