@@ -51,7 +51,7 @@ const catalogs = Object.entries(modules).flatMap(([file, exports]) =>
 
 describe('message catalogues', () => {
   it('finds every catalogue', () => {
-    expect(catalogs.length).toBe(15);
+    expect(catalogs.length).toBe(16);
   });
 
   it.each(catalogs.map((c) => [c.name, c] as const))('%s is translated', (_, catalog) => {
