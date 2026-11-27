@@ -39,6 +39,8 @@ export interface LineCallout {
   label?: string;
   below?: boolean;
   solid?: boolean;
+  /** A point on a reference line: a grey ring with a muted label. */
+  secondary?: boolean;
 }
 
 export interface LineSeries {
@@ -108,6 +110,7 @@ export function LineChart({
   className,
   detailed = false,
   callouts = [],
+  gap,
 }: {
   series: LineSeries[];
   band?: { date: string; low: number; high: number }[];
@@ -125,6 +128,11 @@ export function LineChart({
    */
   detailed?: boolean;
   callouts?: LineCallout[];
+  /**
+   * Shades the space between two series, measured from `from`: red where `to`
+   * falls below it, green where it rises above (more cash is the favourable side).
+   */
+  gap?: { from: string; to: string };
 }) {
   const [ref, { width }] = useElementSize<HTMLDivElement>();
   const top = detailed ? DETAILED_TOP : MARGIN.top;
@@ -383,6 +391,45 @@ export function LineChart({
               </g>
             ))}
 
+          {gap &&
+            (() => {
+              const from = series.find((s) => s.id === gap.from);
+              const to = series.find((s) => s.id === gap.to);
+              if (!from || !to) return null;
+              const target = new Map(to.points.map((p) => [p.date, p.value]));
+              const pairs = from.points
+                .filter((p) => target.has(p.date))
+                .map((p) => ({
+                  x: x(parseISO(p.date)),
+                  from: y(p.value),
+                  to: y(target.get(p.date)!),
+                }));
+              if (pairs.length < 2) return null;
+              // Two areas share the reference edge; each opens only on its own side of it.
+              const shape = (edge: (d: (typeof pairs)[number]) => number) =>
+                area<(typeof pairs)[number]>()
+                  .curve(curveMonotoneX)
+                  .x((d) => d.x)
+                  .y0((d) => d.from)
+                  .y1(edge)(pairs) ?? '';
+              return (
+                <g pointerEvents="none">
+                  <MorphPath
+                    dataKey={dataKey}
+                    d={shape((d) => Math.max(d.from, d.to))}
+                    className="fill-negative"
+                    fillOpacity={0.12}
+                  />
+                  <MorphPath
+                    dataKey={dataKey}
+                    d={shape((d) => Math.min(d.from, d.to))}
+                    className="fill-positive"
+                    fillOpacity={0.12}
+                  />
+                </g>
+              );
+            })()}
+
           {series.map((s) => {
             const actual = s.points.filter((p) => !p.projected);
             const firstProjected = s.points.findIndex((p) => p.projected);
@@ -448,7 +495,11 @@ export function LineChart({
                   r={c.solid ? 5 : 4.5}
                   strokeWidth={c.solid ? 3 : 2}
                   className={
-                    c.solid ? 'fill-chart-1 stroke-surface' : 'fill-surface stroke-chart-1'
+                    c.solid
+                      ? 'fill-chart-1 stroke-surface'
+                      : c.secondary
+                        ? 'fill-surface stroke-chart-2'
+                        : 'fill-surface stroke-chart-1'
                   }
                 />
                 {c.label && (
@@ -458,7 +509,10 @@ export function LineChart({
                     y={c.below ? cy + 21 : cy - 13}
                     textAnchor={nearEnd ? 'end' : c.below ? 'start' : 'middle'}
                     // A halo in the panel colour keeps the label legible over the line and its range.
-                    className="tabular fill-ink stroke-surface text-[11.5px] font-semibold [paint-order:stroke]"
+                    className={cn(
+                      'tabular stroke-surface text-[11.5px] [paint-order:stroke]',
+                      c.secondary ? 'fill-muted font-medium' : 'fill-ink font-semibold',
+                    )}
                     strokeWidth={4}
                     strokeLinejoin="round"
                   >

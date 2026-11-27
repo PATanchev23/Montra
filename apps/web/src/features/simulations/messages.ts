@@ -4,7 +4,6 @@ import { defineMessages } from '../../i18n';
 export const simulationMessages = defineMessages(
   {
     page: {
-      eyebrow: 'Planning',
       title: 'Simulations',
       description:
         'Test a decision before you make it. Each scenario is compared with your current plan over the next 90 days.',
@@ -33,10 +32,18 @@ export const simulationMessages = defineMessages(
       more: 'More cash than planned',
       lowest: 'Lowest point',
     },
+    result: {
+      title: 'In 90 days',
+      description: 'Your balance with this scenario',
+      changes: 'What changes',
+    },
     chart: {
       title: 'Projected balance',
       description: 'Next 90 days',
       scenario: 'Scenario',
+      below: 'Below your plan',
+      above: 'Above your plan',
+      lowestAt: (amount: string) => `Lowest ${amount}`,
       label: (name: string) => `Projected balance: current plan versus ${name}`,
     },
     months: {
@@ -189,7 +196,6 @@ export const simulationMessages = defineMessages(
   },
   {
     page: {
-      eyebrow: 'Планиране',
       title: 'Симулации',
       description:
         'Изпробвайте решение, преди да го вземете. Всеки сценарий се сравнява с текущия ви план за следващите 90 дни.',
@@ -219,10 +225,18 @@ export const simulationMessages = defineMessages(
       more: 'Повече пари от планираното',
       lowest: 'Най-ниска точка',
     },
+    result: {
+      title: 'След 90 дни',
+      description: 'Балансът ви с този сценарий',
+      changes: 'Какво се променя',
+    },
     chart: {
       title: 'Прогнозен баланс',
       description: 'Следващите 90 дни',
       scenario: 'Сценарий',
+      below: 'Под плана ви',
+      above: 'Над плана ви',
+      lowestAt: (amount: string) => `Най-ниско ${amount}`,
       label: (name: string) => `Прогнозен баланс: текущ план спрямо „${name}“`,
     },
     months: {
