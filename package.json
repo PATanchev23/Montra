@@ -7,7 +7,7 @@
     "apps/*"
   ],
   "engines": {
-    "node": ">=22.12"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w @montra/api\" \"npm run dev -w @montra/web\"",

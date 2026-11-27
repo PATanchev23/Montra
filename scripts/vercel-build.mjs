@@ -6,7 +6,19 @@ import { execSync } from 'node:child_process';
 
 const run = (command) => execSync(command, { stdio: 'inherit' });
 
+/** The host a connection string points at; never the password. */
+const host = (url) => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return 'not set';
+  }
+};
+
 if (process.env.VERCEL_ENV === 'production') {
+  // The same choice as apps/api/prisma.config.ts: direct, not through the pooler.
+  const direct = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  console.log(`Migrating the database at ${host(direct)}.`);
   run('npm run db:deploy -w @montra/api');
 } else {
   console.log('Not a production deployment: database migrations skipped.');

@@ -43,3 +43,5 @@ CLAUDE.local.md
 .github/skills/
 # Impeccable design tool: config, generated design.json, surface briefs, caches, mocks, reviews
 **/.impeccable/
+# Vercel CLI: the linked project (vercel link); its .env.local is covered by .env.* above
+.vercel
