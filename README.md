@@ -106,7 +106,7 @@ Owners bring in existing data under `/api/v1/businesses/:businessId/imports`, fr
 Montra template (`MONTRA_TEMPLATE`, CSV or XLSX) or any other CSV (`GENERIC_CSV`) or Excel workbook
 (`GENERIC_EXCEL`), in three steps:
 
-1. **Upload** a `.csv` or `.xlsx` (at most 5 MB, 5,000 rows) as the raw request body, with
+1. **Upload** a `.csv` or `.xlsx` (at most 4 MB, 5,000 rows) as the raw request body, with
    `?source=` and `&fileName=`. The response previews every record: valid, invalid (with row-level
    reasons and the original cells), duplicate, or possible duplicate, plus a summary.
 2. **Map** columns (`PUT …/:importId/mapping`). Montra suggests a mapping from the headers, in

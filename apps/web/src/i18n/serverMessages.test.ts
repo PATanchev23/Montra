@@ -81,7 +81,7 @@ const SERVER_MESSAGES = [
   'This business records amounts in EUR. Convert the amount before adding it.',
   // apps/api: imports, the file
   'Import not found.',
-  'The file is larger than 5 MB.',
+  'The file is larger than 4 MB.',
   'Send the file itself as the request body, not as a form or JSON.',
   'Upload a .csv or .xlsx file.',
   'The file is empty.',

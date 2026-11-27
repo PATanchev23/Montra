@@ -11,6 +11,8 @@ export default defineConfig({
     seed: 'tsx prisma/seed/index.ts',
   },
   datasource: {
-    url: process.env.DATABASE_URL,
+    // Migrations and the seed want a direct connection. A host that serves the app
+    // through a connection pooler (Prisma Postgres on Vercel) sets DIRECT_URL for them.
+    url: process.env.DIRECT_URL || process.env.DATABASE_URL,
   },
 });

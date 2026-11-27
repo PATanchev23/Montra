@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w @montra/api\" \"npm run dev -w @montra/web\"",
     "build": "npm run build -w @montra/api && npm run build -w @montra/web",
+    "vercel-build": "node scripts/vercel-build.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "eslint .",

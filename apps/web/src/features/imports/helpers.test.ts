@@ -89,8 +89,8 @@ describe('choosing a file', () => {
     expect(fileProblem(file('report.pdf'))).toMatch(/Choose a \.csv or \.xlsx file/);
     expect(fileProblem(file('old.xls'))).toMatch(/Choose a \.csv or \.xlsx file/);
     expect(fileProblem(file('empty.csv', 0))).toBe('This file is empty.');
-    expect(fileProblem(file('huge.csv', 5 * 1024 * 1024 + 1))).toBe(
-      'This file is larger than 5 MB.',
+    expect(fileProblem(file('huge.csv', 4 * 1024 * 1024 + 1))).toBe(
+      'This file is larger than 4 MB.',
     );
   });
 });

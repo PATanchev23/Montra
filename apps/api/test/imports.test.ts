@@ -302,11 +302,11 @@ describe('imports API', () => {
     });
 
     it('limits file size and rows', async () => {
-      const big = await upload(Buffer.alloc(5 * 1024 * 1024 + 1, 'a'), 'GENERIC_CSV', 'big.csv');
+      const big = await upload(Buffer.alloc(4 * 1024 * 1024 + 1, 'a'), 'GENERIC_CSV', 'big.csv');
       expect(big.statusCode).toBe(413);
       expect(errorOf(big)).toMatchObject({
         code: 'IMPORT_FILE_TOO_LARGE',
-        message: 'The file is larger than 5 MB.',
+        message: 'The file is larger than 4 MB.',
       });
 
       const rows = Array.from({ length: 5001 }, (_, i) => `2026-10-01,Row ${i},1`).join('\n');

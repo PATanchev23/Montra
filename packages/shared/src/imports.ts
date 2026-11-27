@@ -25,7 +25,8 @@ export const IMPORT_ERROR_CODES = {
   TOO_MANY_PENDING: 'IMPORT_TOO_MANY_PENDING',
 } as const;
 
-export const IMPORT_MAX_FILE_BYTES = 5 * 1024 * 1024;
+/** Under the 4.5 MB a Vercel Function accepts as a request body, with room to spare. */
+export const IMPORT_MAX_FILE_BYTES = 4 * 1024 * 1024;
 /** Data rows per file; larger histories can be split across files. */
 export const IMPORT_MAX_ROWS = 5000;
 /** Unconfirmed uploads are discarded after this long. */

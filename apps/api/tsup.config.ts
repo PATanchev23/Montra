@@ -1,7 +1,8 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/server.ts'],
+  // server.ts listens on a port (npm start); vercel.ts is the same app as a Vercel Function.
+  entry: ['src/server.ts', 'src/vercel.ts'],
   format: 'esm',
   target: 'node22',
   platform: 'node',

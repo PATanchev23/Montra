@@ -121,6 +121,6 @@ describe('import contracts', () => {
       'Description',
       'Category',
     ]);
-    expect(IMPORT_MAX_FILE_BYTES).toBe(5 * 1024 * 1024);
+    expect(IMPORT_MAX_FILE_BYTES).toBe(4 * 1024 * 1024);
   });
 });

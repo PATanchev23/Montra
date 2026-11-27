@@ -31,7 +31,7 @@ Three things together, which a generic bookkeeping or expense tracker cannot tru
 
 - Demo business: **TechStore**, a fictional online electronics store. Sample data is deterministic and anchored to 25 October 2026.
 - New accounts go through onboarding (business details → financial preferences → review). Each step saves to the API, so setup resumes on any device; the app opens only once the business exists.
-- Owners bring existing data in through a three-step import: upload (`.csv` / `.xlsx`, ≤ 5 MB, ≤ 5,000 rows) → map columns → confirm. The uploaded file itself is never stored; parsed cells expire after 24 hours.
+- Owners bring existing data in through a three-step import: upload (`.csv` / `.xlsx`, ≤ 4 MB, ≤ 5,000 rows) → map columns → confirm. The uploaded file itself is never stored; parsed cells expire after 24 hours.
 - Owners export transactions and reports as CSV and print reports.
 - Main areas: Dashboard, Transactions, Budgets, Cash Flow, Simulations, Reports, plus Settings, Plans and System status.
 
