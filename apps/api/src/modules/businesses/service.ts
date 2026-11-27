@@ -2,8 +2,6 @@ import {
   BUSINESS_ERROR_CODES,
   BUSINESS_LIMITS,
   currencySchema,
-  DEFAULT_TIMEZONE,
-  todayIn,
   type CreateBusinessRequest,
   type CreateBusinessResponse,
   type MembershipSummary,
@@ -13,7 +11,6 @@ import type { Db } from '../../db';
 import { Prisma, type Plan } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
 import { slugify, suffixedSlug } from '../../lib/slug';
-import { toDbDate } from '../transactions/service';
 
 /** Attempts at finding a free slug when concurrent requests pick the same one. */
 export const SLUG_ATTEMPTS = 4;
@@ -36,10 +33,9 @@ export async function createOwnedBusiness(
   { businessDetails: details, financialPreferences: preferences = {} }: CreateBusinessRequest,
   preferPlainSlug: boolean,
 ): Promise<MembershipSummary> {
-  // The balance was typed as "today": it is recorded as of the day the
-  // business is created, where the business is, and forecasts carry it forward.
+  // The starting balance, before the first transaction: stored without a date,
+  // so every transaction (including history imported later) is added on top.
   const balance = preferences.bankBalanceCents ?? null;
-  const balanceDate = balance === null ? null : toDbDate(todayWhere(details.timezone));
 
   const base = slugify(details.name);
   const plainTaken = await tx.business.findUnique({ where: { slug: base }, select: { id: true } });
@@ -55,7 +51,7 @@ export async function createOwnedBusiness(
       fiscalYearStartMonth: preferences.fiscalYearStartMonth,
       lowBalanceThresholdCents: preferences.lowBalanceThresholdCents ?? null,
       cashBalanceCents: balance,
-      cashBalanceDate: balanceDate,
+      cashBalanceDate: null,
     },
     select: { id: true, slug: true, name: true, currency: true, timezone: true },
   });
@@ -117,13 +113,4 @@ export async function createAdditionalBusiness(
 
 export function isUniqueViolation(err: unknown): boolean {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
-}
-
-function todayWhere(timeZone: string): string {
-  try {
-    return todayIn(timeZone);
-  } catch {
-    // Time zones are validated on save; this guards against one later dropped from the runtime.
-    return todayIn(DEFAULT_TIMEZONE);
-  }
 }

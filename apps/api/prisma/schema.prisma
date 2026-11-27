@@ -93,8 +93,10 @@ model Business {
   fiscalYearStartMonth     Int       @default(1)
   /// Optional safety buffer for cash-flow warnings, in cents (CHECK >= 0).
   lowBalanceThresholdCents Int?
-  /// The bank balance the owner entered, and the day it was true; set together
-  /// or not at all (CHECK constraint). Forecasts start from it.
+  /// The bank balance the owner entered, and the day it was true. Without a
+  /// date it is the starting balance, before the first transaction, and every
+  /// transaction is added on top. A date needs a balance (CHECK constraint).
+  /// Forecasts start from it.
   cashBalanceCents         Int?
   cashBalanceDate          DateTime? @db.Date
   createdAt                DateTime  @default(now()) @db.Timestamptz(3)

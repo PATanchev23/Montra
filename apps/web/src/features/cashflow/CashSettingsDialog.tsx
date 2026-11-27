@@ -23,9 +23,11 @@ import { cashFlowMessages } from './messages';
  * changes written out underneath. The warning level is shown against it as a
  * capsule, the chart's own shape.
  *
- * The balance can be today's, or the one just before the first transaction
- * (often what an owner knows when importing past months), or one from any
- * day in between: the transactions carry it forward to today either way.
+ * The balance can be today's, or the starting balance from before the first
+ * transaction (what onboarding asks for, and often what an owner knows when
+ * importing past months), or one from any day in between: the transactions
+ * carry it forward to today either way. A starting balance is saved without a
+ * date, so history imported later is still added on top of it.
  *
  * Mounted only while open (and while it animates out), so every opening
  * starts from the saved values.
@@ -55,13 +57,21 @@ export function CashSettingsDialog({
   const [thresholdText, setThresholdText] = useState(
     amountInputText(settings.lowBalanceThresholdCents),
   );
-  // The day the balance was true: today, just before the first transaction, or another day.
-  const startDate = ledgerStart ? isoAddDays(ledgerStart.date, -1) : null;
+  // When the balance was true: today, before the first transaction, or another day.
+  // A balance pinned to the day before the first transaction (as this dialog
+  // saved it before starting balances existed) reads as the start too.
+  const legacyStartDate = ledgerStart ? isoAddDays(ledgerStart.date, -1) : null;
   const saved = settings.balanceDate;
   const [asOf, setAsOf] = useState<AsOf>(
-    saved === null || saved === today ? 'today' : saved === startDate ? 'start' : 'other',
+    settings.balanceCents === null || saved === today
+      ? 'today'
+      : saved === null || saved === legacyStartDate
+        ? 'start'
+        : 'other',
   );
-  const [otherDate, setOtherDate] = useState(saved !== null && saved !== today ? saved : '');
+  const [otherDate, setOtherDate] = useState(
+    saved !== null && saved !== today && saved !== legacyStartDate ? saved : '',
+  );
   const [errors, setErrors] = useState<{ balance?: string; threshold?: string; date?: string }>({});
   const symbol = currencySymbol(currency);
   const fmt = (cents: number) => money(cents, { decimals: 0, currency });
@@ -78,8 +88,8 @@ export function CashSettingsDialog({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    const balanceDate =
-      asOf === 'today' ? undefined : asOf === 'start' ? (startDate ?? undefined) : otherDate;
+    // Today is the API's default; the start is saved without a date.
+    const balanceDate = asOf === 'today' ? undefined : asOf === 'start' ? null : otherDate;
     const dateMissing = asOf === 'other' && balance.ok && balance.cents !== null && !otherDate;
     const nextErrors = {
       balance: balance.ok ? undefined : balance.message,
@@ -91,7 +101,7 @@ export function CashSettingsDialog({
     save.mutate(
       {
         balanceCents: balance.cents,
-        ...(balance.cents !== null && balanceDate && { balanceDate }),
+        ...(balance.cents !== null && balanceDate !== undefined && { balanceDate }),
         lowBalanceThresholdCents: threshold.cents,
       },
       {
@@ -130,8 +140,10 @@ export function CashSettingsDialog({
                 <label htmlFor="cash-balance" className="text-body-sm font-medium text-ink-2">
                   {asOf === 'today'
                     ? m.balance(currency)
-                    : asOf === 'start' && ledgerStart
-                      ? m.balanceBefore(currency, formatDate(ledgerStart.date, 'd MMM yyyy'))
+                    : asOf === 'start'
+                      ? ledgerStart
+                        ? m.balanceBefore(currency, formatDate(ledgerStart.date, 'd MMM yyyy'))
+                        : m.balanceStart(currency)
                       : m.balanceOn(currency)}
                 </label>
                 <SegmentedControl
@@ -144,7 +156,7 @@ export function CashSettingsDialog({
                   }}
                   options={[
                     { value: 'today', label: m.asOfToday },
-                    ...(ledgerStart ? [{ value: 'start' as const, label: m.asOfStart }] : []),
+                    { value: 'start', label: m.asOfStart },
                     { value: 'other', label: m.asOfOther },
                   ]}
                 />
@@ -200,11 +212,13 @@ export function CashSettingsDialog({
                   ? m.balanceEmpty
                   : asOf === 'today'
                     ? m.balancePreview(fmt(balanceCents))
-                    : asOf === 'start' && ledgerStart
-                      ? m.startPreview(
-                          fmt(balanceCents),
-                          formatDate(ledgerStart.date, 'd MMM yyyy'),
-                        )
+                    : asOf === 'start'
+                      ? ledgerStart
+                        ? m.startPreview(
+                            fmt(balanceCents),
+                            formatDate(ledgerStart.date, 'd MMM yyyy'),
+                          )
+                        : m.startPreviewEmpty(fmt(balanceCents))
                       : otherDate
                         ? m.otherPreview(fmt(balanceCents), formatDate(otherDate, 'd MMM yyyy'))
                         : m.pickDate}{' '}
@@ -273,12 +287,14 @@ export function CashSettingsDialog({
 
             <footer className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-line bg-sunken/60 px-6 py-4">
               <p className="text-caption text-muted tabular">
-                {settings.balanceCents !== null && settings.balanceDate !== null
-                  ? m.lastSaved(
-                      fmt(settings.balanceCents),
-                      formatDate(settings.balanceDate, 'd MMM yyyy'),
-                    )
-                  : m.neverSaved}
+                {settings.balanceCents === null
+                  ? m.neverSaved
+                  : settings.balanceDate === null
+                    ? m.lastSavedStart(fmt(settings.balanceCents))
+                    : m.lastSaved(
+                        fmt(settings.balanceCents),
+                        formatDate(settings.balanceDate, 'd MMM yyyy'),
+                      )}
               </p>
               <div className="ml-auto flex gap-2">
                 <Button disabled={save.isPending} onClick={() => close(false)}>

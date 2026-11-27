@@ -251,7 +251,7 @@ describe('moving between steps', () => {
     expect(server.progress.currentStep).toBe('FINANCIAL_PREFERENCES');
   });
 
-  it('saves the chosen month, bank balance and threshold in cents', async () => {
+  it('saves the chosen month, starting balance and threshold in cents', async () => {
     const api = mockApi(
       onboardingServer(
         newProgress({
@@ -265,10 +265,12 @@ describe('moving between steps', () => {
     const u = user();
 
     await u.click(await screen.findByRole('radio', { name: 'July' }));
-    const balance = screen.getByLabelText('How much is in the bank today?');
+    const balance = screen.getByLabelText('How much was in the bank when you started?');
     await u.type(balance, '12500');
     expect(
-      screen.getByText('Your balances and projections will start from €12,500.00 today.'),
+      screen.getByText(
+        'Your transactions are added on top of €12,500.00; today’s balance follows from them.',
+      ),
     ).toBeInTheDocument();
     await u.type(screen.getByLabelText('Low-balance warning'), '2500,50');
     await u.click(screen.getByRole('button', { name: 'Continue' }));

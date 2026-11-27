@@ -47,7 +47,7 @@ export const onboardingMessages = defineMessages(
       currency: 'Currency',
       timezone: 'Time zone',
       fiscalYear: 'Financial year',
-      balance: 'Bank balance',
+      balance: 'Starting balance',
       noBalance: 'Later',
       threshold: 'Low-balance warning',
       noWarning: 'Off',
@@ -70,10 +70,10 @@ export const onboardingMessages = defineMessages(
       currencySample: (amount: string) => `Amounts will read like ${amount}.`,
       thresholdTitle: 'Low-balance warning',
       thresholdPlaceholder: '2500',
-      balanceTitle: 'How much is in the bank today?',
+      balanceTitle: 'How much was in the bank when you started?',
       balancePlaceholder: '12500',
       balancePreview: (amount: string) =>
-        `Your balances and projections will start from ${amount} today.`,
+        `Your transactions are added on top of ${amount}; today’s balance follows from them.`,
       balanceOff:
         'Not given: balances start from 0 until you enter it. You can add it later on Cash flow.',
       industry: 'Pick the closest match, or describe it yourself.',
@@ -111,14 +111,14 @@ export const onboardingMessages = defineMessages(
       thresholdHint:
         'Montra warns you when your projected balance drops below this. Leave blank for no warning.',
       balanceHint:
-        'All your business accounts together. Use a minus sign if overdrawn. Your transaction files can’t tell Montra this.',
+        'All your business accounts together, before the first transaction you record or import. Use a minus sign if overdrawn. Your transaction files can’t tell Montra this.',
     },
     review: {
       businessDetails: 'Business details',
       financialPreferences: 'Financial preferences',
       industry: 'Industry',
       threshold: 'Low-balance threshold',
-      balance: 'Bank balance today',
+      balance: 'Starting balance',
       noBalance: 'Not given (add it later on Cash flow)',
       missing: 'Missing',
       notProvided: 'Not provided',
@@ -144,7 +144,7 @@ export const onboardingMessages = defineMessages(
       financialPreferences: 'Financial preferences',
       'financialPreferences.fiscalYearStartMonth': 'Fiscal year start',
       'financialPreferences.lowBalanceThresholdCents': 'Low-balance threshold',
-      'financialPreferences.bankBalanceCents': 'Bank balance',
+      'financialPreferences.bankBalanceCents': 'Starting balance',
     } as Record<string, string>,
     page: {
       loadError: 'Could not load your business setup',
@@ -207,7 +207,7 @@ export const onboardingMessages = defineMessages(
       currency: 'Валута',
       timezone: 'Часова зона',
       fiscalYear: 'Финансова година',
-      balance: 'Наличност в банката',
+      balance: 'Начална наличност',
       noBalance: 'По-късно',
       threshold: 'Нисък баланс',
       noWarning: 'Изключено',
@@ -230,10 +230,10 @@ export const onboardingMessages = defineMessages(
       currencySample: (amount: string) => `Сумите ще изглеждат така: ${amount}.`,
       thresholdTitle: 'Предупреждение за нисък баланс',
       thresholdPlaceholder: '2500',
-      balanceTitle: 'Колко има в банката днес?',
+      balanceTitle: 'Колко имахте в банката, когато започнахте?',
       balancePlaceholder: '12500',
       balancePreview: (amount: string) =>
-        `Балансите и прогнозите ви ще започнат от ${amount} днес.`,
+        `Транзакциите ви се добавят към ${amount}; днешният баланс следва от тях.`,
       balanceOff:
         'Не е въведена: балансите започват от 0, докато не я въведете. Можете да я добавите по-късно в „Паричен поток“.',
       industry: 'Изберете най-близкия вариант или го опишете сами.',
@@ -271,14 +271,14 @@ export const onboardingMessages = defineMessages(
       thresholdHint:
         'Montra ви предупреждава, когато прогнозният ви баланс падне под тази сума. Оставете празно, ако не искате предупреждение.',
       balanceHint:
-        'Всички фирмени сметки заедно. Използвайте знак минус при овърдрафт. Файловете с транзакции не могат да кажат това на Montra.',
+        'Всички фирмени сметки заедно, преди първата транзакция, която въведете или импортирате. Използвайте знак минус при овърдрафт. Файловете с транзакции не могат да кажат това на Montra.',
     },
     review: {
       businessDetails: 'Данни за бизнеса',
       financialPreferences: 'Финансови предпочитания',
       industry: 'Отрасъл',
       threshold: 'Праг за нисък баланс',
-      balance: 'Наличност в банката днес',
+      balance: 'Начална наличност',
       noBalance: 'Не е въведена (добавете я по-късно в „Паричен поток“)',
       missing: 'Липсва',
       notProvided: 'Не е посочено',
@@ -303,7 +303,7 @@ export const onboardingMessages = defineMessages(
       financialPreferences: 'Финансови предпочитания',
       'financialPreferences.fiscalYearStartMonth': 'Начало на финансовата година',
       'financialPreferences.lowBalanceThresholdCents': 'Праг за нисък баланс',
-      'financialPreferences.bankBalanceCents': 'Наличност в банката',
+      'financialPreferences.bankBalanceCents': 'Начална наличност',
     },
     page: {
       loadError: 'Настройката на бизнеса ви не може да се зареди',

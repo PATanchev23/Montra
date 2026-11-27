@@ -101,7 +101,11 @@ export async function getCashFlow(
   return { currency, ...buildCashFlow(ledger) };
 }
 
-/** The balance is recorded as of the day given, or today where the business is. */
+/**
+ * The balance is recorded as of the day given, or today where the business is
+ * when no day is given. A null day records the starting balance, before the
+ * first transaction.
+ */
 export async function updateCashSettings(
   db: Db,
   businessId: string,
@@ -113,10 +117,13 @@ export async function updateCashSettings(
     select: { timezone: true },
   });
   const current = today(timezone, now);
-  if (input.balanceDate !== undefined && input.balanceDate > current) {
+  if (typeof input.balanceDate === 'string' && input.balanceDate > current) {
     throw new AppError(400, 'VALIDATION_ERROR', 'Choose today or an earlier date.');
   }
-  const date = input.balanceCents === null ? null : (input.balanceDate ?? current);
+  const date =
+    input.balanceCents === null || input.balanceDate === null
+      ? null
+      : (input.balanceDate ?? current);
   await db.business.update({
     where: { id: businessId },
     data: {

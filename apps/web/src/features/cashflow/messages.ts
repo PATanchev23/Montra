@@ -17,6 +17,8 @@ export const cashFlowMessages = defineMessages(
     note: {
       from: (amount: string, date: string) =>
         `Balances start from ${amount} in the bank on ${date}, then follow your transactions.`,
+      fromStart: (amount: string) =>
+        `Balances start from ${amount} before your first transaction, then follow your transactions.`,
       unsetOwner:
         'Balances start from 0 until you enter what is in the bank today. Your transactions then carry it forward.',
       unsetViewer: 'Balances start from 0: the owner has not entered the bank balance yet.',
@@ -37,6 +39,8 @@ export const cashFlowMessages = defineMessages(
       balanceBefore: (currency: string, first: string) =>
         `Bank balance before ${first} (${currency})`,
       balanceOn: (currency: string) => `Bank balance on a date (${currency})`,
+      balanceStart: (currency: string) =>
+        `Bank balance before your first transaction (${currency})`,
       asOf: 'When the balance was true',
       asOfToday: 'Today',
       asOfStart: 'When my records start',
@@ -45,6 +49,8 @@ export const cashFlowMessages = defineMessages(
       pickDate: 'Choose the date this balance was true.',
       startPreview: (amount: string, first: string) =>
         `Your records start from ${amount} before ${first}; your transactions carry it forward to today.`,
+      startPreviewEmpty: (amount: string) =>
+        `Your transactions will be added on top of ${amount} as you record them.`,
       otherPreview: (amount: string, date: string) =>
         `${amount} at the end of ${date}, after that day’s transactions; everything before and after is counted from there.`,
       firstDayHint: (date: string) =>
@@ -62,6 +68,7 @@ export const cashFlowMessages = defineMessages(
       meterWarning: (amount: string) => `Warning ${amount}`,
       meterBalance: (amount: string) => `Balance ${amount}`,
       lastSaved: (amount: string, date: string) => `Last saved: ${amount} on ${date}`,
+      lastSavedStart: (amount: string) => `Last saved: ${amount} before the first transaction`,
       neverSaved: 'Not saved before',
       save: 'Save',
       saving: 'Saving…',
@@ -148,6 +155,8 @@ export const cashFlowMessages = defineMessages(
     note: {
       from: (amount: string, date: string) =>
         `Балансът започва от ${amount} в банката на ${date}, след което следва вашите транзакции.`,
+      fromStart: (amount: string) =>
+        `Балансът започва от ${amount} преди първата ви транзакция, след което следва вашите транзакции.`,
       unsetOwner:
         'Балансът започва от 0, докато не въведете колко има в банката днес. След това транзакциите ви го продължават.',
       unsetViewer: 'Балансът започва от 0: собственикът още не е въвел наличността в банката.',
@@ -168,6 +177,8 @@ export const cashFlowMessages = defineMessages(
       balanceBefore: (currency: string, first: string) =>
         `Наличност в банката преди ${first} (${currency})`,
       balanceOn: (currency: string) => `Наличност в банката на дата (${currency})`,
+      balanceStart: (currency: string) =>
+        `Наличност в банката преди първата транзакция (${currency})`,
       asOf: 'Към кога е наличността',
       asOfToday: 'Днес',
       asOfStart: 'Началото на записите',
@@ -176,6 +187,8 @@ export const cashFlowMessages = defineMessages(
       pickDate: 'Изберете датата, към която е тази наличност.',
       startPreview: (amount: string, first: string) =>
         `Записите ви започват от ${amount} преди ${first}; транзакциите ви я пренасят до днес.`,
+      startPreviewEmpty: (amount: string) =>
+        `Транзакциите ви ще се добавят към ${amount}, щом ги въведете.`,
       otherPreview: (amount: string, date: string) =>
         `${amount} в края на ${date}, след транзакциите от този ден; всичко преди и след това се отчита оттам.`,
       firstDayHint: (date: string) =>
@@ -195,6 +208,7 @@ export const cashFlowMessages = defineMessages(
       meterWarning: (amount: string) => `Предупреждение ${amount}`,
       meterBalance: (amount: string) => `Наличност ${amount}`,
       lastSaved: (amount: string, date: string) => `Последно запазено: ${amount} на ${date}`,
+      lastSavedStart: (amount: string) => `Последно запазено: ${amount} преди първата транзакция`,
       neverSaved: 'Не е запазвано досега',
       save: 'Запази',
       saving: 'Запазване…',

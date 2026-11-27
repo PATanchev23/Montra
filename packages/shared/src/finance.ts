@@ -69,12 +69,14 @@ export type UpcomingPayment = z.infer<typeof upcomingPaymentSchema>;
 /**
  * PUT /businesses/:businessId/cash-settings. The bank balance on
  * `balanceDate` (today in the business's time zone when omitted, never
- * later); null forgets it. Negative means overdrawn. A balance from the start
- * of the records works as well as today's: the transactions carry it either way.
+ * later), or with `balanceDate: null` the starting balance: what was in the
+ * bank before the first transaction, with every transaction added on top,
+ * however much history is imported later. A null balance forgets it.
+ * Negative means overdrawn.
  */
 export const cashSettingsRequestSchema = z.object({
   balanceCents: signedCentsSchema.nullable(),
-  balanceDate: transactionDateSchema.optional(),
+  balanceDate: transactionDateSchema.nullable().optional(),
   lowBalanceThresholdCents: z
     .int('Enter a whole amount in cents.')
     .min(0, 'The threshold cannot be negative.')
@@ -84,7 +86,11 @@ export const cashSettingsRequestSchema = z.object({
 export type CashSettingsRequest = z.infer<typeof cashSettingsRequestSchema>;
 
 export const cashSettingsSchema = z.object({
-  /** The balance the owner entered, and the day it was true; both null when never set. */
+  /**
+   * The balance the owner entered, and the day it was true. A balance without
+   * a date is the starting balance, before the first transaction. Both null
+   * when never set.
+   */
   balanceCents: z.int().nullable(),
   balanceDate: z.iso.date().nullable(),
   lowBalanceThresholdCents: z.int().nullable(),

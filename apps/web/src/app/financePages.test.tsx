@@ -209,19 +209,45 @@ describe('cash flow', () => {
     );
     await u.click(within(dialog).getByRole('button', { name: 'Save' }));
 
-    // €1,000 on 30 June, plus the €6,350 the shop earned since: the two agree now.
+    // €1,000 before the first transaction, plus the €6,350 the shop earned since: the two
+    // agree now. Saved without a date, so older history imported later still adds on top.
     expect(
       await screen.findByText(
-        'Balances start from €1,000.00 in the bank on 30 Jun 2026, then follow your transactions.',
+        'Balances start from €1,000.00 before your first transaction, then follow your transactions.',
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole('note')).not.toBeInTheDocument();
     expect(api.state.cashSettings).toMatchObject({
       balanceCents: 100_000,
-      balanceDate: '2026-06-30',
+      balanceDate: null,
     });
     const today = screen.getByText('Balance today').parentElement!;
     expect(within(today).getByText('€7,350')).toBeInTheDocument();
+  });
+
+  it('takes a starting balance before there are any transactions', async () => {
+    const api = ledgerServer({ transactions: [] });
+    renderTransactions('/cash-flow');
+    const u = userEvent.setup();
+
+    await u.click(await screen.findByRole('button', { name: 'Enter bank balance' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Bank balance' });
+    await u.click(within(dialog).getByRole('radio', { name: 'When my records start' }));
+    await u.type(
+      within(dialog).getByLabelText('Bank balance before your first transaction (EUR)'),
+      '4000',
+    );
+    expect(dialog).toHaveTextContent(
+      'Your transactions will be added on top of €4,000 as you record them.',
+    );
+    await u.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    expect(
+      await screen.findByText(
+        'Balances start from €4,000.00 before your first transaction, then follow your transactions.',
+      ),
+    ).toBeInTheDocument();
+    expect(api.state.cashSettings).toMatchObject({ balanceCents: 400_000, balanceDate: null });
   });
 
   it('asks for the date when the balance is from another day', async () => {

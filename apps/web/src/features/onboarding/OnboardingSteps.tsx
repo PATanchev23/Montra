@@ -586,7 +586,7 @@ function FiscalYearQuestion({ form }: { form: SchemaForm<typeof preferencesFormS
   );
 }
 
-/** Today's bank balance: where every balance and projection starts. */
+/** The starting balance, before the first transaction: every transaction is added on top. */
 function BalanceQuestion({
   form,
   currency,

@@ -198,6 +198,35 @@ describe('finance API', () => {
       expect(flow.stats.closingCents).toBe(1_000_000 + sum);
     });
 
+    it('keeps a starting balance (no date) under history imported after it', async () => {
+      // Entered before any transaction exists, as onboarding does.
+      const saved = await ok(
+        await call('PUT', '/cash-settings', owner.token, {
+          balanceCents: 750_000,
+          balanceDate: null,
+          lowBalanceThresholdCents: null,
+        }),
+        cashSettingsSchema,
+      );
+      expect(saved).toEqual({
+        balanceCents: 750_000,
+        balanceDate: null,
+        lowBalanceThresholdCents: null,
+      });
+
+      // Months of history arrive later; the start stays where the owner put it.
+      await seedShop();
+      const flow = await ok(await call('GET', '/cash-flow'), cashFlowResponseSchema);
+      expect(flow.settings.balanceDate).toBeNull();
+      expect(flow.ledgerStart?.cents).toBe(750_000);
+      const net = await db.transaction.findMany({ select: { type: true, amountCents: true } });
+      const sum = net.reduce(
+        (s, t) => s + (t.type === 'INCOME' ? t.amountCents : -t.amountCents),
+        0,
+      );
+      expect(flow.stats.closingCents).toBe(750_000 + sum);
+    });
+
     it('refuses a balance dated in the future', async () => {
       const res = await call('PUT', '/cash-settings', owner.token, {
         balanceCents: 1_000,

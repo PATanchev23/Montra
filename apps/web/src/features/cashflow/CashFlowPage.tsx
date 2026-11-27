@@ -161,8 +161,8 @@ function MismatchNote({
 }
 
 /**
- * Where the balances start, under the summary: from the owner's bank
- * balance, or from zero until it is entered (an owner gets the way to enter
+ * Where the balances start, under the summary: from the owner's starting or
+ * dated bank balance, or from zero until one is entered (an owner gets the way to enter
  * it). Nothing when the mismatch note above already explains the start.
  */
 function StartNote({
@@ -177,6 +177,13 @@ function StartNote({
   const m = useMessages(cashFlowMessages).note;
   const { balanceCents, balanceDate } = data.settings;
   const start = data.ledgerStart;
+  if (balanceCents !== null && balanceDate === null) {
+    return (
+      <p className="text-body-sm text-muted">
+        {m.fromStart(money(balanceCents, { decimals: 2, currency: data.currency }))}
+      </p>
+    );
+  }
   if (balanceCents !== null && balanceDate !== null) {
     if (start !== null && start.cents < 0) return null;
     return (

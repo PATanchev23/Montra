@@ -381,8 +381,11 @@ export function ledgerServer(options: LedgerOptions = {}) {
         if (!body.success) return invalid();
         state.cashSettings = {
           balanceCents: body.data.balanceCents,
+          // As the API: no balance or the starting balance (null) keeps no date; omitted is today.
           balanceDate:
-            body.data.balanceCents === null ? null : (body.data.balanceDate ?? FAKE_TODAY),
+            body.data.balanceCents === null || body.data.balanceDate === null
+              ? null
+              : (body.data.balanceDate ?? FAKE_TODAY),
           lowBalanceThresholdCents: body.data.lowBalanceThresholdCents,
         };
         return jsonResponse(state.cashSettings);

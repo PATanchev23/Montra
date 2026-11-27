@@ -162,11 +162,14 @@ export class Ledger {
       spellings.set(e.category, (spellings.get(e.category) ?? 0) + 1);
       this.names.set(key, spellings);
     }
-    // The owner's balance on a day fixes where the ledger starts.
+    // A starting balance (no date) is where the ledger starts, whatever history
+    // is added later. A balance on a day fixes it from that day instead.
     this.openingCents =
-      settings.balanceCents !== null && settings.balanceDate !== null
-        ? settings.balanceCents - this.netUpTo(settings.balanceDate)
-        : 0;
+      settings.balanceCents === null
+        ? 0
+        : settings.balanceDate === null
+          ? settings.balanceCents
+          : settings.balanceCents - this.netUpTo(settings.balanceDate);
   }
 
   get transactionCount(): number {

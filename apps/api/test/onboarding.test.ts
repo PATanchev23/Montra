@@ -5,7 +5,6 @@ import {
   completeOnboardingResponseSchema,
   currentUserResponseSchema,
   onboardingProgressSchema,
-  todayIn,
 } from '@montra/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, TECHSTORE } from '../prisma/seed/techstore';
@@ -279,7 +278,7 @@ describe('onboarding API', () => {
       });
     });
 
-    it('records the bank balance as of today where the business is', async () => {
+    it('records the bank balance as the starting balance, before any transaction', async () => {
       const { token } = await signUp();
       await save(token, {
         currentStep: 'REVIEW',
@@ -292,7 +291,8 @@ describe('onboarding API', () => {
         where: { id: body.membership.business.id },
       });
       expect(business.cashBalanceCents).toBe(-30_000);
-      expect(business.cashBalanceDate?.toISOString().slice(0, 10)).toBe(todayIn('Europe/Sofia'));
+      // No date: every transaction, including history imported later, is added on top.
+      expect(business.cashBalanceDate).toBeNull();
     });
 
     it('lists what is missing when the draft is incomplete, and creates nothing', async () => {

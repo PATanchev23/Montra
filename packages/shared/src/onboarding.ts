@@ -60,9 +60,10 @@ export const financialPreferencesSchema = z.object({
     .nullable()
     .optional(),
   /**
-   * Cash in the business's bank accounts today; negative if overdrawn. It is
-   * recorded as of the day setup finishes, and forecasts start from it. Null
-   * or omitted: not given (it can be entered later, on Cash flow).
+   * The starting balance: cash in the business's bank accounts before its
+   * first transaction; negative if overdrawn. Every transaction is added on
+   * top of it, so today's balance follows from the records. Null or omitted:
+   * not given (it can be entered later, on Cash flow).
    */
   bankBalanceCents: z
     .int('Enter a whole amount in cents.')
